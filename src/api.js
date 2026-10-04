@@ -21,8 +21,8 @@ export const thumbnailUrl = (id, size = 'thumbnail') => url(`/api/assets/${id}/t
 export const faceUrl = (id) => url(`/api/people/${id}/face`)
 export const fileUrl = (fileId) => generateUrl('/f/' + fileId)
 
-export async function search({ q = '', page = 1, person = '', type = '' }, signal) {
-	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type }, signal })
+export async function search({ q = '', page = 1, person = '', type = '', literal = false }, signal) {
+	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0 }, signal })
 	return data
 }
 

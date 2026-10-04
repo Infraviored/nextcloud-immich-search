@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace OCA\ImmichSearch\Service;
 
+use OCA\ImmichSearch\AppInfo\Application;
+use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
 use OCP\Files\SimpleFS\ISimpleFolder;
@@ -29,6 +31,8 @@ use Psr\Log\LoggerInterface;
  *   {"updated": 1730000000, "people": {"<personId>": {"count": 12, "asset": "<assetId>"}}}
  */
 class PeopleIndex {
+	private IAppData $appData;
+
 	private const FOLDER = 'people';
 	private const PAGE = 1000;
 
@@ -37,9 +41,11 @@ class PeopleIndex {
 		private Config $config,
 		private AssetSearch $assets,
 		private IUserManager $users,
-		private IAppData $appData,
+		IAppDataFactory $appDataFactory,
 		private LoggerInterface $logger,
 	) {
+		// Via the factory: search providers are built outside the app's DI container.
+		$this->appData = $appDataFactory->get(Application::APP_ID);
 	}
 
 	/** Rebuild for all enabled users. Returns [persons scanned, seconds]. */

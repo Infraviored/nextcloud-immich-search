@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace OCA\ImmichSearch\Service;
 
+use OCA\ImmichSearch\AppInfo\Application;
+use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
 use OCP\Files\SimpleFS\ISimpleFolder;
@@ -21,6 +23,8 @@ use OCP\Files\SimpleFS\ISimpleFolder;
  * user. Cached in app data by person and picture.
  */
 class FaceCropper {
+	private IAppData $appData;
+
 	private const FOLDER = 'faces';
 	private const SIZE = 256;
 	/** Extra room around the detected box, as a share of its size. */
@@ -28,8 +32,10 @@ class FaceCropper {
 
 	public function __construct(
 		private ImmichClient $immich,
-		private IAppData $appData,
+		IAppDataFactory $appDataFactory,
 	) {
+		// Via the factory: search providers are built outside the app's DI container.
+		$this->appData = $appDataFactory->get(Application::APP_ID);
 	}
 
 	/** @return string JPEG bytes */

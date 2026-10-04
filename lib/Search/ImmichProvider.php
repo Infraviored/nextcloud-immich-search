@@ -12,10 +12,12 @@ namespace OCA\ImmichSearch\Search;
 use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\AssetSearch;
 use OCA\ImmichSearch\Service\Config;
+use OCA\ImmichSearch\Service\PeopleNames;
 use OCA\ImmichSearch\Service\UserPrefs;
 use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
+use OCP\L10N\IFactory;
 use OCP\Search\IProvider;
 use OCP\Search\ISearchQuery;
 use OCP\Search\SearchResult;
@@ -29,14 +31,19 @@ use Psr\Log\LoggerInterface;
  * as the Files provider, so the Android app opens them in-app.
  */
 class ImmichProvider implements IProvider {
+	private IL10N $l;
+
 	public function __construct(
 		private AssetSearch $search,
 		private Config $config,
 		private UserPrefs $prefs,
+		private PeopleNames $names,
 		private IURLGenerator $url,
-		private IL10N $l,
+		IFactory $l10nFactory,
 		private LoggerInterface $logger,
 	) {
+		// The app's translations, also when built outside the app's DI container.
+		$this->l = $l10nFactory->get(Application::APP_ID);
 	}
 
 	public function getId(): string {
@@ -74,7 +81,9 @@ class ImmichProvider implements IProvider {
 		// (AssetSearch skips hits the user may not see), so it is not an offset.
 		$page = max(1, (int)$query->getCursor());
 		try {
-			$res = $this->search->search($uid, $term, $page, max(1, $query->getLimit()));
+			// "Tara beach": Tara's pictures, ranked by "beach"
+			[$person, $text] = $this->names->split($uid, $term);
+			$res = $this->search->search($uid, $text, $page, max(1, $query->getLimit()), $person ?? '');
 		} catch (\Throwable $e) {
 			// Immich or its machine-learning container down: no results, no error page.
 			$this->logger->info('Photo search (unified search): ' . $e->getMessage(), ['app' => Application::APP_ID]);

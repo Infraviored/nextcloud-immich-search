@@ -62,6 +62,16 @@
 			@move="doTransfer('move')"
 			@copy="doTransfer('copy')" />
 		<p v-else class="search__status" aria-live="polite">
+			<template v-if="resolved">
+				{{ resolved.rest
+					? t('Pictures of {name} matching “{text}”', { name: resolved.name, text: resolved.rest })
+					: t('Pictures of {name}', { name: resolved.name }) }}
+				·
+				<NcButton variant="tertiary-no-background" size="small" @click="run(true, true)">
+					{{ t('Search the words instead') }}
+				</NcButton>
+				<br>
+			</template>
 			{{ status }}
 		</p>
 
@@ -81,6 +91,7 @@
 <script setup>
 import { mdiAlertCircleOutline, mdiImageOffOutline, mdiImageSearchOutline, mdiMagnify } from '@mdi/js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
@@ -118,6 +129,9 @@ const nextPage = ref(null)
 const loading = ref(false)
 const error = ref('')
 const searched = ref(false)
+/** Person recognized in the text by the server ("Tara beach"), and whether to skip that. */
+const resolved = ref(null)
+const literal = ref(false)
 const sentinel = ref(null)
 const { busy: transferBusy, run: runTransfer } = useTransfer()
 let controller = null
@@ -155,8 +169,14 @@ const emptyState = computed(() => {
 	return null
 })
 
-async function run(reset) {
+/**
+ * @param {boolean} reset start a new search
+ * @param {boolean} asText do not turn a person's name in the text into a person filter
+ */
+async function run(reset, asText = false) {
 	if (reset) {
+		literal.value = asText
+		resolved.value = null
 		controller?.abort()
 		controller = null
 		items.value = []
@@ -179,10 +199,11 @@ async function run(reset) {
 	const ctrl = controller = new AbortController()
 	loading.value = true
 	try {
-		const res = await search({ q: q.value.trim(), page: nextPage.value, person: personId.value, type: type.value }, ctrl.signal)
+		const res = await search({ q: q.value.trim(), page: nextPage.value, person: personId.value, type: type.value, literal: literal.value }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}
+		resolved.value = res.person ?? null
 		items.value.push(...res.items)
 		nextPage.value = res.nextPage
 		searched.value = true

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\ImmichSearch\AppInfo;
 
 use OCA\ImmichSearch\Search\ImmichProvider;
+use OCA\ImmichSearch\Search\PeopleProvider;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -25,6 +26,7 @@ class Application extends App implements IBootstrap {
 	public function register(IRegistrationContext $context): void {
 		// Global search bar on every page, and the search in the Android app.
 		$context->registerSearchProvider(ImmichProvider::class);
+		$context->registerSearchProvider(PeopleProvider::class);
 	}
 
 	public function boot(IBootContext $context): void {

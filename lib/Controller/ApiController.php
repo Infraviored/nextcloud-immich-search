@@ -14,6 +14,7 @@ use OCA\ImmichSearch\Service\AssetSearch;
 use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\ImmichClient;
 use OCA\ImmichSearch\Service\ImmichException;
+use OCA\ImmichSearch\Service\PeopleNames;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -35,6 +36,7 @@ class ApiController extends Controller {
 		private IUserSession $userSession,
 		private Config $config,
 		private AssetSearch $search,
+		private PeopleNames $names,
 		private ImmichClient $immich,
 		private IL10N $l,
 		private LoggerInterface $logger,
@@ -43,14 +45,27 @@ class ApiController extends Controller {
 	}
 
 	#[NoAdminRequired]
-	public function search(string $q = '', int $page = 1, string $person = '', string $type = ''): JSONResponse {
+	/**
+	 * @param bool $literal take $q as it is; otherwise a person's name at its start or end
+	 *                      becomes the person filter ("Tara beach" = Tara + "beach")
+	 */
+	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false): JSONResponse {
 		$q = trim($q);
 		if ($q === '' && $person === '') {
 			return new JSONResponse(['items' => [], 'nextPage' => null]);
 		}
-		return $this->guard(fn () => new JSONResponse(
-			$this->search->search($this->uid(), $q, $page, self::PAGE_SIZE, $person, $type)
-		));
+		return $this->guard(function () use ($q, $page, $person, $type, $literal) {
+			$uid = $this->uid();
+			$resolved = null;
+			if ($person === '' && !$literal) {
+				[$found, $rest] = $this->names->split($uid, $q);
+				if ($found !== null) {
+					$resolved = ['id' => $found, 'name' => $this->names->visible($uid)[$found]['name'], 'rest' => $rest];
+					[$person, $q] = [$found, $rest];
+				}
+			}
+			return new JSONResponse($this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type) + ['person' => $resolved]);
+		});
 	}
 
 	/**
