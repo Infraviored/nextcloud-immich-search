@@ -41,6 +41,26 @@
 
         <NcAppContent :page-heading="t('Photo search')">
             <div class="content">
+                <nav v-if="page.configured" class="tabs" :aria-label="t('Photo search')">
+                    <NcButton :variant="route.name === 'search' ? 'primary' : 'tertiary'" :href="href('/')" @click.prevent="navigate('/')">
+                        <template #icon>
+                            <NcIconSvgWrapper :path="mdiImageSearchOutline" />
+                        </template>
+                        {{ t('Search') }}
+                    </NcButton>
+                    <NcButton :variant="route.name === 'search' ? 'tertiary' : 'primary'" :href="href('/people')" @click.prevent="navigate('/people')">
+                        <template #icon>
+                            <NcIconSvgWrapper :path="mdiAccountMultipleOutline" />
+                        </template>
+                        {{ t('People') }}
+                    </NcButton>
+                    <span class="tabs__spacer" />
+                    <NcButton variant="tertiary" :aria-label="t('Settings')" :title="t('Settings')" @click="settingsOpen = true">
+                        <template #icon>
+                            <NcIconSvgWrapper :path="mdiCogOutline" />
+                        </template>
+                    </NcButton>
+                </nav>
                 <NcEmptyContent v-if="!page.configured"
                     :name="t('Photo search is not set up yet')"
                     :description="page.isAdmin ? t('Connect it to Immich in the settings.') : t('Ask an admin to connect it to Immich.')">
@@ -105,6 +125,15 @@ onMounted(() => {
 // On narrow screens it sits above the content instead.
 @media (max-width: 1024px) {
     .content { padding-top: 48px; }
+}
+
+.tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 14px;
+
+    &__spacer { flex: 1; }
 }
 
 .nav-face {
