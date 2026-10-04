@@ -22,6 +22,7 @@ return [
 
 		['name' => 'api#search',          'url' => '/api/search',                'verb' => 'GET'],
 		['name' => 'api#thumbnail',       'url' => '/api/assets/{id}/thumbnail', 'verb' => 'GET'],
+		['name' => 'api#assetForFile', 'url' => '/api/files/{fileId}/asset', 'verb' => 'GET'],
 
 		['name' => 'browse#timeline', 'url' => '/api/timeline', 'verb' => 'GET'],
 		['name' => 'browse#memories', 'url' => '/api/memories', 'verb' => 'GET'],

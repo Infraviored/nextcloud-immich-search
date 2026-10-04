@@ -102,6 +102,18 @@ class ApiController extends Controller {
 		});
 	}
 
+	/** The Immich side of a Nextcloud file (Files app integration). */
+	#[NoAdminRequired]
+	public function assetForFile(int $fileId): JSONResponse {
+		return $this->guard(function () use ($fileId) {
+			$item = $this->search->assetForFile($this->uid(), $fileId);
+			if ($item === null) {
+				throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
+			}
+			return new JSONResponse($item);
+		});
+	}
+
 	/** Leave out what the user marked private, unless unlocked. */
 	private function private(string $uid, array $res): array {
 		$res['items'] = $this->privateArea->filter($uid, $res['items']);

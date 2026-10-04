@@ -11,8 +11,8 @@ namespace OCA\ImmichSearch\BackgroundJob;
 
 use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\MapIndex;
-use OCA\ImmichSearch\Service\PrivateArea;
 use OCA\ImmichSearch\Service\PeopleIndex;
+use OCA\ImmichSearch\Service\PrivateArea;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\BackgroundJob\TimedJob;

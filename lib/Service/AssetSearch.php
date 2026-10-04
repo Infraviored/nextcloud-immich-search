@@ -118,6 +118,23 @@ class AssetSearch {
 		return ['items' => $items, 'nextPage' => $next];
 	}
 
+	/**
+	 * The Immich asset of a Nextcloud file the user can reach: back from the file to the
+	 * owner's path, then to the path Immich sees (the reverse of nodeFor()).
+	 */
+	public function assetForFile(string $uid, int $fileId): ?array {
+		$node = $this->userFolder($uid)?->getFirstNodeById($fileId);
+		$owner = $node?->getOwner()?->getUID();
+		$ownerNode = $owner !== null ? $this->userFolder($owner)?->getFirstNodeById($fileId) : null;
+		if ($ownerNode === null) {
+			return null;
+		}
+		$rel = ltrim($this->userFolder($owner)->getRelativePath($ownerNode->getPath()), '/');
+		$path = str_replace(Config::USER_PLACEHOLDER, $owner, $this->config->getPathPattern()) . $rel;
+		$hit = $this->immich->json('POST', '/search/metadata', ['originalPath' => $path, 'size' => 1])['assets']['items'][0] ?? null;
+		return $hit !== null && ($hit['originalPath'] ?? '') === $path ? $this->visibleItem($uid, $hit) : null;
+	}
+
 	/** May $uid see this asset? Asks Immich for its path if the user has not been shown it yet. */
 	public function maySee(string $uid, string $assetId): bool {
 		if ($this->grants->get($uid . '/' . $assetId) !== null) {

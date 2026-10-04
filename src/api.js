@@ -162,3 +162,7 @@ export async function reassignFace(faceId, assetId, { personId = '', newName = '
 export async function deleteFace(faceId, assetId) {
 	return (await axios.delete(url(`/api/faces/${faceId}`), { params: { assetId } })).data
 }
+
+export async function assetForFile(fileId) {
+	return (await axios.get(url(`/api/files/${fileId}/asset`))).data
+}

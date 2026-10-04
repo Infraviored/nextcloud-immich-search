@@ -129,6 +129,11 @@
 				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + privateState.version" />
 				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + privateState.version" />
 				<SettingsView v-else-if="route.name === 'settings'" />
+				<!-- Opened from the Files sidebar: ?faces=<assetId>&name=<file name> -->
+				<FacesDialog
+					v-if="route.query.faces"
+					:item="{ id: route.query.faces, name: route.query.name || '' }"
+					@close="replaceQuery({})" />
 			</div>
 		</NcAppContent>
 	</NcContent>
@@ -145,6 +150,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
+import FacesDialog from './components/FacesDialog.vue'
 import DuplicatesView from './views/DuplicatesView.vue'
 import FolderView from './views/FolderView.vue'
 import MapView from './views/MapView.vue'
@@ -158,7 +164,7 @@ import { t } from './l10n.js'
 import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
-import { href, navigate, route } from './router.js'
+import { href, navigate, replaceQuery, route } from './router.js'
 
 const page = loadState('immich_search', 'page', { configured: false, isAdmin: false })
 

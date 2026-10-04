@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace OCA\ImmichSearch\AppInfo;
 
+use OCA\ImmichSearch\Dashboard\MemoriesWidget;
+use OCA\ImmichSearch\Listener\LoadFilesScripts;
 use OCA\ImmichSearch\Search\ImmichProvider;
 use OCA\ImmichSearch\Search\PeopleProvider;
 use OCP\AppFramework\App;
@@ -27,6 +29,10 @@ class Application extends App implements IBootstrap {
 		// Global search bar on every page, and the search in the Android app.
 		$context->registerSearchProvider(ImmichProvider::class);
 		$context->registerSearchProvider(PeopleProvider::class);
+		$context->registerDashboardWidget(MemoriesWidget::class);
+		// Files app: "similar pictures" action and the sidebar tab
+		$context->registerEventListener(\OCA\Files\Event\LoadAdditionalScriptsEvent::class, LoadFilesScripts::class);
+		$context->registerEventListener(\OCA\Files\Event\LoadSidebar::class, LoadFilesScripts::class);
 	}
 
 	public function boot(IBootContext $context): void {
