@@ -11,8 +11,22 @@ APPS_DIR=${APPS_DIR:-/var/www/html/custom_apps}
 TARGET=$APPS_DIR/immich_search
 occ() { docker exec -u www-data "$CONTAINER" php occ "$@"; }
 
+make -s build >/dev/null
+
+# Browsers cache the app's scripts by version. If the built frontend changed but the
+# version did not, bump the patch version, or users keep seeing the old interface.
+stamp=$(cat js/*.mjs l10n/*.js templates/*.php 2>/dev/null | sha256sum | cut -c1-16)
+version=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
+last=$(cat build/.deployed 2>/dev/null || true)
+if [ -n "$last" ] && [ "${last% *}" = "$version" ] && [ "${last#* }" != "$stamp" ]; then
+    bumped=$(echo "$version" | awk -F. '{ $NF++; print }' OFS=.)
+    sed -i "s:<version>$version</version>:<version>$bumped</version>:" appinfo/info.xml
+    echo "frontend changed: version $version -> $bumped"
+    version=$bumped
+fi
+
 make -s dist >/dev/null
-tarball=$(ls -t build/immich_search-*.tar.gz | head -1)
+tarball=build/immich_search-$version.tar.gz
 
 docker exec "$CONTAINER" rm -rf "$TARGET.new"
 docker exec -i "$CONTAINER" sh -c "mkdir $TARGET.new && tar -xzf - -C $TARGET.new --strip-components=1" < "$tarball"
@@ -27,4 +41,5 @@ if [ "$enabled" != "yes" ]; then
 elif [ "$new" != "$old" ]; then
     occ upgrade --no-interaction >/dev/null 2>&1
 fi
+mkdir -p build && echo "$version $stamp" > build/.deployed
 echo "immich_search $(occ config:app:get immich_search installed_version) active"

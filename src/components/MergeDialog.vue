@@ -1,22 +1,34 @@
+<!--
+  - SPDX-FileCopyrightText: 2026 Florian Schneider
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 <template>
-    <NcDialog :name="t('Merge people')" size="normal" :buttons="buttons" @closing="$emit('close')">
-        <p>{{ t('Which one stays? The others are merged into it, with all their pictures. This cannot be undone.') }}</p>
-        <div class="merge__list">
-            <NcCheckboxRadioSwitch v-for="p in people"
-                :key="p.id"
-                v-model="targetId"
-                type="radio"
-                :value="p.id"
-                name="merge-target">
-                <span class="merge__option">
-                    <img :src="faceUrl(p.id)" alt="">
-                    {{ p.name || t('Unnamed') }} · {{ n('{count} picture', '{count} pictures', p.count, { count: p.count }) }}
-                </span>
-            </NcCheckboxRadioSwitch>
-        </div>
-        <NcTextField v-model="name" :label="t('Name')" />
-        <p v-if="error" class="merge__error">{{ error }}</p>
-    </NcDialog>
+	<NcDialog
+		:name="t('Merge people')"
+		size="normal"
+		:buttons="buttons"
+		@closing="$emit('close')">
+		<p>{{ t('Which one stays? The others are merged into it, with all their pictures. This cannot be undone.') }}</p>
+		<div class="merge__list">
+			<NcCheckboxRadioSwitch
+				v-for="p in people"
+				:key="p.id"
+				v-model="targetId"
+				type="radio"
+				:value="p.id"
+				name="merge-target">
+				<span class="merge__option">
+					<img :src="faceUrl(p.id)" alt="">
+					{{ p.name || t('Unnamed') }} · {{ n('{count} picture', '{count} pictures', p.count, { count: p.count }) }}
+				</span>
+			</NcCheckboxRadioSwitch>
+		</div>
+		<NcTextField v-model="name" :label="t('Name')" />
+		<p v-if="error" class="merge__error">
+			{{ error }}
+		</p>
+	</NcDialog>
 </template>
 
 <script setup>
@@ -28,7 +40,7 @@ import { errorMessage, faceUrl, mergePeople, updatePerson } from '../api.js'
 import { n, t } from '../l10n.js'
 
 const props = defineProps({
-    people: { type: Array, required: true },
+	people: { type: Array, required: true },
 })
 const emit = defineEmits(['close', 'merged'])
 
@@ -40,31 +52,39 @@ const busy = ref(false)
 const error = ref('')
 
 watch(targetId, (id) => {
-    const p = props.people.find((x) => x.id === id)
-    if (p?.name) name.value = p.name
+	const p = props.people.find((x) => x.id === id)
+	if (p?.name) {
+		name.value = p.name
+	}
 })
 
 const buttons = computed(() => [
-    { label: t('Cancel'), callback: () => emit('close') },
-    { label: t('Merge'), variant: 'primary', disabled: busy.value, callback: () => { merge(); return false } },
+	{ label: t('Cancel'), callback: () => emit('close') },
+	{ label: t('Merge'), variant: 'primary', disabled: busy.value, callback: () => {
+		merge()
+		return false
+	} },
 ])
 
+/**
+ *
+ */
 async function merge() {
-    busy.value = true
-    error.value = ''
-    try {
-        const others = props.people.map((p) => p.id).filter((id) => id !== targetId.value)
-        await mergePeople(targetId.value, others)
-        const target = props.people.find((p) => p.id === targetId.value)
-        if (name.value.trim() !== (target?.name ?? '')) {
-            await updatePerson(targetId.value, { name: name.value.trim() })
-        }
-        emit('merged', targetId.value)
-    } catch (e) {
-        error.value = errorMessage(e)
-    } finally {
-        busy.value = false
-    }
+	busy.value = true
+	error.value = ''
+	try {
+		const others = props.people.map((p) => p.id).filter((id) => id !== targetId.value)
+		await mergePeople(targetId.value, others)
+		const target = props.people.find((p) => p.id === targetId.value)
+		if (name.value.trim() !== (target?.name ?? '')) {
+			await updatePerson(targetId.value, { name: name.value.trim() })
+		}
+		emit('merged', targetId.value)
+	} catch (e) {
+		error.value = errorMessage(e)
+	} finally {
+		busy.value = false
+	}
 }
 </script>
 

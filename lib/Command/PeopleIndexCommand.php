@@ -1,4 +1,10 @@
 <?php
+
+/**
+ * SPDX-FileCopyrightText: 2026 Florian Schneider
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 declare(strict_types=1);
 
 namespace OCA\ImmichSearch\Command;
@@ -10,20 +16,20 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /** occ immich_search:people-index — rebuild now instead of waiting for the hourly job. */
 class PeopleIndexCommand extends Command {
-    public function __construct(
-        private PeopleIndex $index,
-    ) {
-        parent::__construct();
-    }
+	public function __construct(
+		private PeopleIndex $index,
+	) {
+		parent::__construct();
+	}
 
-    protected function configure(): void {
-        $this->setName('immich_search:people-index')
-            ->setDescription('Rebuild which people each user may see (normally hourly in the background)');
-    }
+	protected function configure(): void {
+		$this->setName('immich_search:people-index')
+			->setDescription('Rebuild which people each user may see (normally hourly in the background)');
+	}
 
-    protected function execute(InputInterface $input, OutputInterface $output): int {
-        [$people, $secs] = $this->index->rebuild();
-        $output->writeln("$people people checked in {$secs}s");
-        return self::SUCCESS;
-    }
+	protected function execute(InputInterface $input, OutputInterface $output): int {
+		[$people, $secs] = $this->index->rebuild();
+		$output->writeln("$people people checked in {$secs}s");
+		return self::SUCCESS;
+	}
 }

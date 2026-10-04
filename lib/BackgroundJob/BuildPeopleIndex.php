@@ -1,4 +1,10 @@
 <?php
+
+/**
+ * SPDX-FileCopyrightText: 2026 Florian Schneider
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 declare(strict_types=1);
 
 namespace OCA\ImmichSearch\BackgroundJob;
@@ -11,20 +17,20 @@ use OCP\BackgroundJob\TimedJob;
 
 /** Hourly: who may see which person (see PeopleIndex). New faces arrive with Immich's library scans. */
 class BuildPeopleIndex extends TimedJob {
-    public function __construct(
-        ITimeFactory $time,
-        private Config $config,
-        private PeopleIndex $index,
-    ) {
-        parent::__construct($time);
-        $this->setInterval(3600);
-        $this->setTimeSensitivity(IJob::TIME_INSENSITIVE);
-        $this->setAllowParallelRuns(false);
-    }
+	public function __construct(
+		ITimeFactory $time,
+		private Config $config,
+		private PeopleIndex $index,
+	) {
+		parent::__construct($time);
+		$this->setInterval(3600);
+		$this->setTimeSensitivity(IJob::TIME_INSENSITIVE);
+		$this->setAllowParallelRuns(false);
+	}
 
-    protected function run($argument): void {
-        if ($this->config->isConfigured()) {
-            $this->index->rebuild();
-        }
-    }
+	protected function run($argument): void {
+		if ($this->config->isConfigured()) {
+			$this->index->rebuild();
+		}
+	}
 }

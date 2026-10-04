@@ -1,4 +1,10 @@
 <?php
+
+/**
+ * SPDX-FileCopyrightText: 2026 Florian Schneider
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 declare(strict_types=1);
 
 namespace OCA\ImmichSearch\AppInfo;
@@ -10,17 +16,17 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 
 class Application extends App implements IBootstrap {
-    public const APP_ID = 'immich_search';
+	public const APP_ID = 'immich_search';
 
-    public function __construct() {
-        parent::__construct(self::APP_ID);
-    }
+	public function __construct() {
+		parent::__construct(self::APP_ID);
+	}
 
-    public function register(IRegistrationContext $context): void {
-        // Global search bar on every page, and the search in the Android app.
-        $context->registerSearchProvider(ImmichProvider::class);
-    }
+	public function register(IRegistrationContext $context): void {
+		// Global search bar on every page, and the search in the Android app.
+		$context->registerSearchProvider(ImmichProvider::class);
+	}
 
-    public function boot(IBootContext $context): void {
-    }
+	public function boot(IBootContext $context): void {
+	}
 }

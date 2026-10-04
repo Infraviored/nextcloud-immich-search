@@ -1,127 +1,174 @@
 <!--
+  - SPDX-FileCopyrightText: 2026 Florian Schneider
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
+<!--
   Grid of search hits with multi-select.
     mouse:  checkbox on hover; once something is selected, a click toggles; shift-click selects a range
     touch:  long-press selects; once something is selected, a tap toggles
   Otherwise a click opens the file (event "open").
 -->
 <template>
-    <div class="grid" :class="'grid--' + prefs.tileSize" role="list">
-        <div v-for="(item, index) in items"
-            :key="item.id"
-            class="tile"
-            :class="{ 'tile--selected': selected.has(item.fileId) }"
-            role="listitem">
-            <button class="tile__open"
-                type="button"
-                :title="tooltip(item)"
-                :aria-label="t('Open {name}', { name: item.name })"
-                :aria-pressed="selecting ? selected.has(item.fileId) : undefined"
-                @click="onClick(item, index, $event)"
-                @contextmenu="onContextMenu($event)"
-                @touchstart.passive="onTouchStart(item, index)"
-                @touchmove.passive="cancelPress"
-                @touchend="onTouchEnd($event)">
-                <img :src="thumbnailUrl(item.id)" alt="" loading="lazy" decoding="async">
-                <span v-if="item.type === 'VIDEO'" class="tile__play" aria-hidden="true">
-                    <NcIconSvgWrapper :path="mdiPlay" :size="28" />
-                </span>
-            </button>
-            <button class="tile__check"
-                type="button"
-                :aria-label="selected.has(item.fileId) ? t('Deselect') : t('Select')"
-                @click.stop="toggle(item, index, $event.shiftKey)">
-                <NcIconSvgWrapper :path="selected.has(item.fileId) ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
-            </button>
-            <a class="tile__folder" :href="fileUrl(item.fileId)" :title="t('Show in folder')" :aria-label="t('Show in folder')" @click.stop>
-                <NcIconSvgWrapper :path="mdiFolderOutline" :size="18" />
-            </a>
-        </div>
-    </div>
+	<div class="grid" :class="'grid--' + prefs.tileSize" role="list">
+		<div
+			v-for="(item, index) in items"
+			:key="item.id"
+			class="tile"
+			:class="{ 'tile--selected': selected.has(item.fileId) }"
+			role="listitem">
+			<button
+				class="tile__open"
+				type="button"
+				:title="tooltip(item)"
+				:aria-label="t('Open {name}', { name: item.name })"
+				:aria-pressed="selecting ? selected.has(item.fileId) : undefined"
+				@click="onClick(item, index, $event)"
+				@contextmenu="onContextMenu($event)"
+				@touchstart.passive="onTouchStart(item, index)"
+				@touchmove.passive="cancelPress"
+				@touchend="onTouchEnd($event)">
+				<img
+					:src="thumbnailUrl(item.id)"
+					alt=""
+					loading="lazy"
+					decoding="async">
+				<span v-if="item.type === 'VIDEO'" class="tile__play" aria-hidden="true">
+					<NcIconSvgWrapper :path="mdiPlay" :size="28" />
+				</span>
+			</button>
+			<button
+				class="tile__check"
+				type="button"
+				:aria-label="selected.has(item.fileId) ? t('Deselect') : t('Select')"
+				@click.stop="toggle(item, index, $event.shiftKey)">
+				<NcIconSvgWrapper :path="selected.has(item.fileId) ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
+			</button>
+			<a
+				class="tile__folder"
+				:href="fileUrl(item.fileId)"
+				:title="t('Show in folder')"
+				:aria-label="t('Show in folder')"
+				@click.stop>
+				<NcIconSvgWrapper :path="mdiFolderOutline" :size="18" />
+			</a>
+		</div>
+	</div>
 </template>
 
 <script setup>
+import { mdiCheckboxBlankCircleOutline, mdiCheckCircle, mdiFolderOutline, mdiPlay } from '@mdi/js'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
-import { mdiCheckCircle, mdiCheckboxBlankCircleOutline, mdiFolderOutline, mdiPlay } from '@mdi/js'
 import { fileUrl, thumbnailUrl } from '../api.js'
 import { t } from '../l10n.js'
 import { prefs } from '../prefs.js'
-
-const LONG_PRESS_MS = 450
+import { toggleSelection } from '../selection.js'
 
 const props = defineProps({
-    items: { type: Array, required: true },
-    /** Set of selected file ids; the parent owns it. */
-    selected: { type: Set, required: true },
+	items: { type: Array, required: true },
+	/** Set of selected file ids; the parent owns it. */
+	selected: { type: Set, required: true },
 })
+
 const emit = defineEmits(['open', 'update:selected'])
+
+const LONG_PRESS_MS = 450
 
 const selecting = computed(() => props.selected.size > 0)
 let lastIndex = null
 let pressTimer = null
 let pressed = false
 
+/**
+ *
+ * @param item
+ */
 function tooltip(item) {
-    const date = item.date ? new Date(item.date).toLocaleDateString() : ''
-    return [date, item.path].filter(Boolean).join('\n')
+	const date = item.date ? new Date(item.date).toLocaleDateString() : ''
+	return [date, item.path].filter(Boolean).join('\n')
 }
 
+/**
+ *
+ * @param item
+ * @param index
+ * @param range
+ */
 function toggle(item, index, range) {
-    const next = new Set(props.selected)
-    if (range && lastIndex !== null) {
-        const [from, to] = [Math.min(lastIndex, index), Math.max(lastIndex, index)]
-        props.items.slice(from, to + 1).forEach((i) => next.add(i.fileId))
-    } else if (next.has(item.fileId)) {
-        next.delete(item.fileId)
-    } else {
-        next.add(item.fileId)
-    }
-    lastIndex = index
-    emit('update:selected', next)
+	const next = toggleSelection(props.selected, props.items, index, lastIndex, range)
+	lastIndex = index
+	emit('update:selected', next)
 }
 
+/**
+ *
+ * @param item
+ * @param index
+ * @param event
+ */
 function onClick(item, index, event) {
-    if (pressed) {
-        pressed = false // the long-press already selected it
-        return
-    }
-    if (selecting.value || event.shiftKey || event.ctrlKey || event.metaKey) {
-        toggle(item, index, event.shiftKey)
-    } else {
-        emit('open', item, index)
-    }
+	if (pressed) {
+		pressed = false // the long-press already selected it
+		return
+	}
+	if (selecting.value || event.shiftKey || event.ctrlKey || event.metaKey) {
+		toggle(item, index, event.shiftKey)
+	} else {
+		emit('open', item, index)
+	}
 }
 
+/**
+ *
+ * @param item
+ * @param index
+ */
 function onTouchStart(item, index) {
-    pressed = false
-    pressTimer = window.setTimeout(() => {
-        pressed = true
-        toggle(item, index, false)
-        window.navigator.vibrate?.(20)
-    }, LONG_PRESS_MS)
+	pressed = false
+	pressTimer = window.setTimeout(() => {
+		pressed = true
+		toggle(item, index, false)
+		window.navigator.vibrate?.(20)
+	}, LONG_PRESS_MS)
 }
 
+/**
+ *
+ */
 function cancelPress() {
-    window.clearTimeout(pressTimer)
+	window.clearTimeout(pressTimer)
 }
 
+/**
+ *
+ * @param event
+ */
 function onTouchEnd(event) {
-    cancelPress()
-    if (pressed) {
-        event.preventDefault() // no click, no context menu after a long-press
-    }
+	cancelPress()
+	if (pressed) {
+		event.preventDefault() // no click, no context menu after a long-press
+	}
 }
 
+/**
+ *
+ * @param event
+ */
 function onContextMenu(event) {
-    if (pressed) {
-        event.preventDefault()
-    }
+	if (pressed) {
+		event.preventDefault()
+	}
 }
 
+/**
+ *
+ * @param event
+ */
 function onKey(event) {
-    if (event.key === 'Escape' && selecting.value && !document.querySelector('.viewer, .modal-mask')) {
-        emit('update:selected', new Set())
-    }
+	if (event.key === 'Escape' && selecting.value && !document.querySelector('.viewer, .modal-mask')) {
+		emit('update:selected', new Set())
+	}
 }
 
 onMounted(() => document.addEventListener('keydown', onKey))

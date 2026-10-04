@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: 2026 Florian Schneider
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Tag vX.Y.Z (matching <version> in appinfo/info.xml) -> GitHub release with the
+# installable tarball (unpack into custom_apps/).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Tag matches info.xml
+        run: |
+          v=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "info.xml says $v, tag is $GITHUB_REF_NAME"; exit 1; }
+      - run: npm ci
+      - run: make dist
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/immich_search-*.tar.gz \
+            --title "$GITHUB_REF_NAME" --notes-file <(awk "/^## \\[${GITHUB_REF_NAME#v}\\]/{f=1;next} /^## \\[/{f=0} f" CHANGELOG.md)

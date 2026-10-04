@@ -1,42 +1,58 @@
+<!--
+  - SPDX-FileCopyrightText: 2026 Florian Schneider
+  - SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 <template>
-    <div class="person" :class="{ 'person--selected': selected, 'person--hidden': person.hidden }">
-        <a class="person__link" :href="href" @click="onClick">
-            <img class="person__face" :src="faceUrl(person.id)" alt="" loading="lazy">
-            <span class="person__name" :class="{ 'person__name--unnamed': !person.name }">
-                {{ person.name || t('Unnamed') }}
-            </span>
-            <span class="person__count">{{ n('{count} picture', '{count} pictures', person.count, { count: person.count }) }}</span>
-        </a>
-        <button v-if="selectable"
-            class="person__check"
-            type="button"
-            :aria-label="selected ? t('Deselect') : t('Select')"
-            @click="$emit('toggle')">
-            <NcIconSvgWrapper :path="selected ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
-        </button>
-    </div>
+	<div class="person" :class="{ 'person--selected': selected, 'person--hidden': person.hidden }">
+		<a class="person__link" :href="href" @click="onClick">
+			<img
+				class="person__face"
+				:src="faceUrl(person.id)"
+				alt=""
+				loading="lazy">
+			<span class="person__name" :class="{ 'person__name--unnamed': !person.name }">
+				{{ person.name || t('Unnamed') }}
+			</span>
+			<span class="person__count">{{ n('{count} picture', '{count} pictures', person.count, { count: person.count }) }}</span>
+		</a>
+		<button
+			v-if="selectable"
+			class="person__check"
+			type="button"
+			:aria-label="selected ? t('Deselect') : t('Select')"
+			@click="$emit('toggle')">
+			<NcIconSvgWrapper :path="selected ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
+		</button>
+	</div>
 </template>
 
 <script setup>
+import { mdiCheckboxBlankCircleOutline, mdiCheckCircle } from '@mdi/js'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
-import { mdiCheckCircle, mdiCheckboxBlankCircleOutline } from '@mdi/js'
 import { faceUrl } from '../api.js'
 import { n, t } from '../l10n.js'
 
 const props = defineProps({
-    person: { type: Object, required: true },
-    href: { type: String, required: true },
-    selectable: { type: Boolean, default: false },
-    selected: { type: Boolean, default: false },
-    /** In selection mode a click selects instead of opening. */
-    selecting: { type: Boolean, default: false },
+	person: { type: Object, required: true },
+	href: { type: String, required: true },
+	selectable: { type: Boolean, default: false },
+	selected: { type: Boolean, default: false },
+	/** In selection mode a click selects instead of opening. */
+	selecting: { type: Boolean, default: false },
 })
 const emit = defineEmits(['open', 'toggle'])
 
+/**
+ *
+ * @param event
+ */
 function onClick(event) {
-    if (event.ctrlKey || event.metaKey || event.button !== 0) return // new tab etc.
-    event.preventDefault()
-    emit(props.selecting ? 'toggle' : 'open')
+	if (event.ctrlKey || event.metaKey || event.button !== 0) { // new tab etc.
+		return
+	}
+	event.preventDefault()
+	emit(props.selecting ? 'toggle' : 'open')
 }
 </script>
 
