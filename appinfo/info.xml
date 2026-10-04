@@ -10,14 +10,17 @@ Find pictures in your Nextcloud by describing them: "woman on the beach", "dog i
 [Immich](https://immich.app) that indexes your Nextcloud files read-only.
 
 - **Everywhere you already search:** a "Photos by content" section in the unified search bar
-  and in the Nextcloud mobile apps, plus a dedicated page with person and photo/video filters.
+  and in the Nextcloud mobile apps, plus a dedicated app with person and photo/video filters.
+- **Sort in bulk:** select many results (long-press on touch) and move or copy them into a folder.
+- **People:** name, merge and hide the faces Immich found – everyone only sees people from
+  pictures they may open, with faces cut from those pictures.
 - **Opens the real file:** results are your Nextcloud files, shown in the Nextcloud viewer
   (videos play), with a jump to the containing folder.
 - **Nextcloud permissions decide:** one shared index, but every user only finds files they can
   open in Nextcloud themselves, their own and those shared with them. Thumbnails are checked too.
 - **No Immich account per user:** one service key, configured by the admin.
     ]]></description>
-    <version>1.2.0</version>
+    <version>2.0.3</version>
     <licence>agpl</licence>
     <author>Florian Schneider</author>
     <namespace>ImmichSearch</namespace>
@@ -27,8 +30,12 @@ Find pictures in your Nextcloud by describing them: "woman on the beach", "dog i
         <php min-version="8.1"/>
         <nextcloud min-version="30" max-version="35"/>
     </dependencies>
+    <background-jobs>
+        <job>OCA\ImmichSearch\BackgroundJob\BuildPeopleIndex</job>
+    </background-jobs>
     <commands>
         <command>OCA\ImmichSearch\Command\Configure</command>
+        <command>OCA\ImmichSearch\Command\PeopleIndexCommand</command>
     </commands>
     <settings>
         <admin>OCA\ImmichSearch\Settings\Admin</admin>

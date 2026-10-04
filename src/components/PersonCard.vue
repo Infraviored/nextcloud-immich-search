@@ -1,0 +1,106 @@
+<template>
+    <div class="person" :class="{ 'person--selected': selected, 'person--hidden': person.hidden }">
+        <a class="person__link" :href="href" @click="onClick">
+            <img class="person__face" :src="faceUrl(person.id)" alt="" loading="lazy">
+            <span class="person__name" :class="{ 'person__name--unnamed': !person.name }">
+                {{ person.name || t('Unnamed') }}
+            </span>
+            <span class="person__count">{{ n('{count} picture', '{count} pictures', person.count, { count: person.count }) }}</span>
+        </a>
+        <button v-if="selectable"
+            class="person__check"
+            type="button"
+            :aria-label="selected ? t('Deselect') : t('Select')"
+            @click="$emit('toggle')">
+            <NcIconSvgWrapper :path="selected ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
+        </button>
+    </div>
+</template>
+
+<script setup>
+import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
+import { mdiCheckCircle, mdiCheckboxBlankCircleOutline } from '@mdi/js'
+import { faceUrl } from '../api.js'
+import { n, t } from '../l10n.js'
+
+const props = defineProps({
+    person: { type: Object, required: true },
+    href: { type: String, required: true },
+    selectable: { type: Boolean, default: false },
+    selected: { type: Boolean, default: false },
+    /** In selection mode a click selects instead of opening. */
+    selecting: { type: Boolean, default: false },
+})
+const emit = defineEmits(['open', 'toggle'])
+
+function onClick(event) {
+    if (event.ctrlKey || event.metaKey || event.button !== 0) return // new tab etc.
+    event.preventDefault()
+    emit(props.selecting ? 'toggle' : 'open')
+}
+</script>
+
+<style scoped lang="scss">
+.person {
+    position: relative;
+
+    &__link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 10px 4px;
+        border-radius: var(--border-radius-large);
+        text-align: center;
+
+        &:hover, &:focus-visible { background: var(--color-background-hover); }
+    }
+
+    &__face {
+        width: 100%;
+        max-width: 128px;
+        aspect-ratio: 1;
+        margin-bottom: 6px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: var(--color-background-dark);
+    }
+
+    &__name {
+        max-width: 100%;
+        overflow: hidden;
+        font-weight: bold;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        &--unnamed { font-weight: normal; color: var(--color-text-maxcontrast); }
+    }
+
+    &__count {
+        font-size: var(--font-size-small, 13px);
+        color: var(--color-text-maxcontrast);
+    }
+
+    &__check {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        display: flex;
+        margin: 0;
+        padding: 4px;
+        border: 0;
+        border-radius: 50%;
+        min-height: 0;
+        background: var(--color-main-background);
+        color: var(--color-text-maxcontrast);
+        cursor: pointer;
+    }
+
+    &--selected {
+        .person__face { outline: 3px solid var(--color-primary-element); outline-offset: 2px; }
+        .person__check { color: var(--color-primary-element); }
+    }
+
+    &--hidden .person__face { opacity: 0.45; }
+}
+</style>

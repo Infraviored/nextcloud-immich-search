@@ -18,13 +18,14 @@ class Admin implements ISettings {
     }
 
     public function getForm(): TemplateResponse {
-        $this->initialState->provideInitialState('settings', [
+        $this->initialState->provideInitialState('admin', [
             'url' => $this->config->getUrl(),
             'hasKey' => $this->config->hasApiKey(),
             'pathPattern' => $this->config->getPathPattern(),
+            'faceMode' => $this->config->getFaceMode(),
         ]);
-        Util::addScript(Application::APP_ID, 'settings');
-        return new TemplateResponse(Application::APP_ID, 'settings');
+        Util::addScript(Application::APP_ID, Application::APP_ID . '-admin');
+        return new TemplateResponse(Application::APP_ID, 'admin');
     }
 
     public function getSection(): string {

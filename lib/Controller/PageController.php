@@ -5,6 +5,7 @@ namespace OCA\ImmichSearch\Controller;
 
 use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\Config;
+use OCA\ImmichSearch\Service\Permissions;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -12,16 +13,17 @@ use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\IRequest;
-use OCP\IURLGenerator;
+use OCP\IUserSession;
 use OCP\Util;
 
 class PageController extends Controller {
     public function __construct(
         IRequest $request,
+        private IUserSession $userSession,
         private Config $config,
+        private Permissions $permissions,
         private IInitialState $initialState,
         private IEventDispatcher $events,
-        private IURLGenerator $url,
     ) {
         parent::__construct(Application::APP_ID, $request);
     }
@@ -33,12 +35,31 @@ class PageController extends Controller {
         if (class_exists(\OCA\Viewer\Event\LoadViewer::class)) {
             $this->events->dispatchTyped(new \OCA\Viewer\Event\LoadViewer());
         }
+        $isAdmin = $this->permissions->isAdmin($this->uid());
         $this->initialState->provideInitialState('page', [
             'configured' => $this->config->isConfigured(),
-            'settingsUrl' => $this->url->linkToRoute('settings.AdminSettings.index', ['section' => 'additional']),
+            'isAdmin' => $isAdmin,
+            'canManagePeople' => $this->permissions->canManagePeople($this->uid()),
         ]);
-        Util::addScript(Application::APP_ID, 'search');
-        Util::addStyle(Application::APP_ID, 'search');
+        if ($isAdmin) {
+            $this->provideAdminState();
+        }
+        Util::addScript(Application::APP_ID, Application::APP_ID . '-main');
         return new TemplateResponse(Application::APP_ID, 'main');
+    }
+
+    /** Same data the admin settings section gets, for the in-app settings dialog. */
+    private function provideAdminState(): void {
+        $this->initialState->provideInitialState('admin', [
+            'url' => $this->config->getUrl(),
+            'hasKey' => $this->config->hasApiKey(),
+            'pathPattern' => $this->config->getPathPattern(),
+            'faceMode' => $this->config->getFaceMode(),
+        ]);
+    }
+
+    /** Resolved per call: with basic auth the user is only logged in after the controller is built. */
+    private function uid(): string {
+        return $this->userSession->getUser()?->getUID() ?? throw new \RuntimeException('Not logged in');
     }
 }

@@ -17,6 +17,7 @@ use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
 
 class ApiController extends Controller {
@@ -25,7 +26,7 @@ class ApiController extends Controller {
 
     public function __construct(
         IRequest $request,
-        private ?string $userId,
+        private IUserSession $userSession,
         private Config $config,
         private AssetSearch $search,
         private ImmichClient $immich,
@@ -44,14 +45,6 @@ class ApiController extends Controller {
         return $this->guard(fn () => new JSONResponse(
             $this->search->search($this->uid(), $q, $page, self::PAGE_SIZE, $person, $type)
         ));
-    }
-
-    #[NoAdminRequired]
-    public function people(): JSONResponse {
-        return $this->guard(function () {
-            $this->uid();
-            return new JSONResponse($this->search->people());
-        });
     }
 
     /**
@@ -77,13 +70,14 @@ class ApiController extends Controller {
     }
 
     private function uid(): string {
-        if ($this->userId === null) {
+        $uid = $this->userSession->getUser()?->getUID();
+        if ($uid === null) {
             throw new ImmichException($this->l->t('Not logged in'), Http::STATUS_UNAUTHORIZED);
         }
         if (!$this->config->isConfigured()) {
             throw new ImmichException($this->l->t('Photo search is not set up yet'), Http::STATUS_PRECONDITION_FAILED);
         }
-        return $this->userId;
+        return $uid;
     }
 
     /** Turns ImmichException into a JSON error with its status; anything else is logged as a bug. */

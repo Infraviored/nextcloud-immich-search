@@ -9,7 +9,9 @@ use OCA\ImmichSearch\Service\ImmichClient;
 use OCA\ImmichSearch\Service\ImmichException;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCA\ImmichSearch\BackgroundJob\RebuildPeopleIndexNow;
 use OCP\AppFramework\Http\JSONResponse;
+use OCP\BackgroundJob\IJobList;
 use OCP\IL10N;
 use OCP\IRequest;
 
@@ -19,18 +21,23 @@ class SettingsController extends Controller {
         IRequest $request,
         private Config $config,
         private ImmichClient $immich,
+        private IJobList $jobs,
         private IL10N $l,
     ) {
         parent::__construct(Application::APP_ID, $request);
     }
 
     /** An empty key keeps the stored one, so the form never has to show it. */
-    public function save(string $url, string $apiKey = '', string $pathPattern = Config::DEFAULT_PATH_PATTERN): JSONResponse {
-        return $this->respond(function () use ($url, $apiKey, $pathPattern) {
+    public function save(string $url, string $apiKey = '', string $pathPattern = Config::DEFAULT_PATH_PATTERN, string $faceMode = 'all'): JSONResponse {
+        return $this->respond(function () use ($url, $apiKey, $pathPattern, $faceMode) {
             $pattern = $this->validPattern($pathPattern);
+            if (!in_array($faceMode, Config::FACE_MODES, true)) {
+                throw new \InvalidArgumentException('faceMode');
+            }
             $user = $this->check($url, $apiKey);
             $this->config->setUrl($url);
             $this->config->setPathPattern($pattern);
+            $this->config->setFaceMode($faceMode);
             if ($apiKey !== '') {
                 $this->config->setApiKey($apiKey);
             }
@@ -40,6 +47,12 @@ class SettingsController extends Controller {
 
     public function test(string $url, string $apiKey = ''): JSONResponse {
         return $this->respond(fn () => $this->check($url, $apiKey));
+    }
+
+    /** Rebuild the people index at the next cron run instead of within the hour. */
+    public function reindex(): JSONResponse {
+        $this->jobs->add(RebuildPeopleIndexNow::class);
+        return new JSONResponse(['ok' => true]);
     }
 
     private function respond(callable $fn): JSONResponse {

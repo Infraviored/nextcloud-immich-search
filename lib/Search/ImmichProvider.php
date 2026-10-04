@@ -70,17 +70,25 @@ class ImmichProvider implements IProvider {
             return SearchResult::complete($this->getName(), []);
         }
 
-        $entries = array_map(fn (array $a) => $this->entry($a, $term), $res['items']);
+        $entries = array_map(fn (array $a) => $this->entry($a), $res['items']);
+        if ($query->getCursor() === null && $entries !== []) {
+            // The search bar cannot select or move; this hands the search over to the app.
+            array_unshift($entries, new SearchResultEntry(
+                $this->url->getAbsoluteURL($this->url->imagePath(Application::APP_ID, 'app-dark.svg')),
+                $this->l->t('Open all results in Photo search'),
+                $this->l->t('Select several, move into folders'),
+                $this->url->linkToRouteAbsolute('immich_search.page.index') . '?q=' . rawurlencode($term),
+                'icon-search',
+            ));
+        }
         return $res['nextPage'] === null
             ? SearchResult::complete($this->getName(), $entries)
             : SearchResult::paginated($this->getName(), $entries, $res['nextPage']);
     }
 
-    private function entry(array $a, string $term): SearchResultEntry {
+    private function entry(array $a): SearchResultEntry {
         $thumb = $this->url->linkToRouteAbsolute('immich_search.api.thumbnail', ['id' => $a['id']]);
-        $link = $a['fileId'] !== null
-            ? $this->url->linkToRouteAbsolute('files.View.showFile', ['fileid' => $a['fileId']])
-            : $this->url->linkToRouteAbsolute('immich_search.page.index') . '?q=' . rawurlencode($term);
+        $link = $this->url->linkToRouteAbsolute('files.View.showFile', ['fileid' => $a['fileId']]);
 
         $sub = [];
         if ($a['type'] === 'VIDEO') {
@@ -89,16 +97,13 @@ class ImmichProvider implements IProvider {
         if ($a['date'] !== null) {
             $sub[] = $this->l->l('date', strtotime($a['date']));
         }
-        if ($a['path'] !== null) {
-            $sub[] = ltrim(dirname($a['path']), '/') ?: $this->l->t('Files');
-        }
+        $sub[] = ltrim(dirname($a['path']), '/') ?: $this->l->t('Files');
 
         $entry = new SearchResultEntry($thumb, $a['name'], implode(' · ', $sub), $link,
             $a['type'] === 'VIDEO' ? 'icon-video' : 'icon-picture');
-        if ($a['fileId'] !== null) {
-            $entry->addAttribute('fileId', (string)$a['fileId']);
-            $entry->addAttribute('path', $a['path']);
-        }
+        // Same attributes the Files provider sets; the mobile apps use them to open the file in-app.
+        $entry->addAttribute('fileId', (string)$a['fileId']);
+        $entry->addAttribute('path', $a['path']);
         return $entry;
     }
 }

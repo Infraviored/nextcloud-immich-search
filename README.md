@@ -9,13 +9,23 @@ Nextcloud side: search UI, unified search provider, permission checks.
 
 | Where | How |
 |---|---|
-| Unified search bar (every page) | Section "Photos by content", from 3 characters |
+| Unified search bar (every page) | Section "Photos by content", from 3 characters; first entry hands the search over to the app |
 | Nextcloud Android / iOS app | Same search; results carry `fileId`/`path` like Files results |
-| "Photo search" page in the app menu | Grid with infinite scroll, person and photo/video filter |
+| "Photo search" app | Search, people, settings – the full thing, also on a phone browser |
+
+In the app:
+
+- **Search** with person and photo/video filter, infinite scroll.
+- **Select many** – checkbox on hover, shift-click for a range; on touch long-press, then tap.
+  **Move** or **copy** the selection into any folder (Nextcloud's folder picker, Nextcloud's
+  permissions). Immich rescans its libraries right after, so moved pictures are found again.
+- **People** – every face cluster Immich found, named ones first. Name a person, hide one,
+  select several and merge them. A person's page lists their pictures, searchable.
+- **Settings** – tile size per device; for admins the connection and who may manage people.
 
 A result is always the **real Nextcloud file**: clicking opens it in the Nextcloud viewer
-(videos play), the folder icon jumps to its folder. Thumbnails are fetched server-side, so
-Immich does not need to be reachable from the internet.
+(videos play). Thumbnails and faces are fetched server-side, so Immich does not need to be
+reachable from the internet.
 
 ## Who finds what
 
@@ -25,8 +35,12 @@ searching user can reach that file in their own Nextcloud (own file or shared wi
 not, the hit is dropped – and its thumbnail endpoint refuses it as well. Share recipients see
 the file under their own path (e.g. `/Shared/Photos/…`). Unsharing takes effect immediately.
 
-Shared across users: **person names** (one Immich account). The pictures behind a name are
-still filtered.
+People follow the same rule: a person is listed for a user only if they appear in a picture
+that user can open, and the face shown is cut from such a picture (not Immich's own person
+thumbnail, which may come from a private one). This is worked out hourly in a background job
+(`occ immich_search:people-index` runs it now). Shared across users: the **names** – one
+Immich account. Who may name, merge and hide is an admin setting: everyone (default),
+admins, or nobody.
 
 ## Setup
 
@@ -57,15 +71,17 @@ The key is stored encrypted and read from stdin so it never shows up in a proces
 
 ## Install / develop
 
-No build step – PHP and plain JavaScript.
+PHP backend, Vue 3 frontend with `@nextcloud/vue` (Vite, `@nextcloud/vite-config`).
 
 ```bash
+make build     # npm install + vite build into js/
 make lint      # PHP syntax + translation JSON
 make dist      # build/immich_search-<version>.tar.gz, unpack into custom_apps/
 make deploy    # install into a dockerized Nextcloud (CONTAINER=..., default AIO)
 ```
 
-Bump `<version>` in `appinfo/info.xml` for every release; Nextcloud runs the upgrade step then.
+Bump `<version>` in `appinfo/info.xml` for every release: Nextcloud runs the upgrade step and
+browsers fetch the new scripts (they are cached by version).
 
 | File | Job |
 |---|---|
@@ -73,16 +89,19 @@ Bump `<version>` in `appinfo/info.xml` for every release; Nextcloud runs the upg
 | `lib/Service/ImmichClient.php` | HTTP to Immich, errors as `ImmichException` |
 | `lib/Service/Config.php` | URL, encrypted key, path pattern |
 | `lib/Search/ImmichProvider.php` | Unified search / mobile apps |
-| `lib/Controller/ApiController.php` | JSON API and permission-checked thumbnails |
-| `lib/Controller/SettingsController.php`, `lib/Settings/Admin.php` | Admin settings |
-| `js/search.js`, `css/search.css`, `templates/main.php` | The search page |
-| `l10n/` | Translations (English source, German) |
+| `lib/Service/PeopleIndex.php`, `lib/BackgroundJob/` | Who may see which person (hourly) |
+| `lib/Service/FaceCropper.php` | Faces cut from pictures the viewer may open |
+| `lib/Service/FileTransfer.php` | Move/copy as the user, then Immich rescan |
+| `lib/Controller/` | JSON API, permission-checked images, settings |
+| `src/App.vue`, `src/views/`, `src/components/` | The app (search, people, person, settings) |
+| `l10n/` | Translations (English source, German; plurals as `_singular_::_plural_`) |
 
 ## Limits
 
 - If Immich or its machine-learning container is down, the search returns nothing (unified
   search shows no section, the page shows an error).
-- Persons appear in the filter once they have a name in Immich.
+- New faces and changed sharing show up in People with the next hourly index run.
+- Merging people cannot be undone (Immich has no unmerge).
 - Files moved since Immich's last library scan are not found until the next scan.
 - Immich only analyses what it has finished indexing; a large first import takes hours.
 

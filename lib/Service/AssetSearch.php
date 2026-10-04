@@ -30,10 +30,14 @@ class AssetSearch {
     private const GRANT_TTL = 86400;
     /** Immich pages fetched at most per call when the permission filter drops most hits. */
     private const MAX_PAGES_PER_CALL = 5;
+    /** Owner lookups kept in memory, enough for one person's pictures in PeopleIndex. */
+    private const OWNER_MEMO = 5000;
 
     private ICache $grants;
     /** @var array<string, ?Folder> */
     private array $folders = [];
+    /** @var array<string, array{0: ?string, 1: ?Node}> */
+    private array $owners = [];
 
     public function __construct(
         private ImmichClient $immich,
@@ -113,13 +117,18 @@ class AssetSearch {
         return $this->immich->json('POST', $endpoint, $body)['assets'] ?? [];
     }
 
-    /** The hit as $uid sees it, or null if the file is not reachable for $uid. */
-    private function visibleItem(string $uid, array $a): ?array {
+    /**
+     * The hit as $uid sees it, or null if the file is not reachable for $uid.
+     * $grant remembers the asset for the thumbnail check; bulk callers (PeopleIndex) skip that.
+     */
+    public function visibleItem(string $uid, array $a, bool $grant = true): ?array {
         $node = $this->nodeFor($uid, $a['originalPath'] ?? '');
         if ($node === null) {
             return null;
         }
-        $this->grants->set($uid . '/' . $a['id'], 1, self::GRANT_TTL);
+        if ($grant) {
+            $this->grants->set($uid . '/' . $a['id'], 1, self::GRANT_TTL);
+        }
         return [
             'id' => $a['id'],
             'type' => $a['type'] ?? 'IMAGE',
@@ -132,22 +141,40 @@ class AssetSearch {
     }
 
     private function nodeFor(string $uid, string $immichPath): ?Node {
-        [$owner, $rel] = $this->splitImmichPath($immichPath) ?? [null, null];
-        $ownerFolder = $owner !== null ? $this->userFolder($owner) : null;
+        [$owner, $file] = $this->ownerNode($immichPath);
         $mine = $this->userFolder($uid);
-        if ($ownerFolder === null || $mine === null) {
+        if ($file === null || $mine === null) {
             return null;
-        }
-        try {
-            $file = $ownerFolder->get($rel);
-        } catch (NotFoundException) {
-            return null; // moved or deleted since Immich last scanned
         }
         if ($owner === $uid) {
             return $file;
         }
         // A file has the same id everywhere; it resolves in $uid's tree only if shared with them.
         return $mine->getFirstNodeById($file->getId());
+    }
+
+    /**
+     * Owner and owner's node for an Immich path, memoized: PeopleIndex asks once per user.
+     * @return array{0: ?string, 1: ?Node}
+     */
+    private function ownerNode(string $immichPath): array {
+        if (array_key_exists($immichPath, $this->owners)) {
+            return $this->owners[$immichPath];
+        }
+        if (count($this->owners) > self::OWNER_MEMO) {
+            $this->owners = [];
+        }
+        [$owner, $rel] = $this->splitImmichPath($immichPath) ?? [null, null];
+        $folder = $owner !== null ? $this->userFolder($owner) : null;
+        $node = null;
+        if ($folder !== null) {
+            try {
+                $node = $folder->get($rel);
+            } catch (NotFoundException) {
+                // moved or deleted since Immich last scanned
+            }
+        }
+        return $this->owners[$immichPath] = [$owner, $node];
     }
 
     /** "/mnt/nextcloud/alice/Photos/a.jpg" -> ["alice", "Photos/a.jpg"], null if outside the pattern. */

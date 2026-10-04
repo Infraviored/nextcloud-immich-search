@@ -1,0 +1,29 @@
+<?php
+declare(strict_types=1);
+
+namespace OCA\ImmichSearch\Command;
+
+use OCA\ImmichSearch\Service\PeopleIndex;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+
+/** occ immich_search:people-index — rebuild now instead of waiting for the hourly job. */
+class PeopleIndexCommand extends Command {
+    public function __construct(
+        private PeopleIndex $index,
+    ) {
+        parent::__construct();
+    }
+
+    protected function configure(): void {
+        $this->setName('immich_search:people-index')
+            ->setDescription('Rebuild which people each user may see (normally hourly in the background)');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int {
+        [$people, $secs] = $this->index->rebuild();
+        $output->writeln("$people people checked in {$secs}s");
+        return self::SUCCESS;
+    }
+}

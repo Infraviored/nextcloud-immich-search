@@ -59,6 +59,7 @@ class ImmichClient {
             $resp = match ($method) {
                 'GET' => $client->get($url . '/api' . $endpoint, $options),
                 'POST' => $client->post($url . '/api' . $endpoint, $options),
+                'PUT' => $client->put($url . '/api' . $endpoint, $options),
             };
         } catch (\Throwable $e) {
             throw new ImmichException($this->l->t('Immich is not reachable'), 502, $e);

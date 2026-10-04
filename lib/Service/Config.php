@@ -19,6 +19,10 @@ class Config {
     private const URL = 'url';
     private const KEY = 'api_key';
     private const PATH_PATTERN = 'path_pattern';
+    private const FACE_MODE = 'face_mode';
+
+    /** Who may name, merge and hide people. Everyone only ever sees people from pictures they can open. */
+    public const FACE_MODES = ['all', 'admins', 'off'];
 
     public function __construct(
         private IConfig $config,
@@ -52,6 +56,18 @@ class Config {
      */
     public function getPathPattern(): string {
         return $this->config->getAppValue(Application::APP_ID, self::PATH_PATTERN, self::DEFAULT_PATH_PATTERN);
+    }
+
+    public function getFaceMode(): string {
+        $mode = $this->config->getAppValue(Application::APP_ID, self::FACE_MODE, 'all');
+        return in_array($mode, self::FACE_MODES, true) ? $mode : 'all';
+    }
+
+    public function setFaceMode(string $mode): void {
+        if (!in_array($mode, self::FACE_MODES, true)) {
+            throw new \InvalidArgumentException('face_mode');
+        }
+        $this->config->setAppValue(Application::APP_ID, self::FACE_MODE, $mode);
     }
 
     public function isConfigured(): bool {
