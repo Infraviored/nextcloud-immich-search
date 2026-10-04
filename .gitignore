@@ -1,6 +1,7 @@
-build/
-node_modules/
-vendor/
-js/
-css/
+/build/
+/node_modules/
+/vendor/
+/js/
+/css/
+.php-cs-fixer.cache
 *.swp
