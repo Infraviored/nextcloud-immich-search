@@ -85,7 +85,8 @@ class PeopleController extends Controller {
 				if (($a['name'] === '') !== ($b['name'] === '')) {
 					return $a['name'] === '' ? 1 : -1;
 				}
-				return $a['name'] !== '' ? strcasecmp($a['name'], $b['name']) : $b['count'] <=> $a['count'];
+				// Most pictures first everywhere: the people page, the navigation and every person picker
+				return ($b['count'] <=> $a['count']) ?: strcasecmp($a['name'], $b['name']);
 			});
 			return new JSONResponse([
 				'people' => $people,

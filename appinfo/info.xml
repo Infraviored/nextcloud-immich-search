@@ -26,7 +26,7 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 - In the Files app: a "Similar pictures" action and a sidebar tab with the people in a picture.
   A dashboard widget shows today's memories.
 	]]></description>
-	<version>3.0.3</version>
+	<version>3.0.4</version>
 	<licence>agpl</licence>
 	<author>Florian Schneider</author>
 	<namespace>ImmichSearch</namespace>
