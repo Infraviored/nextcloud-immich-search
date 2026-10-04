@@ -23,7 +23,7 @@ use OCP\IUserManager;
  * Immich's map markers carry no file path, so they cannot be checked against Nextcloud's
  * permissions one by one without a request each. Instead this walks the library once in
  * the background (with the people index) and stores, per user, the markers of the
- * pictures that user may see, compactly: [assetId, fileId, lat, lon, video, timestamp].
+ * pictures that user may see, compactly: [assetId, fileId, lat, lon, video, timestamp, path].
  */
 class MapIndex {
 	private const FOLDER = 'map';
@@ -69,7 +69,7 @@ class MapIndex {
 					$item = $this->assets->visibleItem($uid, $a, false);
 					if ($item !== null) {
 						$markers[$uid][] = [$a['id'], $item['fileId'], round((float)$lat, 5), round((float)$lon, 5),
-							$item['type'] === 'VIDEO' ? 1 : 0, strtotime((string)$item['date']) ?: 0];
+							$item['type'] === 'VIDEO' ? 1 : 0, strtotime((string)$item['date']) ?: 0, $item['path']];
 					}
 				}
 			}

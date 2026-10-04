@@ -78,6 +78,16 @@
 					<span class="tabs__spacer" />
 					<NcButton
 						variant="tertiary"
+						:aria-label="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
+						:title="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
+						:pressed="privateState.unlocked"
+						@click="togglePrivate">
+						<template #icon>
+							<NcIconSvgWrapper :path="privateState.unlocked ? mdiLockOpenVariantOutline : mdiLockOutline" />
+						</template>
+					</NcButton>
+					<NcButton
+						variant="tertiary"
 						:aria-label="t('Duplicates')"
 						:title="t('Duplicates')"
 						:pressed="route.name === 'duplicates'"
@@ -111,13 +121,13 @@
 						</NcButton>
 					</template>
 				</NcEmptyContent>
-				<SearchView v-else-if="route.name === 'search'" :key="searchKey" :people="peopleState.people" />
-				<TimelineView v-else-if="route.name === 'timeline'" />
-				<MapView v-else-if="route.name === 'map'" />
-				<FolderView v-else-if="route.name === 'folders'" />
-				<PeopleView v-else-if="route.name === 'people'" />
-				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id" />
-				<DuplicatesView v-else-if="route.name === 'duplicates'" />
+				<SearchView v-else-if="route.name === 'search'" :key="searchKey + privateState.version" :people="peopleState.people" />
+				<TimelineView v-else-if="route.name === 'timeline'" :key="'t' + privateState.version" />
+				<MapView v-else-if="route.name === 'map'" :key="'m' + privateState.version" />
+				<FolderView v-else-if="route.name === 'folders'" :key="'f' + privateState.version" />
+				<PeopleView v-else-if="route.name === 'people'" :key="'p' + privateState.version" />
+				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + privateState.version" />
+				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + privateState.version" />
 				<SettingsView v-else-if="route.name === 'settings'" />
 			</div>
 		</NcAppContent>
@@ -125,9 +135,9 @@
 </template>
 
 <script setup>
-import { mdiAccountMultipleOutline, mdiCogOutline, mdiContentDuplicate, mdiFolderMultipleImage, mdiImageSearchOutline, mdiMapMarkerOutline, mdiTimelineClockOutline } from '@mdi/js'
+import { mdiAccountMultipleOutline, mdiCogOutline, mdiContentDuplicate, mdiFolderMultipleImage, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiMapMarkerOutline, mdiTimelineClockOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
@@ -147,6 +157,7 @@ import { faceUrl } from './api.js'
 import { t } from './l10n.js'
 import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
+import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, route } from './router.js'
 
 const page = loadState('immich_search', 'page', { configured: false, isAdmin: false })
@@ -164,12 +175,16 @@ const isActive = (v) => route.name === v.name || (v.also ?? []).includes(route.n
 /** Named, visible people for quick access in the navigation. */
 const named = computed(() => peopleState.people.filter((p) => p.name && !p.hidden))
 
+// Private people come and go with the lock
+watch(() => privateState.version, () => reloadPeople())
+
 // A new "similar" or query from elsewhere (timeline, map) starts a fresh search view.
 const searchKey = computed(() => (route.name === 'search' ? (route.query.similar ?? '') : ''))
 
 onMounted(() => {
 	if (page.configured) {
 		reloadPeople()
+		loadPrivate()
 	}
 	// Plain app URL: open the view the user chose as start view.
 	const start = views.find((v) => v.name === userPrefs.start_view)

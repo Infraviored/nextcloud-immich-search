@@ -19,9 +19,30 @@
 					{{ c.name }}
 				</NcButton>
 			</template>
+			<span class="folders__spacer" />
+			<NcButton
+				v-if="data.path !== '/'"
+				variant="tertiary"
+				size="small"
+				@click="toggleFolderPrivate">
+				<template #icon>
+					<NcIconSvgWrapper :path="isPrivateFolder(data.path) ? mdiLock : mdiLockOpenVariantOutline" />
+				</template>
+				{{ isPrivateFolder(data.path) ? t('Folder is private') : t('Make folder private') }}
+			</NcButton>
 		</nav>
 
 		<NcLoadingIcon v-if="loading" :size="32" />
+		<NcEmptyContent v-else-if="data.private" :name="t('Private folder')" :description="t('Unlock the private area to see it.')">
+			<template #icon>
+				<NcIconSvgWrapper :path="mdiLock" />
+			</template>
+			<template #action>
+				<NcButton variant="primary" @click="togglePrivate">
+					{{ t('Show private pictures') }}
+				</NcButton>
+			</template>
+		</NcEmptyContent>
 		<template v-else>
 			<div v-if="data.folders.length" class="folders__list">
 				<NcButton
@@ -58,7 +79,7 @@
 </template>
 
 <script setup>
-import { mdiFolderOutline, mdiHomeOutline } from '@mdi/js'
+import { mdiFolderOutline, mdiHomeOutline, mdiLock, mdiLockOpenVariantOutline } from '@mdi/js'
 import { computed, onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
@@ -67,6 +88,7 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import MediaBrowser from '../components/MediaBrowser.vue'
 import { errorMessage, folder } from '../api.js'
 import { n, t } from '../l10n.js'
+import { isPrivateFolder, privateState, setPrivateLists, togglePrivate } from '../private.js'
 import { navigate, replaceQuery, route } from '../router.js'
 
 const path = ref(route.query.path || '/')
@@ -103,6 +125,15 @@ function drop(fileIds) {
 	data.value.items = data.value.items.filter((i) => !gone.has(i.fileId))
 }
 
+/** Private folder: it and everything below only show when the private area is unlocked. */
+function toggleFolderPrivate() {
+	const p = data.value.path
+	const folders = privateState.folders.includes(p) ? privateState.folders.filter((f) => f !== p) : [...privateState.folders, p]
+	setPrivateLists(folders, privateState.people).catch((e) => {
+		error.value = errorMessage(e)
+	})
+}
+
 function similar(item) {
 	navigate('/', { similar: item.id, name: item.name })
 }
@@ -112,6 +143,8 @@ onMounted(load)
 
 <style scoped lang="scss">
 .folders {
+	&__spacer { flex: 1; }
+
 	&__crumbs {
 		display: flex;
 		flex-wrap: wrap;

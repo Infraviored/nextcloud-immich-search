@@ -27,6 +27,7 @@
 			@album="dialog = 'album'"
 			@similar="$emit('similar', singleSelected)"
 			@faces="dialog = 'faces'"
+			@private="doPrivate"
 			@delete="dialog = 'delete'" />
 		<slot v-else name="status" />
 
@@ -76,6 +77,7 @@ import { deleteFiles, favorite, fileUrl, tagFiles } from '../api.js'
 import { useAction } from '../composables/useAction.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
+import { setPrivateFiles } from '../private.js'
 
 const props = defineProps({
 	/** [{key, title?, items}] */
@@ -168,6 +170,16 @@ async function doAlbum(name, isNew) {
 	})
 	if (added !== null) {
 		showSuccess(n('{count} picture added to {album}', '{count} pictures added to {album}', added, { count: added, album: name }))
+	}
+}
+
+async function doPrivate(on) {
+	const ids = [...selected.value]
+	if (await act(() => setPrivateFiles(ids, on))) {
+		showSuccess(on
+			? n('{count} file is private now', '{count} files are private now', ids.length, { count: ids.length })
+			: n('{count} file is no longer private', '{count} files are no longer private', ids.length, { count: ids.length }))
+		selected.value = new Set()
 	}
 }
 

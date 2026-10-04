@@ -12,6 +12,7 @@ namespace OCA\ImmichSearch\Search;
 use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\PeopleNames;
+use OCA\ImmichSearch\Service\PrivateArea;
 use OCA\ImmichSearch\Service\UserPrefs;
 use OCP\IL10N;
 use OCP\IURLGenerator;
@@ -31,6 +32,7 @@ class PeopleProvider implements IProvider {
 
 	public function __construct(
 		private PeopleNames $names,
+		private PrivateArea $privateArea,
 		private Config $config,
 		private UserPrefs $prefs,
 		private IURLGenerator $url,
@@ -61,7 +63,8 @@ class PeopleProvider implements IProvider {
 			return SearchResult::complete($this->getName(), []);
 		}
 		try {
-			$hits = $this->names->find($uid, $term);
+			$private = $this->privateArea->get($uid)['people'];
+			$hits = array_values(array_filter($this->names->find($uid, $term), static fn ($p) => !in_array($p['id'], $private, true)));
 		} catch (\Throwable $e) {
 			$this->logger->info('People search: ' . $e->getMessage(), ['app' => Application::APP_ID]);
 			return SearchResult::complete($this->getName(), []);

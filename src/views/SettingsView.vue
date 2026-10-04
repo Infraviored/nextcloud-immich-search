@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { mdiAccountMultipleOutline, mdiChartBoxOutline, mdiFilterOutline, mdiLanConnect, mdiMagnify, mdiPaletteOutline } from '@mdi/js'
+import { mdiAccountMultipleOutline, mdiChartBoxOutline, mdiFilterOutline, mdiLanConnect, mdiLockOutline, mdiMagnify, mdiPaletteOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
@@ -36,6 +36,7 @@ import ConnectionSection from './settings/ConnectionSection.vue'
 import DisplaySection from './settings/DisplaySection.vue'
 import IndexingSection from './settings/IndexingSection.vue'
 import PeopleSection from './settings/PeopleSection.vue'
+import PrivateSection from './settings/PrivateSection.vue'
 import SearchSection from './settings/SearchSection.vue'
 import StatusSection from './settings/StatusSection.vue'
 import { t } from '../l10n.js'
@@ -47,6 +48,7 @@ const sections = [
 	{ id: 'status', name: t('Status'), icon: mdiChartBoxOutline, component: StatusSection },
 	{ id: 'display', name: t('Display'), icon: mdiPaletteOutline, component: DisplaySection },
 	{ id: 'search', name: t('Nextcloud search'), icon: mdiMagnify, component: SearchSection },
+	{ id: 'private', name: t('Private'), icon: mdiLockOutline, component: PrivateSection },
 	...(page.isAdmin
 		? [
 				{ id: 'indexing', name: t('What gets indexed'), icon: mdiFilterOutline, component: IndexingSection },

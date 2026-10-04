@@ -15,6 +15,7 @@ use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\ImmichClient;
 use OCA\ImmichSearch\Service\ImmichException;
 use OCA\ImmichSearch\Service\PeopleNames;
+use OCA\ImmichSearch\Service\PrivateArea;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -37,6 +38,7 @@ class ApiController extends Controller {
 		private Config $config,
 		private AssetSearch $search,
 		private PeopleNames $names,
+		private PrivateArea $privateArea,
 		private ImmichClient $immich,
 		private IL10N $l,
 		private LoggerInterface $logger,
@@ -58,7 +60,7 @@ class ApiController extends Controller {
 				if (!$this->search->maySee($uid, $similar)) {
 					throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
 				}
-				return new JSONResponse($this->search->search($uid, '', $page, self::PAGE_SIZE, '', $type, $similar) + ['person' => null]);
+				return new JSONResponse($this->private($uid, $this->search->search($uid, '', $page, self::PAGE_SIZE, '', $type, $similar)) + ['person' => null]);
 			});
 		}
 		if ($q === '' && $person === '') {
@@ -74,7 +76,7 @@ class ApiController extends Controller {
 					[$person, $q] = [$found, $rest];
 				}
 			}
-			return new JSONResponse($this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type) + ['person' => $resolved]);
+			return new JSONResponse($this->private($uid, $this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type)) + ['person' => $resolved]);
 		});
 	}
 
@@ -98,6 +100,12 @@ class ApiController extends Controller {
 			$resp->cacheFor(self::IMAGE_CACHE_SECONDS, false);
 			return $resp;
 		});
+	}
+
+	/** Leave out what the user marked private, unless unlocked. */
+	private function private(string $uid, array $res): array {
+		$res['items'] = $this->privateArea->filter($uid, $res['items']);
+		return $res;
 	}
 
 	private function uid(): string {

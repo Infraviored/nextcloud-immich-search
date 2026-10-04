@@ -25,6 +25,8 @@ class UserPrefs {
 		'start_view' => ['enum:search,timeline,people,map,folders', 'search'],
 		// Include videos in results by default
 		'show_videos' => ['bool', true],
+		// Ask for the Nextcloud password before showing private pictures
+		'private_password' => ['bool', true],
 	];
 
 	public function __construct(

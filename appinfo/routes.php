@@ -54,6 +54,13 @@ return [
 		['name' => 'prefs#save', 'url' => '/api/prefs', 'verb' => 'PUT'],
 		['name' => 'prefs#status', 'url' => '/api/status', 'verb' => 'GET'],
 
+		['name' => 'private#get', 'url' => '/api/private', 'verb' => 'GET'],
+		['name' => 'private#setLists', 'url' => '/api/private', 'verb' => 'PUT'],
+		['name' => 'private#setFiles', 'url' => '/api/private/files', 'verb' => 'POST'],
+		['name' => 'private#unlockWithPassword', 'url' => '/api/private/unlock-password', 'verb' => 'POST'],
+		['name' => 'private#unlock', 'url' => '/api/private/unlock', 'verb' => 'POST'],
+		['name' => 'private#lock', 'url' => '/api/private/lock', 'verb' => 'POST'],
+
 		['name' => 'admin#settings', 'url' => '/api/admin/settings', 'verb' => 'GET'],
 		['name' => 'admin#saveSettings', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
 		['name' => 'admin#libraries', 'url' => '/api/admin/libraries', 'verb' => 'GET'],

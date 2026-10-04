@@ -52,6 +52,16 @@
 					<NcIconSvgWrapper :path="person.favorite ? mdiStar : mdiStarOutline" />
 				</template>
 			</NcButton>
+			<NcButton
+				v-if="person"
+				variant="tertiary"
+				:aria-label="isPrivate ? t('No longer private') : t('Mark as private')"
+				:title="isPrivate ? t('No longer private') : t('Mark as private')"
+				@click="togglePrivatePerson">
+				<template #icon>
+					<NcIconSvgWrapper :path="isPrivate ? mdiLock : mdiLockOpenVariantOutline" />
+				</template>
+			</NcButton>
 			<NcButton v-if="state.canManage && person" @click="toggleHidden">
 				<template #icon>
 					<NcIconSvgWrapper :path="person.hidden ? mdiEyeOutline : mdiEyeOffOutline" />
@@ -67,7 +77,7 @@
 </template>
 
 <script setup>
-import { mdiArrowLeft, mdiEyeOffOutline, mdiEyeOutline, mdiStar, mdiStarOutline } from '@mdi/js'
+import { mdiArrowLeft, mdiEyeOffOutline, mdiEyeOutline, mdiLock, mdiLockOpenVariantOutline, mdiStar, mdiStarOutline } from '@mdi/js'
 import { computed, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
@@ -76,6 +86,7 @@ import SearchView from './SearchView.vue'
 import { errorMessage, faceUrl, updatePerson } from '../api.js'
 import { n, t } from '../l10n.js'
 import { patchPerson, peopleState as state } from '../people.js'
+import { privateState, setPrivateLists } from '../private.js'
 import { href, navigate } from '../router.js'
 
 const props = defineProps({
@@ -121,6 +132,18 @@ const age = computed(() => {
 	const now = new Date()
 	return now.getFullYear() - d.getFullYear() - (now < new Date(now.getFullYear(), d.getMonth(), d.getDate()) ? 1 : 0)
 })
+
+const isPrivate = computed(() => privateState.people.includes(props.id))
+
+/** Private people: their pictures only show when the private area is unlocked. */
+async function togglePrivatePerson() {
+	const people = isPrivate.value ? privateState.people.filter((x) => x !== props.id) : [...privateState.people, props.id]
+	try {
+		await setPrivateLists(privateState.folders, people)
+	} catch (e) {
+		error.value = errorMessage(e)
+	}
+}
 
 async function toggleFavorite() {
 	try {

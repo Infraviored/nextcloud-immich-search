@@ -11,10 +11,12 @@ namespace OCA\ImmichSearch\BackgroundJob;
 
 use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\MapIndex;
+use OCA\ImmichSearch\Service\PrivateArea;
 use OCA\ImmichSearch\Service\PeopleIndex;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\BackgroundJob\TimedJob;
+use OCP\IUserManager;
 
 /** Hourly by default (admin setting): who may see which person and which map markers (see PeopleIndex). New faces arrive with Immich's library scans. */
 class BuildPeopleIndex extends TimedJob {
@@ -23,6 +25,8 @@ class BuildPeopleIndex extends TimedJob {
 		private Config $config,
 		private PeopleIndex $index,
 		private MapIndex $map,
+		private PrivateArea $privateArea,
+		private IUserManager $users,
 	) {
 		parent::__construct($time);
 		$this->setInterval(3600 * (int)$config->get('people_interval_hours'));
@@ -34,6 +38,7 @@ class BuildPeopleIndex extends TimedJob {
 		if ($this->config->isConfigured()) {
 			$this->index->rebuild();
 			$this->map->rebuild();
+			$this->users->callForSeenUsers(fn ($u) => $this->privateArea->refresh($u->getUID()));
 		}
 	}
 }

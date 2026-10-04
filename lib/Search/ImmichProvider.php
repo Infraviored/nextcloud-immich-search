@@ -13,6 +13,7 @@ use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\AssetSearch;
 use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\PeopleNames;
+use OCA\ImmichSearch\Service\PrivateArea;
 use OCA\ImmichSearch\Service\UserPrefs;
 use OCP\IL10N;
 use OCP\IURLGenerator;
@@ -38,6 +39,7 @@ class ImmichProvider implements IProvider {
 		private Config $config,
 		private UserPrefs $prefs,
 		private PeopleNames $names,
+		private PrivateArea $privateArea,
 		private IURLGenerator $url,
 		IFactory $l10nFactory,
 		private LoggerInterface $logger,
@@ -90,7 +92,8 @@ class ImmichProvider implements IProvider {
 			return SearchResult::complete($this->getName(), []);
 		}
 
-		$entries = array_map(fn (array $a) => $this->entry($a), $res['items']);
+		// Private pictures never show up here, not even when unlocked in the app.
+		$entries = array_map(fn (array $a) => $this->entry($a), $this->privateArea->filter($uid, $res['items'], false));
 		if ($query->getCursor() === null && $entries !== [] && $this->config->get('search_open_all')) {
 			// The search bar cannot select or move; this hands the search over to the app.
 			array_unshift($entries, new SearchResultEntry(

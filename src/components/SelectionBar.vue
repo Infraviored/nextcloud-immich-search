@@ -80,6 +80,18 @@
 				</template>
 				{{ t('Add to album …') }}
 			</NcActionButton>
+			<NcActionButton :closeAfterClick="true" @click="$emit('private', true)">
+				<template #icon>
+					<NcIconSvgWrapper :path="mdiLockOutline" />
+				</template>
+				{{ t('Mark as private') }}
+			</NcActionButton>
+			<NcActionButton :closeAfterClick="true" @click="$emit('private', false)">
+				<template #icon>
+					<NcIconSvgWrapper :path="mdiLockOpenVariantOutline" />
+				</template>
+				{{ t('No longer private') }}
+			</NcActionButton>
 			<NcActionLink :href="zipHref" :closeAfterClick="true">
 				<template #icon>
 					<NcIconSvgWrapper :path="mdiDownload" />
@@ -135,6 +147,8 @@ import {
 	mdiFolderOutline,
 	mdiImageAlbum,
 	mdiImageMultipleOutline,
+	mdiLockOpenVariantOutline,
+	mdiLockOutline,
 	mdiShareVariantOutline,
 	mdiStarOffOutline,
 	mdiStarOutline,
@@ -163,7 +177,7 @@ const props = defineProps({
 	single: { type: Object, default: null },
 	photosEnabled: { type: Boolean, default: false },
 })
-defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'delete'])
+defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'delete'])
 
 const zipHref = computed(() => zipUrl(props.fileIds))
 const shareHref = computed(() => {

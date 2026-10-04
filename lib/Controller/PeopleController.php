@@ -17,6 +17,7 @@ use OCA\ImmichSearch\Service\ImmichClient;
 use OCA\ImmichSearch\Service\ImmichException;
 use OCA\ImmichSearch\Service\PeopleIndex;
 use OCA\ImmichSearch\Service\Permissions;
+use OCA\ImmichSearch\Service\PrivateArea;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -44,6 +45,7 @@ class PeopleController extends Controller {
 		private ImmichClient $immich,
 		private Permissions $permissions,
 		private AssetSearch $assets,
+		private PrivateArea $privateArea,
 		private Config $config,
 		private IL10N $l,
 		private LoggerInterface $logger,
@@ -58,15 +60,18 @@ class PeopleController extends Controller {
 			$mine = $this->index->forUser($this->uid());
 			// Unnamed clusters with very few pictures are mostly noise (background faces).
 			$minCount = max(1, (int)$this->config->get('people_min_count'));
+			$private = $this->privateArea->get($this->uid())['people'];
+			$hidden = $this->privateArea->hiddenPeople($this->uid());
 			$people = [];
 			foreach ($this->index->allPeople() as $p) {
 				$v = $mine['people'][$p['id']] ?? null;
-				if ($v !== null && (($p['name'] ?? '') !== '' || $v['count'] >= $minCount)) {
+				if ($v !== null && !in_array($p['id'], $hidden, true) && (($p['name'] ?? '') !== '' || $v['count'] >= $minCount)) {
 					$people[] = [
 						'id' => $p['id'],
 						'name' => (string)($p['name'] ?? ''),
 						'hidden' => (bool)($p['isHidden'] ?? false),
 						'favorite' => (bool)($p['isFavorite'] ?? false),
+						'private' => in_array($p['id'], $private, true),
 						'birthDate' => $p['birthDate'] ?? null,
 						'count' => $v['count'],
 					];

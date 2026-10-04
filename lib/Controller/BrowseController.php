@@ -16,6 +16,7 @@ use OCA\ImmichSearch\Service\Discover;
 use OCA\ImmichSearch\Service\FolderBrowser;
 use OCA\ImmichSearch\Service\ImmichException;
 use OCA\ImmichSearch\Service\MapIndex;
+use OCA\ImmichSearch\Service\PrivateArea;
 use OCA\ImmichSearch\Service\TileProxy;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -42,6 +43,7 @@ class BrowseController extends Controller {
 		private FolderBrowser $folders,
 		private MapIndex $map,
 		private TileProxy $tiles,
+		private PrivateArea $privateArea,
 		private IL10N $l,
 		private LoggerInterface $logger,
 	) {
@@ -51,19 +53,26 @@ class BrowseController extends Controller {
 	/** @param string $before ISO date: jump to this point in time (year links) */
 	#[NoAdminRequired]
 	public function timeline(int $page = 1, string $before = '', string $type = ''): Response {
-		return $this->guard(fn () => $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type)
-			+ ($page === 1 ? ['years' => $this->assets->years()] : []));
+		return $this->guard(function () use ($page, $before, $type) {
+			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type);
+			$res['items'] = $this->privateArea->filter($this->uid(), $res['items']);
+			return $res + ($page === 1 ? ['years' => $this->assets->years()] : []);
+		});
 	}
 
 	#[NoAdminRequired]
 	public function memories(string $date = ''): Response {
 		$date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : date('Y-m-d');
-		return $this->guard(fn () => $this->discover->onThisDay($this->uid(), $date));
+		return $this->guard(fn () => array_values(array_filter(array_map(
+			fn ($m) => ['year' => $m['year'], 'items' => $this->privateArea->filter($this->uid(), $m['items'])],
+			$this->discover->onThisDay($this->uid(), $date)), static fn ($m) => $m['items'] !== [])));
 	}
 
 	#[NoAdminRequired]
 	public function duplicates(): Response {
-		return $this->guard(fn () => $this->discover->duplicates($this->uid()));
+		return $this->guard(fn () => array_values(array_filter(array_map(
+			fn ($g) => ['items' => $this->privateArea->filter($this->uid(), $g['items'])] + $g,
+			$this->discover->duplicates($this->uid())), static fn ($g) => count($g['items']) >= 2)));
 	}
 
 	#[NoAdminRequired]
@@ -81,20 +90,42 @@ class BrowseController extends Controller {
 
 	#[NoAdminRequired]
 	public function folder(string $path = '/'): Response {
-		return $this->guard(fn () => $this->folders->list($this->uid(), $path));
+		return $this->guard(function () use ($path) {
+			$uid = $this->uid();
+			$res = $this->folders->list($uid, $path);
+			// A private folder stays closed until unlocked; its private subfolders are not listed.
+			$locked = !$this->privateArea->isUnlocked();
+			if ($locked && $this->privateArea->inPrivateFolder($uid, $res['path'])) {
+				return ['path' => $res['path'], 'folders' => [], 'items' => [], 'truncated' => false, 'private' => true];
+			}
+			if ($locked) {
+				$res['folders'] = array_values(array_filter($res['folders'], fn ($f) => !$this->privateArea->inPrivateFolder($uid, $f['path'])));
+			}
+			$res['items'] = $this->privateArea->filter($uid, $res['items']);
+			return $res + ['private' => false];
+		});
 	}
 
 	#[NoAdminRequired]
 	public function items(string $ids = ''): Response {
 		$fileIds = array_slice(array_filter(array_map('intval', explode(',', $ids))), 0, 1000);
-		return $this->guard(fn () => $this->folders->items($this->uid(), $fileIds));
+		return $this->guard(fn () => $this->privateArea->filter($this->uid(), $this->folders->items($this->uid(), $fileIds)));
 	}
 
 	#[NoAdminRequired]
 	public function map(): Response {
-		$resp = new DataDisplayResponse($this->map->forUser($this->uid()), Http::STATUS_OK, ['Content-Type' => 'application/json']);
-		$resp->cacheFor(300, false);
-		return $resp;
+		$uid = $this->uid();
+		$json = $this->map->forUser($uid);
+		$p = $this->privateArea->get($uid);
+		if (!$this->privateArea->isUnlocked() && ($p['folders'] !== [] || $p['files'] !== [] || $p['assets'] !== [])) {
+			$data = json_decode($json, true);
+			// Markers: [assetId, fileId, lat, lon, video, timestamp, path]
+			$data['markers'] = array_values(array_filter($data['markers'], fn ($m) => !$this->privateArea->isPrivate($uid,
+				['id' => $m[0], 'fileId' => $m[1], 'path' => $m[6] ?? ''])));
+			$json = json_encode($data);
+		}
+		// Not cached by the browser: unlocking must show the private markers right away.
+		return new DataDisplayResponse($json, Http::STATUS_OK, ['Content-Type' => 'application/json']);
 	}
 
 	#[NoAdminRequired]
