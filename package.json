@@ -7,11 +7,11 @@
   "scripts": {
     "build": "vite build --mode production",
     "dev": "vite build --mode development",
+    "e2e": "node tests/e2e/smoke.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "test": "vitest run --dir tests/js",
-    "watch": "vite build --mode development --watch",
-    "e2e": "node tests/e2e/smoke.mjs"
+    "watch": "vite build --mode development --watch"
   },
   "browserslist": [
     "extends @nextcloud/browserslist-config"

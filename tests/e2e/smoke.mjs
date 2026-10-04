@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import { mkdirSync } from 'node:fs'
 /*
  * Smoke test against a live Nextcloud: every view loads on desktop and phone without
  * script errors or failing app requests, and screenshots land in build/e2e/.
@@ -13,7 +14,6 @@
  *   NC_URL=https://cloud.example.com NC_USER=alice NC_PASS=<app password> npm run e2e
  */
 import { chromium } from 'playwright'
-import { mkdirSync } from 'node:fs'
 
 const base = (process.env.NC_URL || '').replace(/\/$/, '') + '/apps/immich_search'
 const auth = 'Basic ' + Buffer.from(`${process.env.NC_USER}:${process.env.NC_PASS}`).toString('base64')
