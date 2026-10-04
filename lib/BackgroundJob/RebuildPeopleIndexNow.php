@@ -15,16 +15,16 @@ use OCP\BackgroundJob\QueuedJob;
 
 /** One-off rebuild requested from the admin settings. */
 class RebuildPeopleIndexNow extends QueuedJob {
-    public function __construct(
-        ITimeFactory $time,
-        private PeopleIndex $index,
-        private MapIndex $map,
-    ) {
-        parent::__construct($time);
-    }
+	public function __construct(
+		ITimeFactory $time,
+		private PeopleIndex $index,
+		private MapIndex $map,
+	) {
+		parent::__construct($time);
+	}
 
-    protected function run($argument): void {
-        $this->index->rebuild();
-        $this->map->rebuild();
-    }
+	protected function run($argument): void {
+		$this->index->rebuild(true);
+		$this->map->rebuild(true);
+	}
 }

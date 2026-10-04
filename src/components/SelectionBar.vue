@@ -94,6 +94,12 @@
 					</template>
 					{{ t('Similar pictures') }}
 				</NcActionButton>
+				<NcActionButton v-if="single.id" :closeAfterClick="true" @click="$emit('faces')">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiFaceRecognition" />
+					</template>
+					{{ t('Faces …') }}
+				</NcActionButton>
 				<NcActionLink :href="fileUrl(single.fileId)">
 					<template #icon>
 						<NcIconSvgWrapper :path="mdiFolderOutline" />
@@ -124,6 +130,7 @@ import {
 	mdiClose,
 	mdiContentCopy,
 	mdiDownload,
+	mdiFaceRecognition,
 	mdiFolderMove,
 	mdiFolderOutline,
 	mdiImageAlbum,
@@ -156,7 +163,7 @@ const props = defineProps({
 	single: { type: Object, default: null },
 	photosEnabled: { type: Boolean, default: false },
 })
-defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'delete'])
+defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'delete'])
 
 const zipHref = computed(() => zipUrl(props.fileIds))
 const shareHref = computed(() => {

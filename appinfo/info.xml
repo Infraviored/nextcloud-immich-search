@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
-    <id>immich_search</id>
-    <name>Photo search</name>
-    <summary>Search photos and videos by what is in them, using Immich</summary>
-    <description><![CDATA[
+	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>immich_search</id>
+	<name>Photo search</name>
+	<summary>Search photos and videos by what is in them, using Immich</summary>
+	<description><![CDATA[
 Find pictures in your Nextcloud by describing them: "woman on the beach", "dog in the snow",
 "birthday cake". The image understanding (CLIP) and face recognition come from a self-hosted
 [Immich](https://immich.app) that indexes your Nextcloud files read-only.
@@ -19,35 +19,35 @@ Find pictures in your Nextcloud by describing them: "woman on the beach", "dog i
 - **Nextcloud permissions decide:** one shared index, but every user only finds files they can
   open in Nextcloud themselves, their own and those shared with them. Thumbnails are checked too.
 - **No Immich account per user:** one service key, configured by the admin.
-    ]]></description>
-    <version>2.4.10</version>
-    <licence>agpl</licence>
-    <author>Florian Schneider</author>
-    <namespace>ImmichSearch</namespace>
-    <category>multimedia</category>
-    <category>search</category>
-    <dependencies>
-        <php min-version="8.1"/>
-        <nextcloud min-version="30" max-version="35"/>
-    </dependencies>
-    <background-jobs>
-        <job>OCA\ImmichSearch\BackgroundJob\BuildPeopleIndex</job>
-        <job>OCA\ImmichSearch\BackgroundJob\PruneSmallImages</job>
-    </background-jobs>
-    <commands>
-        <command>OCA\ImmichSearch\Command\Configure</command>
-        <command>OCA\ImmichSearch\Command\PeopleIndexCommand</command>
-        <command>OCA\ImmichSearch\Command\PruneCommand</command>
-    </commands>
-    <settings>
-        <admin>OCA\ImmichSearch\Settings\Admin</admin>
-    </settings>
-    <navigations>
-        <navigation>
-            <name>Photo search</name>
-            <route>immich_search.page.index</route>
-            <icon>app.svg</icon>
-            <order>6</order>
-        </navigation>
-    </navigations>
+	]]></description>
+	<version>2.4.11</version>
+	<licence>agpl</licence>
+	<author>Florian Schneider</author>
+	<namespace>ImmichSearch</namespace>
+	<category>multimedia</category>
+	<category>search</category>
+	<dependencies>
+		<php min-version="8.1"/>
+		<nextcloud min-version="30" max-version="35"/>
+	</dependencies>
+	<background-jobs>
+		<job>OCA\ImmichSearch\BackgroundJob\BuildPeopleIndex</job>
+		<job>OCA\ImmichSearch\BackgroundJob\PruneSmallImages</job>
+	</background-jobs>
+	<commands>
+		<command>OCA\ImmichSearch\Command\Configure</command>
+		<command>OCA\ImmichSearch\Command\PeopleIndexCommand</command>
+		<command>OCA\ImmichSearch\Command\PruneCommand</command>
+	</commands>
+	<settings>
+		<admin>OCA\ImmichSearch\Settings\Admin</admin>
+	</settings>
+	<navigations>
+		<navigation>
+			<name>Photo search</name>
+			<route>immich_search.page.index</route>
+			<icon>app.svg</icon>
+			<order>6</order>
+		</navigation>
+	</navigations>
 </info>

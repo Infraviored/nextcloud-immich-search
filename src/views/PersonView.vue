@@ -30,8 +30,28 @@
 				</h2>
 				<span v-if="person" class="person-view__count">
 					{{ n('{count} picture you can see', '{count} pictures you can see', person.count, { count: person.count }) }}
+					<template v-if="age !== null"> · {{ n('{count} year old', '{count} years old', age, { count: age }) }}</template>
 				</span>
 			</div>
+			<div v-if="state.canManage && person" class="person-view__birthday">
+				<label :for="'birthday-' + id">{{ t('Birthday') }}</label>
+				<input
+					:id="'birthday-' + id"
+					type="date"
+					:value="person.birthDate || ''"
+					:max="today"
+					@change="saveBirthday($event.target.value)">
+			</div>
+			<NcButton
+				v-if="state.canManage && person"
+				variant="tertiary"
+				:aria-label="person.favorite ? t('Remove from favorites') : t('Add to favorites')"
+				:title="person.favorite ? t('Remove from favorites') : t('Add to favorites')"
+				@click="toggleFavorite">
+				<template #icon>
+					<NcIconSvgWrapper :path="person.favorite ? mdiStar : mdiStarOutline" />
+				</template>
+			</NcButton>
 			<NcButton v-if="state.canManage && person" @click="toggleHidden">
 				<template #icon>
 					<NcIconSvgWrapper :path="person.hidden ? mdiEyeOutline : mdiEyeOffOutline" />
@@ -47,7 +67,7 @@
 </template>
 
 <script setup>
-import { mdiArrowLeft, mdiEyeOffOutline, mdiEyeOutline } from '@mdi/js'
+import { mdiArrowLeft, mdiEyeOffOutline, mdiEyeOutline, mdiStar, mdiStarOutline } from '@mdi/js'
 import { computed, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
@@ -86,6 +106,35 @@ async function saveName() {
 		window.setTimeout(() => {
 			saved.value = false
 		}, 2000)
+	} catch (e) {
+		error.value = errorMessage(e)
+	}
+}
+
+const today = new Date().toISOString().slice(0, 10)
+const age = computed(() => {
+	const b = person.value?.birthDate
+	if (!b) {
+		return null
+	}
+	const d = new Date(b)
+	const now = new Date()
+	return now.getFullYear() - d.getFullYear() - (now < new Date(now.getFullYear(), d.getMonth(), d.getDate()) ? 1 : 0)
+})
+
+async function toggleFavorite() {
+	try {
+		const res = await updatePerson(props.id, { favorite: !person.value.favorite })
+		patchPerson(props.id, { favorite: res.favorite })
+	} catch (e) {
+		error.value = errorMessage(e)
+	}
+}
+
+async function saveBirthday(value) {
+	try {
+		const res = await updatePerson(props.id, { birthDate: value })
+		patchPerson(props.id, { birthDate: res.birthDate })
 	} catch (e) {
 		error.value = errorMessage(e)
 	}
@@ -130,5 +179,14 @@ async function toggleHidden() {
 
 	&__count { color: var(--color-text-maxcontrast); }
 	&__error { color: var(--color-error-text); }
+
+	&__birthday {
+		display: flex;
+		flex-direction: column;
+		font-size: var(--font-size-small, 13px);
+		color: var(--color-text-maxcontrast);
+
+		input { margin: 0; }
+	}
 }
 </style>

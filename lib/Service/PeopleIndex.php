@@ -39,6 +39,7 @@ class PeopleIndex {
 	public function __construct(
 		private ImmichClient $immich,
 		private Config $config,
+		private IndexSignature $signature,
 		private AssetSearch $assets,
 		private IUserManager $users,
 		IAppDataFactory $appDataFactory,
@@ -48,9 +49,18 @@ class PeopleIndex {
 		$this->appData = $appDataFactory->get(Application::APP_ID);
 	}
 
-	/** Rebuild for all enabled users. Returns [persons scanned, seconds]. */
-	public function rebuild(): array {
+	/**
+	 * Rebuild for all enabled users, unless nothing it depends on changed (IndexSignature).
+	 *
+	 * @return array{0: int, 1: int, 2: bool} [people checked, seconds, skipped]
+	 */
+	public function rebuild(bool $force = false): array {
 		$start = microtime(true);
+		$signature = $this->signature->compute();
+		$last = $this->config->getState('people_index');
+		if (!$force && ($last['signature'] ?? '') === $signature && time() - ($last['updated'] ?? 0) < IndexSignature::MAX_AGE) {
+			return [(int)($last['people'] ?? 0), 0, true];
+		}
 		$uids = [];
 		$this->users->callForSeenUsers(function (IUser $u) use (&$uids) {
 			if ($u->isEnabled()) {
@@ -88,9 +98,9 @@ class PeopleIndex {
 			$folder->newFile($uid . '.json', json_encode(['updated' => time(), 'people' => $visible]));
 		}
 		$secs = (int)round(microtime(true) - $start);
-		$this->config->setState('people_index', ['updated' => time(), 'seconds' => $secs, 'people' => count($people), 'users' => count($uids)]);
+		$this->config->setState('people_index', ['updated' => time(), 'seconds' => $secs, 'people' => count($people), 'users' => count($uids), 'signature' => $signature]);
 		$this->logger->info(sprintf('People index rebuilt: %d people, %d users, %ds', count($people), count($uids), $secs), ['app' => 'immich_search']);
-		return [count($people), $secs];
+		return [count($people), $secs, false];
 	}
 
 	/** @return array{updated: ?int, people: array<string, array{count: int, asset: string}>} */

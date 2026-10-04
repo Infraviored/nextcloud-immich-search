@@ -34,13 +34,20 @@ class MapIndex {
 		private ImmichClient $immich,
 		private AssetSearch $assets,
 		private IUserManager $users,
+		private Config $config,
+		private IndexSignature $signature,
 		IAppDataFactory $appDataFactory,
 	) {
 		$this->appData = $appDataFactory->get(Application::APP_ID);
 	}
 
-	/** @return int geotagged pictures seen */
-	public function rebuild(): int {
+	/** @return int geotagged pictures seen, -1 if skipped because nothing changed */
+	public function rebuild(bool $force = false): int {
+		$signature = $this->signature->compute();
+		$last = $this->config->getState('map_index');
+		if (!$force && ($last['signature'] ?? '') === $signature && time() - ($last['updated'] ?? 0) < IndexSignature::MAX_AGE) {
+			return -1;
+		}
 		$uids = [];
 		$this->users->callForSeenUsers(function (IUser $u) use (&$uids) {
 			if ($u->isEnabled()) {
@@ -72,6 +79,7 @@ class MapIndex {
 		foreach ($markers as $uid => $list) {
 			$folder->newFile($uid . '.json', json_encode(['updated' => time(), 'markers' => $list]));
 		}
+		$this->config->setState('map_index', ['updated' => time(), 'seen' => $seen, 'signature' => $signature]);
 		return $seen;
 	}
 

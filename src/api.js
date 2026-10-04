@@ -150,3 +150,15 @@ export async function mapMarkers() {
 }
 
 export const tileUrl = () => url('/api/tiles/{z}/{x}/{y}')
+
+export async function getFaces(assetId) {
+	return (await axios.get(url(`/api/assets/${assetId}/faces`))).data
+}
+
+export async function reassignFace(faceId, assetId, { personId = '', newName = '' }) {
+	return (await axios.put(url(`/api/faces/${faceId}`), { assetId, personId, newName })).data
+}
+
+export async function deleteFace(faceId, assetId) {
+	return (await axios.delete(url(`/api/faces/${faceId}`), { params: { assetId } })).data
+}

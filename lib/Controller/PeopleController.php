@@ -43,6 +43,7 @@ class PeopleController extends Controller {
 		private FaceCropper $faces,
 		private ImmichClient $immich,
 		private Permissions $permissions,
+		private AssetSearch $assets,
 		private Config $config,
 		private IL10N $l,
 		private LoggerInterface $logger,
@@ -65,11 +66,16 @@ class PeopleController extends Controller {
 						'id' => $p['id'],
 						'name' => (string)($p['name'] ?? ''),
 						'hidden' => (bool)($p['isHidden'] ?? false),
+						'favorite' => (bool)($p['isFavorite'] ?? false),
+						'birthDate' => $p['birthDate'] ?? null,
 						'count' => $v['count'],
 					];
 				}
 			}
 			usort($people, static function ($a, $b) {
+				if ($a['favorite'] !== $b['favorite']) {
+					return $a['favorite'] ? -1 : 1;
+				}
 				if (($a['name'] === '') !== ($b['name'] === '')) {
 					return $a['name'] === '' ? 1 : -1;
 				}
@@ -96,10 +102,20 @@ class PeopleController extends Controller {
 	}
 
 	#[NoAdminRequired]
-	public function update(string $id, ?string $name = null, ?bool $hidden = null): JSONResponse {
-		return $this->guard(function () use ($id, $name, $hidden) {
+	/** @param string|null $birthDate YYYY-MM-DD, '' to remove */
+	public function update(string $id, ?string $name = null, ?bool $hidden = null, ?bool $favorite = null, ?string $birthDate = null): JSONResponse {
+		return $this->guard(function () use ($id, $name, $hidden, $favorite, $birthDate) {
 			$this->mayManage($id);
 			$body = [];
+			if ($favorite !== null) {
+				$body['isFavorite'] = $favorite;
+			}
+			if ($birthDate !== null) {
+				if ($birthDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate)) {
+					throw new ImmichException($this->l->t('Invalid date'), Http::STATUS_BAD_REQUEST);
+				}
+				$body['birthDate'] = $birthDate === '' ? null : $birthDate;
+			}
 			if ($name !== null) {
 				$body['name'] = mb_substr(trim($name), 0, self::MAX_NAME);
 			}
@@ -107,8 +123,81 @@ class PeopleController extends Controller {
 				$body['isHidden'] = $hidden;
 			}
 			$p = $this->immich->json('PUT', '/people/' . $id, $body);
-			return new JSONResponse(['id' => $id, 'name' => (string)($p['name'] ?? ''), 'hidden' => (bool)($p['isHidden'] ?? false)]);
+			return new JSONResponse(['id' => $id, 'name' => (string)($p['name'] ?? ''), 'hidden' => (bool)($p['isHidden'] ?? false),
+				'favorite' => (bool)($p['isFavorite'] ?? false), 'birthDate' => $p['birthDate'] ?? null]);
 		});
+	}
+
+	/**
+	 * Faces Immich found in one picture, as boxes relative to the picture (0..1).
+	 * People are named only if the user may see them (they are in this picture, so normally yes).
+	 */
+	#[NoAdminRequired]
+	public function faces(string $assetId): JSONResponse {
+		return $this->guard(function () use ($assetId) {
+			$this->assetVisible($assetId);
+			$visible = $this->index->forUser($this->uid())['people'];
+			$out = [];
+			foreach ($this->immich->json('GET', '/faces?id=' . $assetId) as $f) {
+				$w = max(1, (int)$f['imageWidth']);
+				$h = max(1, (int)$f['imageHeight']);
+				$pid = $f['person']['id'] ?? null;
+				$out[] = [
+					'id' => $f['id'],
+					'x' => $f['boundingBoxX1'] / $w, 'y' => $f['boundingBoxY1'] / $h,
+					'w' => ($f['boundingBoxX2'] - $f['boundingBoxX1']) / $w, 'h' => ($f['boundingBoxY2'] - $f['boundingBoxY1']) / $h,
+					'personId' => $pid,
+					'personName' => $pid !== null ? (string)($f['person']['name'] ?? '') : null,
+					'known' => $pid !== null && isset($visible[$pid]),
+				];
+			}
+			return new JSONResponse(['faces' => $out, 'canManage' => $this->permissions->canManagePeople($this->uid())]);
+		});
+	}
+
+	/**
+	 * Give one face to another person, or to a new one ($newName). The face must be in a
+	 * picture the user may see; an existing target person must be visible to the user.
+	 */
+	#[NoAdminRequired]
+	public function reassignFace(string $faceId, string $assetId, string $personId = '', string $newName = ''): JSONResponse {
+		return $this->guard(function () use ($faceId, $assetId, $personId, $newName) {
+			$this->faceInAsset($faceId, $assetId);
+			if (trim($newName) !== '') {
+				$personId = $this->immich->json('POST', '/people', ['name' => mb_substr(trim($newName), 0, self::MAX_NAME)])['id'];
+			} else {
+				$this->mayManage($personId);
+			}
+			$this->immich->json('PUT', '/faces/' . $personId, ['id' => $faceId]);
+			return new JSONResponse(['ok' => true, 'personId' => $personId]);
+		});
+	}
+
+	/** "This is nobody": a wrongly detected face. */
+	#[NoAdminRequired]
+	public function deleteFace(string $faceId, string $assetId): JSONResponse {
+		return $this->guard(function () use ($faceId, $assetId) {
+			$this->faceInAsset($faceId, $assetId);
+			$this->immich->json('DELETE', '/faces/' . $faceId, ['force' => false]);
+			return new JSONResponse(['ok' => true]);
+		});
+	}
+
+	private function assetVisible(string $assetId): void {
+		if (!preg_match(AssetSearch::UUID, $assetId) || !$this->assets->maySee($this->uid(), $assetId)) {
+			throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
+		}
+	}
+
+	private function faceInAsset(string $faceId, string $assetId): void {
+		if (!$this->permissions->canManagePeople($this->uid())) {
+			throw new ImmichException($this->l->t('You are not allowed to change people'), Http::STATUS_FORBIDDEN);
+		}
+		$this->assetVisible($assetId);
+		$ids = array_column($this->immich->json('GET', '/faces?id=' . $assetId), 'id');
+		if (!in_array($faceId, $ids, true)) {
+			throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
+		}
 	}
 
 	/** Merge $ids into $id: they become one person, named like $id. */

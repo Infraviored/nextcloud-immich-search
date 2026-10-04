@@ -26,9 +26,11 @@
 			@tag="dialog = 'tag'"
 			@album="dialog = 'album'"
 			@similar="$emit('similar', singleSelected)"
+			@faces="dialog = 'faces'"
 			@delete="dialog = 'delete'" />
 		<slot v-else name="status" />
 
+		<FacesDialog v-if="dialog === 'faces' && singleSelected" :item="singleSelected" @close="dialog = null" />
 		<TagDialog
 			v-if="dialog === 'tag'"
 			:count="selected.size"
@@ -66,6 +68,7 @@ import { computed, ref } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import AlbumDialog from './AlbumDialog.vue'
 import AssetGrid from './AssetGrid.vue'
+import FacesDialog from './FacesDialog.vue'
 import SelectionBar from './SelectionBar.vue'
 import TagDialog from './TagDialog.vue'
 import { addToAlbum, createAlbum } from '../albums.js'

@@ -20,7 +20,14 @@
 			<NcCheckboxRadioSwitch v-model="showHidden" type="switch">
 				{{ t('Show hidden') }}
 			</NcCheckboxRadioSwitch>
+			<NcButton v-if="state.canManage && unnamedAll.length" variant="primary" @click="naming = true">
+				<template #icon>
+					<NcIconSvgWrapper :path="mdiAccountQuestionOutline" />
+				</template>
+				{{ t('Who is this?') }}
+			</NcButton>
 		</div>
+		<NamingDialog v-if="naming" @close="naming = false" />
 
 		<div v-if="selected.length" class="people__selection" role="toolbar">
 			<NcButton variant="tertiary" :aria-label="t('Clear selection')" @click="selected = []">
@@ -82,7 +89,7 @@
 </template>
 
 <script setup>
-import { mdiAccountMultipleOutline, mdiCallMerge, mdiClose, mdiMagnify } from '@mdi/js'
+import { mdiAccountMultipleOutline, mdiAccountQuestionOutline, mdiCallMerge, mdiClose, mdiMagnify } from '@mdi/js'
 import { computed, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
@@ -90,6 +97,7 @@ import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import MergeDialog from '../components/MergeDialog.vue'
+import NamingDialog from '../components/NamingDialog.vue'
 import PersonCard from '../components/PersonCard.vue'
 import { n, t } from '../l10n.js'
 import { reloadPeople, peopleState as state } from '../people.js'
@@ -99,6 +107,7 @@ const filter = ref('')
 const showHidden = ref(false)
 const selected = ref([])
 const mergeOpen = ref(false)
+const naming = ref(false)
 const unnamedLimit = ref(120)
 
 const visible = computed(() => {

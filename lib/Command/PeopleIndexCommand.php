@@ -30,9 +30,9 @@ class PeopleIndexCommand extends Command {
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
-		[$people, $secs] = $this->index->rebuild();
+		[$people, $secs] = $this->index->rebuild(true);
 		$output->writeln("$people people checked in {$secs}s");
-		$output->writeln($this->map->rebuild() . ' geotagged pictures mapped');
+		$output->writeln($this->map->rebuild(true) . ' geotagged pictures mapped');
 		return self::SUCCESS;
 	}
 }
