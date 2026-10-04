@@ -53,7 +53,10 @@ const sizes = [
 ]
 const views = [
 	{ value: 'search', label: t('Search') },
+	{ value: 'timeline', label: t('Timeline') },
 	{ value: 'people', label: t('People') },
+	{ value: 'map', label: t('Map') },
+	{ value: 'folders', label: t('Folders') },
 ]
 
 const save = (changes) => act(() => saveUserPrefs(changes), t('Saved'))

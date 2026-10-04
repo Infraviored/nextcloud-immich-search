@@ -20,7 +20,7 @@ Find pictures in your Nextcloud by describing them: "woman on the beach", "dog i
   open in Nextcloud themselves, their own and those shared with them. Thumbnails are checked too.
 - **No Immich account per user:** one service key, configured by the admin.
     ]]></description>
-    <version>2.4.8</version>
+    <version>2.4.10</version>
     <licence>agpl</licence>
     <author>Florian Schneider</author>
     <namespace>ImmichSearch</namespace>

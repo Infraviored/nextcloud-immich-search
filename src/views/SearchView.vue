@@ -5,7 +5,8 @@
 
 <!--
   Search with filters and results. With a fixed `person` (PersonView) it lists that
-  person's pictures, newest first, optionally narrowed by text.
+  person's pictures, newest first, optionally narrowed by text. "More like this" mode
+  ranks by a picture instead of text.
 -->
 <template>
 	<div class="search">
@@ -62,53 +63,27 @@
 			</NcButton>
 		</div>
 
-		<SelectionBar
-			v-if="selected.size"
-			:count="selected.size"
-			:fileIds="[...selected]"
-			:canSelectAll="selected.size < items.length"
-			:busy="transferBusy || actionBusy"
-			:single="singleSelected"
-			:photosEnabled="page.photosEnabled"
-			@clear="selected = new Set()"
-			@selectAll="selected = new Set(items.map((i) => i.fileId))"
-			@move="doTransfer('move', $event)"
-			@copy="doTransfer('copy', $event)"
-			@favorite="doFavorite"
-			@tag="dialog = 'tag'"
-			@album="dialog = 'album'"
-			@similar="showSimilar(singleSelected)"
-			@delete="dialog = 'delete'" />
-		<p v-else class="search__status" aria-live="polite">
-			<template v-if="resolved">
-				{{ resolved.rest
-					? t('Pictures of {name} matching “{text}”', { name: resolved.name, text: resolved.rest })
-					: t('Pictures of {name}', { name: resolved.name }) }}
-				·
-				<NcButton variant="tertiary-no-background" size="small" @click="run(true, true)">
-					{{ t('Search the words instead') }}
-				</NcButton>
-				<br>
+		<MediaBrowser
+			:groups="[{ key: 'all', items }]"
+			@removed="drop"
+			@refresh="run(true)"
+			@similar="showSimilar">
+			<template #status>
+				<p class="search__status" aria-live="polite">
+					<template v-if="resolved">
+						{{ resolved.rest
+							? t('Pictures of {name} matching “{text}”', { name: resolved.name, text: resolved.rest })
+							: t('Pictures of {name}', { name: resolved.name }) }}
+						·
+						<NcButton variant="tertiary-no-background" size="small" @click="run(true, true)">
+							{{ t('Search the words instead') }}
+						</NcButton>
+						<br>
+					</template>
+					{{ status }}
+				</p>
 			</template>
-			{{ status }}
-		</p>
-
-		<TagDialog
-			v-if="dialog === 'tag'"
-			:count="selected.size"
-			@close="dialog = null"
-			@apply="doTag" />
-		<AlbumDialog
-			v-if="dialog === 'album'"
-			:count="selected.size"
-			@close="dialog = null"
-			@apply="doAlbum" />
-		<NcDialog
-			v-if="dialog === 'delete'"
-			:name="n('Delete {count} file?', 'Delete {count} files?', selected.size, { count: selected.size })"
-			:message="t('They go to the Nextcloud trash bin and can be restored from there.')"
-			:buttons="deleteButtons"
-			@closing="dialog = null" />
+		</MediaBrowser>
 
 		<NcEmptyContent v-if="emptyState" :name="emptyState.name" :description="emptyState.description">
 			<template #icon>
@@ -116,11 +91,6 @@
 			</template>
 		</NcEmptyContent>
 
-		<AssetGrid
-			v-model:selected="selected"
-			:items="items"
-			@open="open"
-			@similar="showSimilar" />
 		<div ref="sentinel" class="search__more">
 			<NcLoadingIcon v-if="loading" :size="32" />
 		</div>
@@ -129,29 +99,20 @@
 
 <script setup>
 import { mdiAlertCircleOutline, mdiClose, mdiImageOffOutline, mdiImageSearchOutline, mdiMagnify } from '@mdi/js'
-import { showSuccess, showWarning } from '@nextcloud/dialogs'
-import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
-import AlbumDialog from '../components/AlbumDialog.vue'
-import AssetGrid from '../components/AssetGrid.vue'
-import SelectionBar from '../components/SelectionBar.vue'
-import TagDialog from '../components/TagDialog.vue'
-import { addToAlbum, createAlbum } from '../albums.js'
-import { deleteFiles, errorMessage, favorite, fileUrl, search, tagFiles, thumbnailUrl } from '../api.js'
-import { useAction } from '../composables/useAction.js'
-import { useTransfer } from '../composables/useTransfer.js'
-import { n, t } from '../l10n.js'
+import MediaBrowser from '../components/MediaBrowser.vue'
+import { errorMessage, search, thumbnailUrl } from '../api.js'
+import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
+import { t } from '../l10n.js'
 import { userPrefs } from '../prefs.js'
 import { replaceQuery, route } from '../router.js'
-import { afterTransfer } from '../selection.js'
 
 const props = defineProps({
 	/** Fixed person (PersonView); hides the person filter. */
@@ -170,7 +131,6 @@ const q = ref(route.query.q || '')
 const type = ref(route.query.type ?? (userPrefs.show_videos ? '' : 'IMAGE'))
 const personId = ref(props.person || route.query.person || '')
 const items = ref([])
-const selected = ref(new Set())
 const nextPage = ref(null)
 const loading = ref(false)
 const error = ref('')
@@ -178,22 +138,18 @@ const searched = ref(false)
 /** Person recognized in the text by the server ("Tara beach"), and whether to skip that. */
 const resolved = ref(null)
 const literal = ref(false)
-const sentinel = ref(null)
-const { busy: transferBusy, run: runTransfer } = useTransfer(() => run(true))
-const { busy: actionBusy, act } = useAction()
-const page = loadState('immich_search', 'page', { photosEnabled: false })
-/** Open dialog: 'tag', 'album', 'delete' or null */
-const dialog = ref(null)
 /** "More like this" mode: {id, name} of the picture, or null */
 const similar = ref(route.query.similar ? { id: route.query.similar, name: route.query.name || '' } : null)
-const singleSelected = computed(() => (selected.value.size === 1 ? items.value.find((i) => selected.value.has(i.fileId)) ?? null : null))
 let controller = null
-let observer = null
+const sentinel = ref(null)
+const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value && run(false))
 
 const peopleOptions = computed(() => props.people.filter((p) => p.name))
 const personOption = computed({
 	get: () => peopleOptions.value.find((p) => p.id === personId.value) ?? null,
-	set: (p) => { personId.value = p?.id ?? '' },
+	set: (p) => {
+		personId.value = p?.id ?? ''
+	},
 })
 
 const status = computed(() => {
@@ -201,7 +157,7 @@ const status = computed(() => {
 		return ''
 	}
 	const count = items.value.length + (nextPage.value ? '+' : '')
-	return q.value
+	return q.value && !similar.value
 		? t('{count} results, best first', { count })
 		: t('{count} results, newest first', { count })
 })
@@ -233,7 +189,6 @@ async function run(reset, asText = false) {
 		controller?.abort()
 		controller = null
 		items.value = []
-		selected.value = new Set()
 		nextPage.value = 1
 		searched.value = false
 		error.value = ''
@@ -272,99 +227,15 @@ async function run(reset, asText = false) {
 		if (ctrl === controller) {
 			controller = null
 			loading.value = false
-			// The filter can drop whole pages: keep loading while the end is still on screen.
-			queueMicrotask(checkSentinel)
+			more.check()
 		}
 	}
 }
 
-function checkSentinel() {
-	const r = sentinel.value?.getBoundingClientRect()
-	if (r && r.top < window.innerHeight + 800 && nextPage.value && !error.value) {
-		run(false)
-	}
+function drop(fileIds) {
+	const gone = new Set(fileIds)
+	items.value = items.value.filter((i) => !gone.has(i.fileId))
 }
-
-function open(item) {
-	if (window.OCA?.Viewer) {
-		window.OCA.Viewer.open({ path: item.path })
-	} else {
-		window.location.href = fileUrl(item.fileId)
-	}
-}
-
-async function doTransfer(mode, target = null) {
-	const ids = [...selected.value]
-	const res = await runTransfer(ids, mode, target)
-	if (!res) {
-		return
-	}
-	// Moved files are no longer where Immich last saw them; drop them until the rescan.
-	const next = afterTransfer(items.value, selected.value, res.failedIds, mode === 'move')
-	items.value = next.items
-	selected.value = next.selected
-}
-
-/**
- * Report a bulk action: success toast, or a warning naming how many were refused.
- *
- * @param res
- * @param success
- */
-function report(res, success) {
-	if (!res) {
-		return
-	}
-	if (res.failed?.length) {
-		showWarning(success + ' · ' + n('{count} not allowed', '{count} not allowed', res.failed.length, { count: res.failed.length }))
-	} else {
-		showSuccess(success)
-	}
-}
-
-async function doFavorite(on) {
-	const res = await act(() => favorite([...selected.value], on))
-	report(res, on
-		? n('{count} file added to favorites', '{count} files added to favorites', res?.done ?? 0, { count: res?.done ?? 0 })
-		: n('{count} file removed from favorites', '{count} files removed from favorites', res?.done ?? 0, { count: res?.done ?? 0 }))
-}
-
-async function doTag(tagIds, newTags) {
-	dialog.value = null
-	const res = await act(() => tagFiles([...selected.value], tagIds, newTags))
-	report(res, n('{count} file tagged', '{count} files tagged', res?.done ?? 0, { count: res?.done ?? 0 }))
-}
-
-async function doAlbum(name, isNew) {
-	dialog.value = null
-	const chosen = items.value.filter((i) => selected.value.has(i.fileId))
-	const added = await act(async () => {
-		if (isNew) {
-			await createAlbum(name)
-		}
-		return addToAlbum(name, chosen)
-	})
-	if (added !== null) {
-		showSuccess(n('{count} picture added to {album}', '{count} pictures added to {album}', added, { count: added, album: name }))
-	}
-}
-
-async function doDelete() {
-	dialog.value = null
-	const ids = [...selected.value]
-	const res = await act(() => deleteFiles(ids))
-	if (res) {
-		report(res, n('{count} file moved to the trash bin', '{count} files moved to the trash bin', res.done, { count: res.done }))
-		const next = afterTransfer(items.value, selected.value, res.failed.map((f) => f.fileId), true)
-		items.value = next.items
-		selected.value = next.selected
-	}
-}
-
-const deleteButtons = computed(() => [
-	{ label: t('Cancel'), callback: () => { dialog.value = null } },
-	{ label: t('Delete'), variant: 'error', callback: doDelete },
-])
 
 /**
  * "More like this" for one picture.
@@ -372,7 +243,7 @@ const deleteButtons = computed(() => [
  * @param item
  */
 function showSimilar(item) {
-	if (!item) {
+	if (!item?.id) {
 		return
 	}
 	similar.value = { id: item.id, name: item.name }
@@ -385,19 +256,8 @@ watch(() => props.person, (p) => {
 	run(true)
 })
 
-onMounted(() => {
-	observer = new IntersectionObserver((e) => {
-		if (e[0].isIntersecting) {
-			run(false)
-		}
-	}, { rootMargin: '800px' })
-	observer.observe(sentinel.value)
-	run(true)
-})
-onBeforeUnmount(() => {
-	observer?.disconnect()
-	controller?.abort()
-})
+onMounted(() => run(true))
+onBeforeUnmount(() => controller?.abort())
 </script>
 
 <style scoped lang="scss">
@@ -434,6 +294,21 @@ onBeforeUnmount(() => {
 		min-height: 1.4em;
 		margin: 4px 0 8px;
 		color: var(--color-text-maxcontrast);
+	}
+
+	&__similar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 12px;
+		margin-bottom: 8px;
+
+		img {
+			width: 48px;
+			height: 48px;
+			border-radius: var(--border-radius);
+			object-fit: cover;
+		}
 	}
 
 	&__more {

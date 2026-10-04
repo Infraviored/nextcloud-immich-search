@@ -20,6 +20,7 @@ export function errorMessage(e) {
 export const thumbnailUrl = (id, size = 'thumbnail') => url(`/api/assets/${id}/thumbnail`) + (size === 'preview' ? '?size=preview' : '')
 export const faceUrl = (id) => url(`/api/people/${id}/face`)
 export const fileUrl = (fileId) => generateUrl('/f/' + fileId)
+export const previewUrl = (fileId) => generateUrl('/core/preview?fileId={fileId}&x=256&y=256&a=1&mimeFallback=true', { fileId })
 
 export async function search({ q = '', page = 1, person = '', type = '', literal = false, similar = '' }, signal) {
 	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0, similar }, signal })
@@ -119,3 +120,33 @@ export async function tagFiles(fileIds, tagIds, newTags) {
 }
 
 export const zipUrl = (fileIds) => url('/api/files/zip') + '?ids=' + fileIds.join(',')
+
+export async function timeline({ page = 1, before = '', type = '' }, signal) {
+	return (await axios.get(url('/api/timeline'), { params: { page, before, type }, signal })).data
+}
+
+export async function memories() {
+	return (await axios.get(url('/api/memories'), { params: { date: new Date().toISOString().slice(0, 10) } })).data
+}
+
+export async function duplicates() {
+	return (await axios.get(url('/api/duplicates'))).data
+}
+
+export async function dismissDuplicate(id) {
+	return (await axios.delete(url('/api/duplicates/' + id))).data
+}
+
+export async function folder(path) {
+	return (await axios.get(url('/api/folder'), { params: { path } })).data
+}
+
+export async function itemsFor(fileIds) {
+	return (await axios.get(url('/api/items'), { params: { ids: fileIds.join(',') } })).data
+}
+
+export async function mapMarkers() {
+	return (await axios.get(url('/api/map'))).data
+}
+
+export const tileUrl = () => url('/api/tiles/{z}/{x}/{y}')

@@ -29,7 +29,7 @@
 				@touchmove.passive="cancelPress"
 				@touchend="onTouchEnd($event)">
 				<img
-					:src="thumbnailUrl(item.id)"
+					:src="thumb(item)"
 					alt=""
 					loading="lazy"
 					decoding="async">
@@ -53,6 +53,7 @@
 				<NcIconSvgWrapper :path="mdiFolderOutline" :size="18" />
 			</a>
 			<button
+				v-if="item.id"
 				class="tile__similar"
 				type="button"
 				:title="t('Similar pictures')"
@@ -68,7 +69,7 @@
 import { mdiCheckboxBlankCircleOutline, mdiCheckCircle, mdiFolderOutline, mdiImageMultipleOutline, mdiPlay } from '@mdi/js'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
-import { fileUrl, thumbnailUrl } from '../api.js'
+import { fileUrl, previewUrl, thumbnailUrl } from '../api.js'
 import { t } from '../l10n.js'
 import { prefs } from '../prefs.js'
 import { toggleSelection } from '../selection.js'
@@ -82,6 +83,13 @@ const props = defineProps({
 const emit = defineEmits(['open', 'similar', 'update:selected'])
 
 const LONG_PRESS_MS = 450
+
+/**
+ * Immich thumbnail when the picture is indexed, Nextcloud's own preview otherwise (folders).
+ *
+ * @param item
+ */
+const thumb = (item) => (item.id ? thumbnailUrl(item.id) : previewUrl(item.fileId))
 
 const selecting = computed(() => props.selected.size > 0)
 let lastIndex = null

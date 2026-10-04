@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace OCA\ImmichSearch\BackgroundJob;
 
+use OCA\ImmichSearch\Service\MapIndex;
 use OCA\ImmichSearch\Service\PeopleIndex;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\QueuedJob;
@@ -17,11 +18,13 @@ class RebuildPeopleIndexNow extends QueuedJob {
     public function __construct(
         ITimeFactory $time,
         private PeopleIndex $index,
+        private MapIndex $map,
     ) {
         parent::__construct($time);
     }
 
     protected function run($argument): void {
         $this->index->rebuild();
+        $this->map->rebuild();
     }
 }

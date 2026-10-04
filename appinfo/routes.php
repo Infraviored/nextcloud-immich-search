@@ -15,9 +15,22 @@ return [
 		['name' => 'page#index',          'url' => '/people/{id}',               'verb' => 'GET', 'postfix' => 'person'],
 		['name' => 'page#index',          'url' => '/settings',                  'verb' => 'GET', 'postfix' => 'settings'],
 		['name' => 'page#index',          'url' => '/settings/{section}',        'verb' => 'GET', 'postfix' => 'settingsSection'],
+		['name' => 'page#index', 'url' => '/timeline', 'verb' => 'GET', 'postfix' => 'timeline'],
+		['name' => 'page#index', 'url' => '/map', 'verb' => 'GET', 'postfix' => 'map'],
+		['name' => 'page#index', 'url' => '/folders', 'verb' => 'GET', 'postfix' => 'folders'],
+		['name' => 'page#index', 'url' => '/duplicates', 'verb' => 'GET', 'postfix' => 'duplicates'],
 
 		['name' => 'api#search',          'url' => '/api/search',                'verb' => 'GET'],
 		['name' => 'api#thumbnail',       'url' => '/api/assets/{id}/thumbnail', 'verb' => 'GET'],
+
+		['name' => 'browse#timeline', 'url' => '/api/timeline', 'verb' => 'GET'],
+		['name' => 'browse#memories', 'url' => '/api/memories', 'verb' => 'GET'],
+		['name' => 'browse#duplicates', 'url' => '/api/duplicates', 'verb' => 'GET'],
+		['name' => 'browse#dismissDuplicate', 'url' => '/api/duplicates/{id}', 'verb' => 'DELETE'],
+		['name' => 'browse#folder', 'url' => '/api/folder', 'verb' => 'GET'],
+		['name' => 'browse#items', 'url' => '/api/items', 'verb' => 'GET'],
+		['name' => 'browse#map', 'url' => '/api/map', 'verb' => 'GET'],
+		['name' => 'browse#tile', 'url' => '/api/tiles/{z}/{x}/{y}', 'verb' => 'GET'],
 
 		['name' => 'people#index',        'url' => '/api/people',                'verb' => 'GET'],
 		['name' => 'people#face',         'url' => '/api/people/{id}/face',      'verb' => 'GET'],

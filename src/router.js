@@ -12,6 +12,7 @@ import { reactive } from 'vue'
  *   /apps/immich_search/people      all people
  *   /apps/immich_search/people/<id> one person
  *   /apps/immich_search/settings[/<section>]
+ *   /apps/immich_search/timeline | map | folders | duplicates
  */
 const base = generateUrl('/apps/immich_search')
 
@@ -23,6 +24,9 @@ function parse() {
 	const query = Object.fromEntries(new URLSearchParams(window.location.search))
 	if (section === 'people' && id) {
 		return { name: 'person', id, query }
+	}
+	if (['timeline', 'map', 'folders', 'duplicates'].includes(section)) {
+		return { name: section, id: null, query }
 	}
 	if (section === 'settings') {
 		return { name: 'settings', id: id || null, query }

@@ -22,7 +22,7 @@ class UserPrefs {
 		// Hide "Photos by content" from this user's unified search
 		'search_disabled' => ['bool', false],
 		// View the app opens with
-		'start_view' => ['enum:search,people', 'search'],
+		'start_view' => ['enum:search,timeline,people,map,folders', 'search'],
 		// Include videos in results by default
 		'show_videos' => ['bool', true],
 	];

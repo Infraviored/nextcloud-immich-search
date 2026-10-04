@@ -63,14 +63,50 @@ class AssetSearch {
 	 *                                                   does not get a string of empty pages.
 	 */
 	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = ''): array {
+		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar);
+	}
+
+	/**
+	 * Everything the user may see, newest first, taken before $before (ISO date) if given.
+	 * The cursor is the Immich page within that window.
+	 */
+	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = ''): array {
+		return $this->collect($uid, $page, $size, function (int $p, int $s) use ($before, $type) {
+			$body = ['page' => $p, 'size' => $s, 'order' => 'desc'];
+			if ($before !== null) {
+				$body['takenBefore'] = $before;
+			}
+			if (in_array($type, self::TYPES, true)) {
+				$body['type'] = $type;
+			}
+			return $this->immich->json('POST', '/search/metadata', $body)['assets'] ?? [];
+		});
+	}
+
+	/** Years that have pictures (from Immich's timeline buckets), newest first. */
+	public function years(): array {
+		$years = [];
+		foreach ($this->immich->json('GET', '/timeline/buckets') as $b) {
+			$years[(int)substr((string)$b['timeBucket'], 0, 4)] = true;
+		}
+		krsort($years);
+		return array_keys($years);
+	}
+
+	/**
+	 * Page through Immich results until half a page of visible items is filled.
+	 *
+	 * @param callable(int $page, int $size): array $fetch returns Immich's "assets" block
+	 */
+	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = ''): array {
 		$size = max(1, min(200, $size));
 		$items = [];
 		$next = max(1, $page);
 		for ($i = 0; $i < self::MAX_PAGES_PER_CALL && $next !== null && count($items) < intdiv($size + 1, 2); $i++) {
-			$assets = $this->immichPage($q, $next, $size, $person, $type, $similar);
+			$assets = $fetch($next, $size);
 			foreach ($assets['items'] ?? [] as $a) {
-				if ($a['id'] === $similar) {
-					continue; // the picture itself is its best match
+				if ($a['id'] === $skipId) {
+					continue; // "more like this": the picture itself is its best match
 				}
 				$item = $this->visibleItem($uid, $a);
 				if ($item !== null) {
