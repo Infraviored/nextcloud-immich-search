@@ -230,6 +230,12 @@ onMounted(async () => {
 }
 
 @media (max-width: 600px) {
+	// One scrollable row instead of a wall of years
+	.timeline__years {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+	}
+
 	.memory {
 		width: 120px;
 		height: 150px;

@@ -8,7 +8,7 @@ Wie die App hier eingebunden ist. Das Allgemeine steht im README.
 | Mounts | `/mnt/nas/nextcloud/<uid>/files` → `/mnt/nextcloud/<uid>:ro`, derzeit `florian` und `tara` |
 | Bibliotheken | „Nextcloud florian", „Nextcloud tara", beide gehören Flos Immich-Konto (= Dienstkonto) |
 | Nextcloud | AIO, Container `nextcloud-aio-nextcloud`, App unter `custom_apps/immich_search` |
-| Ausrollen | `make deploy` |
+| Ausrollen | `make deploy` (erhöht die Version selbst, wenn sich etwas geändert hat) |
 
 ## Neuen Benutzer aufnehmen
 
@@ -16,6 +16,19 @@ Wie die App hier eingebunden ist. Das Allgemeine steht im README.
 2. In Immich (als Flo) externe Bibliothek mit Importpfad `/mnt/nextcloud/<uid>` anlegen, scannen
 
 Mehr nicht: die App braucht keine Konfiguration pro Benutzer.
+
+## Hintergrundjobs der App
+
+| Job | Takt | Zweck |
+|---|---|---|
+| Personen- und Karten-Index | stündlich, übersprungen wenn nichts geändert | wer welche Personen/Marker sieht |
+| Mini-Bilder | alle 15 min | neue Bilder unter 256 px aus Immich nehmen |
+
+Laufen über den Nextcloud-Cron der AIO. Von Hand: `occ immich_search:people-index`,
+`occ immich_search:prune --full`. Status: in der App unter Einstellungen → Status.
+
+PHP-Änderungen werden bis zu 60 s gecacht (`opcache.revalidate_freq`): nach `make deploy`
+kurz warten, bevor man testet.
 
 ## GPU und Indexierung
 

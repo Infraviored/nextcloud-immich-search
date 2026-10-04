@@ -16,6 +16,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
 use OCP\IUserSession;
@@ -58,6 +59,7 @@ class PrivateController extends Controller {
 	/** With the password: Nextcloud asks for it if it was not confirmed in the last minutes. */
 	#[NoAdminRequired]
 	#[PasswordConfirmationRequired]
+	#[UserRateLimit(limit: 10, period: 300)]
 	public function unlockWithPassword(): JSONResponse {
 		$this->privateArea->unlock();
 		return new JSONResponse(['unlocked' => true]);
@@ -65,6 +67,7 @@ class PrivateController extends Controller {
 
 	/** Without the password, only if the user turned that off. */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 10, period: 300)]
 	public function unlock(): JSONResponse {
 		if ($this->prefs->get($this->uid(), 'private_password')) {
 			return new JSONResponse(['error' => 'password'], Http::STATUS_FORBIDDEN);

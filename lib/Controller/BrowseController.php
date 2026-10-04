@@ -22,6 +22,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\Response;
@@ -76,6 +77,7 @@ class BrowseController extends Controller {
 	}
 
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 120, period: 60)]
 	public function dismissDuplicate(string $id): Response {
 		return $this->guard(function () use ($id) {
 			// Only for groups the user actually sees two pictures of
@@ -130,6 +132,7 @@ class BrowseController extends Controller {
 
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit(limit: 3000, period: 60)]
 	public function tile(int $z, int $x, int $y): Response {
 		try {
 			$resp = new DataDisplayResponse($this->tiles->tile($z, $x, $y), Http::STATUS_OK, ['Content-Type' => 'image/png']);

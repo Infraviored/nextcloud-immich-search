@@ -12,7 +12,6 @@ namespace OCA\ImmichSearch\Service;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
-use OCP\Files\NotFoundException;
 
 /**
  * A folder as a gallery: its subfolders and its pictures and videos, straight from
@@ -29,9 +28,13 @@ class FolderBrowser {
 	/** @return array{path: string, folders: list<array>, items: list<array>, truncated: bool} */
 	public function list(string $uid, string $path): array {
 		$home = $this->rootFolder->getUserFolder($uid);
+		if (in_array('..', explode('/', $path), true)) {
+			throw new \InvalidArgumentException('path');
+		}
 		try {
 			$folder = $path === '' || $path === '/' ? $home : $home->get($path);
-		} catch (NotFoundException) {
+		} catch (\Throwable) {
+			// not found, not permitted, invalid path: all the same to the caller
 			throw new \InvalidArgumentException('path');
 		}
 		if (!$folder instanceof Folder) {

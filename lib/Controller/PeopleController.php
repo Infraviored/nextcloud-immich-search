@@ -22,6 +22,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\Response;
@@ -108,6 +109,7 @@ class PeopleController extends Controller {
 
 	#[NoAdminRequired]
 	/** @param string|null $birthDate YYYY-MM-DD, '' to remove */
+	#[UserRateLimit(limit: 300, period: 60)]
 	public function update(string $id, ?string $name = null, ?bool $hidden = null, ?bool $favorite = null, ?string $birthDate = null): JSONResponse {
 		return $this->guard(function () use ($id, $name, $hidden, $favorite, $birthDate) {
 			$this->mayManage($id);
@@ -165,6 +167,7 @@ class PeopleController extends Controller {
 	 * picture the user may see; an existing target person must be visible to the user.
 	 */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 300, period: 60)]
 	public function reassignFace(string $faceId, string $assetId, string $personId = '', string $newName = ''): JSONResponse {
 		return $this->guard(function () use ($faceId, $assetId, $personId, $newName) {
 			$this->faceInAsset($faceId, $assetId);
@@ -180,6 +183,7 @@ class PeopleController extends Controller {
 
 	/** "This is nobody": a wrongly detected face. */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 300, period: 60)]
 	public function deleteFace(string $faceId, string $assetId): JSONResponse {
 		return $this->guard(function () use ($faceId, $assetId) {
 			$this->faceInAsset($faceId, $assetId);
@@ -207,6 +211,7 @@ class PeopleController extends Controller {
 
 	/** Merge $ids into $id: they become one person, named like $id. */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 120, period: 60)]
 	public function merge(string $id, array $ids = []): JSONResponse {
 		return $this->guard(function () use ($id, $ids) {
 			$ids = array_values(array_diff(array_unique($ids), [$id]));

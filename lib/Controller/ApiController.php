@@ -20,6 +20,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\Response;
@@ -51,6 +52,7 @@ class ApiController extends Controller {
 	 * @param bool $literal take $q as it is; otherwise a person's name at its start or end
 	 *                      becomes the person filter ("Tara beach" = Tara + "beach")
 	 */
+	#[UserRateLimit(limit: 300, period: 60)]
 	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false, string $similar = ''): JSONResponse {
 		$q = trim($q);
 		if ($similar !== '') {

@@ -9,7 +9,7 @@ VERSION := $(shell sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xm
 FILES   := appinfo img js l10n lib templates LICENSE README.md
 PHP     ?= $(shell command -v php || echo "docker exec -i $${CONTAINER:-nextcloud-aio-nextcloud} php")
 
-.PHONY: build lint test dist deploy clean
+.PHONY: build lint test dist sign deploy clean
 
 node_modules: package.json
 	npm install --no-audit --no-fund
@@ -33,6 +33,17 @@ dist: lint build
 	@mkdir -p build
 	@tar --exclude='*.map' --transform 's,^,$(APP)/,' -czf build/$(APP)-$(VERSION).tar.gz $(FILES)
 	@echo build/$(APP)-$(VERSION).tar.gz
+
+# make sign KEY=immich_search.key CERT=immich_search.crt   (see docs/RELEASE.md)
+sign: dist
+	@rm -rf build/sign && mkdir -p build/sign && tar -xzf build/$(APP)-$(VERSION).tar.gz -C build/sign
+	docker cp build/sign/$(APP) $${CONTAINER:-nextcloud-aio-nextcloud}:/tmp/$(APP)-sign
+	docker cp $(KEY) $${CONTAINER:-nextcloud-aio-nextcloud}:/tmp/$(APP).key
+	docker cp $(CERT) $${CONTAINER:-nextcloud-aio-nextcloud}:/tmp/$(APP).crt
+	docker exec -u www-data $${CONTAINER:-nextcloud-aio-nextcloud} php occ integrity:sign-app --privateKey=/tmp/$(APP).key --certificate=/tmp/$(APP).crt --path=/tmp/$(APP)-sign
+	docker cp $${CONTAINER:-nextcloud-aio-nextcloud}:/tmp/$(APP)-sign/appinfo/signature.json build/sign/$(APP)/appinfo/
+	docker exec $${CONTAINER:-nextcloud-aio-nextcloud} rm -rf /tmp/$(APP)-sign /tmp/$(APP).key /tmp/$(APP).crt
+	tar -czf build/$(APP)-$(VERSION)-signed.tar.gz -C build/sign $(APP)
 
 deploy: lint
 	@./deploy.sh

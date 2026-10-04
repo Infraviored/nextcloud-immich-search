@@ -16,6 +16,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\AppFramework\Http\ZipResponse;
@@ -39,21 +40,25 @@ class FilesController extends Controller {
 
 	/** @param list<int> $fileIds */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
 	public function transfer(array $fileIds, string $target, string $mode = 'move'): JSONResponse {
 		return $this->run($fileIds, fn ($ids) => $this->transfer->transfer($this->uid(), $ids, $target, $mode === 'copy'));
 	}
 
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
 	public function undo(array $moves = []): JSONResponse {
 		return $this->run(array_column($moves, 'fileId'), fn () => $this->actions->undoMove($this->uid(), $moves));
 	}
 
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 120, period: 60)]
 	public function favorite(array $fileIds, bool $on = true): JSONResponse {
 		return $this->run($fileIds, fn ($ids) => $this->actions->favorite($this->uid(), $ids, $on));
 	}
 
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
 	public function delete(array $fileIds): JSONResponse {
 		return $this->run($fileIds, fn ($ids) => $this->actions->delete($this->uid(), $ids));
 	}
@@ -64,6 +69,7 @@ class FilesController extends Controller {
 	}
 
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 120, period: 60)]
 	public function tag(array $fileIds, array $tagIds = [], array $newTags = []): JSONResponse {
 		return $this->run($fileIds, fn ($ids) => $this->actions->tag($this->uid(), $ids, $tagIds, $newTags));
 	}
@@ -71,6 +77,7 @@ class FilesController extends Controller {
 	/** ZIP of the selection; a plain link (GET), so the browser downloads it. */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit(limit: 20, period: 60)]
 	public function zip(string $ids = ''): Response {
 		$fileIds = array_filter(array_map('intval', explode(',', $ids)));
 		if ($fileIds === [] || count($fileIds) > self::MAX_FILES) {

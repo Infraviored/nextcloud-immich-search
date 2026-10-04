@@ -5,27 +5,36 @@
 	<name>Photo search</name>
 	<summary>Search photos and videos by what is in them, using Immich</summary>
 	<description><![CDATA[
-Find pictures in your Nextcloud by describing them: "woman on the beach", "dog in the snow",
-"birthday cake". The image understanding (CLIP) and face recognition come from a self-hosted
-[Immich](https://immich.app) that indexes your Nextcloud files read-only.
+A photo app for Nextcloud that understands your pictures. Describe what you are looking for –
+"woman on the beach", "dog in the snow", "birthday cake" – or pick a person. The image
+understanding (CLIP), face recognition, memories and duplicate detection come from a
+self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-only.
 
-- **Everywhere you already search:** a "Photos by content" section in the unified search bar
-  and in the Nextcloud mobile apps, plus a dedicated app with person and photo/video filters.
-- **Sort in bulk:** select many results (long-press on touch) and move or copy them into a folder.
-- **People:** name, merge and hide the faces Immich found – everyone only sees people from
-  pictures they may open, with faces cut from those pictures.
-- **Opens the real file:** results are your Nextcloud files, shown in the Nextcloud viewer
-  (videos play), with a jump to the containing folder.
-- **Nextcloud permissions decide:** one shared index, but every user only finds files they can
-  open in Nextcloud themselves, their own and those shared with them. Thumbnails are checked too.
-- **No Immich account per user:** one service key, configured by the admin.
+- **Search by content and people**, in the app and in Nextcloud's own search bar (also in the
+  mobile apps); "Tara beach" finds Tara's beach pictures. "More like this" for any picture.
+- **Timeline, map, folders, "on this day", duplicates** – like a gallery app, with all of it
+  searchable.
+- **Sort in bulk:** select many (long-press on touch), move or copy into folders with undo,
+  tag, favorite, add to an album, download as ZIP, delete.
+- **People:** name, merge, hide, birthdays, favorites; assign single faces; "Who is this?"
+  naming in a row. Faces are cut only from pictures the viewer may open.
+- **Private area:** folders, people and single pictures that only show after unlocking with
+  your password – never in the global search.
+- **Nextcloud permissions decide:** one shared index, but every user only ever sees files they
+  can open in Nextcloud – their own and those shared with them.
+- **Keeps Immich clean:** exclude file types and folders, take tiny images out for good.
+- In the Files app: a "Similar pictures" action and a sidebar tab with the people in a picture.
+  A dashboard widget shows today's memories.
 	]]></description>
-	<version>2.4.14</version>
+	<version>3.0.0</version>
 	<licence>agpl</licence>
 	<author>Florian Schneider</author>
 	<namespace>ImmichSearch</namespace>
 	<category>multimedia</category>
 	<category>search</category>
+	<website>https://github.com/Infraviored/nextcloud-immich-search</website>
+	<bugs>https://github.com/Infraviored/nextcloud-immich-search/issues</bugs>
+	<repository type="git">https://github.com/Infraviored/nextcloud-immich-search.git</repository>
 	<dependencies>
 		<php min-version="8.1"/>
 		<nextcloud min-version="30" max-version="35"/>

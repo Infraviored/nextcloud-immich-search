@@ -1,6 +1,28 @@
 # Plan: Fotosuche (`immich_search`)
 
-Stand 2026-10-04, Version 2.2.0. Ziel: aus der Fotosuche eine vollständige, eigenständige
+## Stand 2026-10-04, Version 3.0.0
+
+| Phase | Stand |
+|---|---|
+| 0 Grundlagen | ✅ Repo, CI (PHP 8.1–8.4, Frontend), Release-Workflow, CHANGELOG, PHPUnit/Vitest/E2E, Nextcloud-Codestil, deploy.sh mit Versionsschutz |
+| 1 Einstellungsseite | ✅ Status, Darstellung, Nextcloud-Suche, Indexierung, Personen, Verbindung, Privat |
+| 2 Mini-Bilder | ✅ Weg A+B kombiniert: Papierkorb in Immich + gebündelte Ausschlussmuster (auf Immich 3.2 gemessen, Grenzen siehe SmallImagePruner) |
+| 3 Nextcloud-Suche | ✅ Personen-Anbieter, „Tara Strand", „Mehr suchen" konfigurierbar |
+| 4 Auswahl | ✅ Ähnliche Bilder, Favoriten, Tags, Alben, ZIP, Löschen, Teilen, Rückgängig, letzte Ordner |
+| 5 Foto-App | ✅ Zeitleiste, Karte, An diesem Tag, Duplikate, Ordner |
+| 6 Gesichter | ✅ Gesichter pro Bild, „Wer ist das?", Geburtstag, Favoriten, inkrementeller Index |
+| 7 Privat | ✅ Ordner, Personen, Einzelbilder; Entsperren mit Passwort, 30 min |
+| 8 Eingebettet | ✅ Dateien-Aktion, Seitenleisten-Reiter, Dashboard-Widget. Eigene Aktion im Bildbetrachter gibt es nicht (keine API) – die Dateien-Aktion deckt es ab |
+| 9 Veröffentlichen | 🟡 Doku, Sicherheitsmodell, Ratenbegrenzung, Release-Workflow fertig. **Offen:** App-Zertifikat beantragen und signieren, Store-Eintrag, Name (siehe RELEASE.md) |
+
+Bewusst nicht umgesetzt:
+- „Ist das Tara?"-Vorschläge mit Ähnlichkeit: Immich liefert keine Gesichts-Embeddings über die
+  API. Stattdessen „Wer ist das?" als Serien-Benennung.
+- Rechteck-Auswahl auf der Karte: der Kartenausschnitt bestimmt die Bilder darunter.
+
+---
+
+Ursprünglicher Plan (Version 2.2.0): Ziel: aus der Fotosuche eine vollständige, eigenständige
 Foto-App für Nextcloud machen – Suche nach Inhalt, Personen, Sortieren, Zeitleiste – mit
 Immich als unsichtbarer Analyse-Maschine dahinter. Wiederverwendbar für jede Nextcloud, die
 ein Immich daneben hat, perspektivisch im Nextcloud App Store.
