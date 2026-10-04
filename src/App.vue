@@ -136,11 +136,22 @@
 					@close="replaceQuery({})" />
 			</div>
 		</NcAppContent>
+
+		<!-- Over the Nextcloud viewer: jump to the picture in its folder -->
+		<Teleport to="body">
+			<a
+				v-if="viewerState.current"
+				class="viewer-folder"
+				:href="folderUrl(viewerState.current)">
+				<NcIconSvgWrapper :path="mdiFolderOpenOutline" :size="20" />
+				{{ t('Show in folder') }}
+			</a>
+		</Teleport>
 	</NcContent>
 </template>
 
 <script setup>
-import { mdiAccountMultipleOutline, mdiCogOutline, mdiContentDuplicate, mdiFolderMultipleImage, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiMapMarkerOutline, mdiTimelineClockOutline } from '@mdi/js'
+import { mdiAccountMultipleOutline, mdiCogOutline, mdiContentDuplicate, mdiFolderMultipleImage, mdiFolderOpenOutline, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiMapMarkerOutline, mdiTimelineClockOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onMounted, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
@@ -165,6 +176,7 @@ import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
+import { folderUrl, viewerState } from './viewer.js'
 
 const page = loadState('immich_search', 'page', { configured: false, isAdmin: false })
 
@@ -230,6 +242,27 @@ onMounted(() => {
 @media (max-width: 600px) {
 	.tabs__tab:not(.tabs__tab--active) .tabs__label {
 		display: none;
+	}
+}
+
+.viewer-folder {
+	position: fixed;
+	z-index: 10002;
+	inset-block-end: max(16px, env(safe-area-inset-bottom));
+	inset-inline-start: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	border-radius: var(--border-radius-pill, 20px);
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	font-weight: bold;
+	white-space: nowrap;
+
+	&:hover, &:focus-visible {
+		background: rgba(0, 0, 0, 0.8);
 	}
 }
 

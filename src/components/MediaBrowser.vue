@@ -73,11 +73,12 @@ import FacesDialog from './FacesDialog.vue'
 import SelectionBar from './SelectionBar.vue'
 import TagDialog from './TagDialog.vue'
 import { addToAlbum, createAlbum } from '../albums.js'
-import { deleteFiles, favorite, fileUrl, tagFiles } from '../api.js'
+import { deleteFiles, favorite, tagFiles } from '../api.js'
 import { useAction } from '../composables/useAction.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
 import { setPrivateFiles } from '../private.js'
+import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
 	/** [{key, title?, items}] */
@@ -100,11 +101,7 @@ const allItems = computed(() => props.groups.flatMap((g) => g.items))
 const singleSelected = computed(() => (selected.value.size === 1 ? allItems.value.find((i) => selected.value.has(i.fileId)) ?? null : null))
 
 function open(item) {
-	if (window.OCA?.Viewer && item.path) {
-		window.OCA.Viewer.open({ path: item.path })
-	} else {
-		window.location.href = fileUrl(item.fileId)
-	}
+	openInViewer(item, allItems.value)
 }
 
 /**

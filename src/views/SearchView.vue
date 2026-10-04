@@ -10,7 +10,7 @@
 -->
 <template>
 	<div class="search">
-		<form class="search__bar" role="search" @submit.prevent="similar = null; run(true)">
+		<form class="search__bar" role="search" @submit.prevent="submit">
 			<NcTextField
 				v-model="q"
 				class="search__input"
@@ -19,6 +19,8 @@
 				trailingButtonIcon="close"
 				:showTrailingButton="q !== ''"
 				enterkeyhint="search"
+				@keydown.enter.prevent="submit"
+				@blur="submitIfChanged"
 				@trailingButtonClick="q = ''; run(true)">
 				<template #icon>
 					<NcIconSvgWrapper :path="mdiMagnify" :size="20" />
@@ -141,6 +143,8 @@ const literal = ref(false)
 /** "More like this" mode: {id, name} of the picture, or null */
 const similar = ref(route.query.similar ? { id: route.query.similar, name: route.query.name || '' } : null)
 let controller = null
+/** Text of the last search, so leaving the field only searches when it changed. */
+let lastQ = similar.value ? null : q.value.trim()
 const sentinel = ref(null)
 const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value && run(false))
 
@@ -192,6 +196,7 @@ async function run(reset, asText = false) {
 		nextPage.value = 1
 		searched.value = false
 		error.value = ''
+		lastQ = similar.value ? null : q.value.trim()
 		if (similar.value) {
 			replaceQuery({ similar: similar.value.id, name: similar.value.name, type: type.value })
 		} else if (!props.person) {
@@ -229,6 +234,19 @@ async function run(reset, asText = false) {
 			loading.value = false
 			more.check()
 		}
+	}
+}
+
+/** Enter: always search for the text (also leaves "more like this"). */
+function submit() {
+	similar.value = null
+	run(true)
+}
+
+/** Leaving the field searches only if the text changed since the last search. */
+function submitIfChanged() {
+	if (q.value.trim() !== lastQ) {
+		submit()
 	}
 }
 

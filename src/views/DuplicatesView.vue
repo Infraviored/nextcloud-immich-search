@@ -68,6 +68,7 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { deleteFiles, dismissDuplicate, duplicates, errorMessage, thumbnailUrl } from '../api.js'
 import { useAction } from '../composables/useAction.js'
 import { n, t } from '../l10n.js'
+import { openInViewer } from '../viewer.js'
 
 const groups = ref([])
 const keep = reactive({})
@@ -92,7 +93,7 @@ function toggle(g, item) {
 }
 
 function open(item) {
-	window.OCA?.Viewer?.open({ path: item.path })
+	openInViewer(item, groups.value.flatMap((g) => g.items))
 }
 
 async function resolve(g) {
