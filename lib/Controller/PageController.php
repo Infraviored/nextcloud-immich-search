@@ -12,6 +12,7 @@ namespace OCA\ImmichSearch\Controller;
 use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\Permissions;
+use OCA\ImmichSearch\Service\UserPrefs;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -28,6 +29,7 @@ class PageController extends Controller {
 		private IUserSession $userSession,
 		private Config $config,
 		private Permissions $permissions,
+		private UserPrefs $prefs,
 		private IInitialState $initialState,
 		private IEventDispatcher $events,
 	) {
@@ -47,6 +49,7 @@ class PageController extends Controller {
 			'isAdmin' => $isAdmin,
 			'canManagePeople' => $this->permissions->canManagePeople($this->uid()),
 		]);
+		$this->initialState->provideInitialState('prefs', $this->prefs->all($this->uid()));
 		if ($isAdmin) {
 			$this->provideAdminState();
 		}

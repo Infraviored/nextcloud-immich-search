@@ -33,18 +33,27 @@ class SettingsController extends Controller {
 		parent::__construct(Application::APP_ID, $request);
 	}
 
-	/** An empty key keeps the stored one, so the form never has to show it. */
-	public function save(string $url, string $apiKey = '', string $pathPattern = Config::DEFAULT_PATH_PATTERN, string $faceMode = 'all', int $minSize = Config::DEFAULT_MIN_SIZE): JSONResponse {
+	/**
+	 * Connection and the two settings that predate the settings page. Only what is sent is
+	 * changed; an empty key keeps the stored one, so the form never has to show it.
+	 */
+	public function save(string $url, string $apiKey = '', ?string $pathPattern = null, ?string $faceMode = null, ?int $minSize = null): JSONResponse {
 		return $this->respond(function () use ($url, $apiKey, $pathPattern, $faceMode, $minSize) {
-			$pattern = $this->validPattern($pathPattern);
-			if (!in_array($faceMode, Config::FACE_MODES, true)) {
+			$pattern = $pathPattern !== null ? $this->validPattern($pathPattern) : null;
+			if ($faceMode !== null && !in_array($faceMode, Config::FACE_MODES, true)) {
 				throw new \InvalidArgumentException('faceMode');
 			}
 			$user = $this->check($url, $apiKey);
 			$this->config->setUrl($url);
-			$this->config->setPathPattern($pattern);
-			$this->config->setFaceMode($faceMode);
-			$this->config->setMinSize($minSize);
+			if ($pattern !== null) {
+				$this->config->setPathPattern($pattern);
+			}
+			if ($faceMode !== null) {
+				$this->config->setFaceMode($faceMode);
+			}
+			if ($minSize !== null) {
+				$this->config->setMinSize($minSize);
+			}
 			if ($apiKey !== '') {
 				$this->config->setApiKey($apiKey);
 			}

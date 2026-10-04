@@ -92,6 +92,7 @@ import SelectionBar from '../components/SelectionBar.vue'
 import { errorMessage, fileUrl, search } from '../api.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { t } from '../l10n.js'
+import { userPrefs } from '../prefs.js'
 import { replaceQuery, route } from '../router.js'
 import { afterTransfer } from '../selection.js'
 
@@ -109,7 +110,7 @@ const typeOptions = [
 ]
 
 const q = ref(route.query.q || '')
-const type = ref(route.query.type || '')
+const type = ref(route.query.type ?? (userPrefs.show_videos ? '' : 'IMAGE'))
 const personId = ref(props.person || route.query.person || '')
 const items = ref([])
 const selected = ref(new Set())
@@ -154,10 +155,6 @@ const emptyState = computed(() => {
 	return null
 })
 
-/**
- *
- * @param reset
- */
 async function run(reset) {
 	if (reset) {
 		controller?.abort()
@@ -203,9 +200,6 @@ async function run(reset) {
 	}
 }
 
-/**
- *
- */
 function checkSentinel() {
 	const r = sentinel.value?.getBoundingClientRect()
 	if (r && r.top < window.innerHeight + 800 && nextPage.value && !error.value) {
@@ -213,10 +207,6 @@ function checkSentinel() {
 	}
 }
 
-/**
- *
- * @param item
- */
 function open(item) {
 	if (window.OCA?.Viewer) {
 		window.OCA.Viewer.open({ path: item.path })
@@ -225,10 +215,6 @@ function open(item) {
 	}
 }
 
-/**
- *
- * @param mode
- */
 async function doTransfer(mode) {
 	const ids = [...selected.value]
 	const res = await runTransfer(ids, mode)

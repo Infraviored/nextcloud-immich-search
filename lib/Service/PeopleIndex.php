@@ -34,6 +34,7 @@ class PeopleIndex {
 
 	public function __construct(
 		private ImmichClient $immich,
+		private Config $config,
 		private AssetSearch $assets,
 		private IUserManager $users,
 		private IAppData $appData,
@@ -81,6 +82,7 @@ class PeopleIndex {
 			$folder->newFile($uid . '.json', json_encode(['updated' => time(), 'people' => $visible]));
 		}
 		$secs = (int)round(microtime(true) - $start);
+		$this->config->setState('people_index', ['updated' => time(), 'seconds' => $secs, 'people' => count($people), 'users' => count($uids)]);
 		$this->logger->info(sprintf('People index rebuilt: %d people, %d users, %ds', count($people), count($uids), $secs), ['app' => 'immich_search']);
 		return [count($people), $secs];
 	}

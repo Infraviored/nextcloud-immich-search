@@ -15,7 +15,7 @@ use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\BackgroundJob\TimedJob;
 
-/** Hourly: who may see which person (see PeopleIndex). New faces arrive with Immich's library scans. */
+/** Hourly by default (admin setting): who may see which person (see PeopleIndex). New faces arrive with Immich's library scans. */
 class BuildPeopleIndex extends TimedJob {
 	public function __construct(
 		ITimeFactory $time,
@@ -23,7 +23,7 @@ class BuildPeopleIndex extends TimedJob {
 		private PeopleIndex $index,
 	) {
 		parent::__construct($time);
-		$this->setInterval(3600);
+		$this->setInterval(3600 * (int)$config->get('people_interval_hours'));
 		$this->setTimeSensitivity(IJob::TIME_INSENSITIVE);
 		$this->setAllowParallelRuns(false);
 	}

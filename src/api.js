@@ -21,74 +21,79 @@ export const thumbnailUrl = (id, size = 'thumbnail') => url(`/api/assets/${id}/t
 export const faceUrl = (id) => url(`/api/people/${id}/face`)
 export const fileUrl = (fileId) => generateUrl('/f/' + fileId)
 
-/**
- *
- * @param root0
- * @param root0.q
- * @param root0.page
- * @param root0.person
- * @param root0.type
- * @param signal
- */
 export async function search({ q = '', page = 1, person = '', type = '' }, signal) {
 	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type }, signal })
 	return data
 }
 
-/**
- *
- */
 export async function listPeople() {
 	return (await axios.get(url('/api/people'))).data
 }
 
-/**
- *
- * @param id
- * @param changes
- */
 export async function updatePerson(id, changes) {
 	return (await axios.put(url(`/api/people/${id}`), changes)).data
 }
 
-/**
- *
- * @param target
- * @param ids
- */
 export async function mergePeople(target, ids) {
 	return (await axios.post(url(`/api/people/${target}/merge`), { ids })).data
 }
 
-/**
- *
- * @param fileIds
- * @param target
- * @param mode
- */
 export async function transfer(fileIds, target, mode) {
 	return (await axios.post(url('/api/files/transfer'), { fileIds, target, mode })).data
 }
 
-/**
- *
- * @param settings
- */
 export async function saveSettings(settings) {
 	return (await axios.put(url('/api/settings'), settings)).data
 }
 
-/**
- *
- * @param settings
- */
 export async function testSettings(settings) {
 	return (await axios.post(url('/api/settings/test'), settings)).data
 }
 
-/**
- *
- */
 export async function reindexPeople() {
 	return (await axios.post(url('/api/settings/reindex'))).data
+}
+
+export async function getStatus() {
+	return (await axios.get(url('/api/status'))).data
+}
+
+export async function getPrefs() {
+	return (await axios.get(url('/api/prefs'))).data
+}
+
+export async function savePrefs(prefs) {
+	return (await axios.put(url('/api/prefs'), { prefs })).data
+}
+
+export async function getAdminSettings() {
+	return (await axios.get(url('/api/admin/settings'))).data
+}
+
+export async function saveAdminSettings(settings) {
+	return (await axios.put(url('/api/admin/settings'), { settings })).data
+}
+
+export async function getLibraries() {
+	return (await axios.get(url('/api/admin/libraries'))).data
+}
+
+export async function createLibrary(uid) {
+	return (await axios.post(url('/api/admin/libraries'), { uid })).data
+}
+
+export async function getFolderSuggestions() {
+	return (await axios.get(url('/api/admin/folder-suggestions'))).data
+}
+
+export async function queueMissing() {
+	return (await axios.post(url('/api/admin/queue-missing'))).data
+}
+
+export async function scanLibraries() {
+	return (await axios.post(url('/api/admin/scan'))).data
+}
+
+export async function pruneSmall() {
+	return (await axios.post(url('/api/admin/prune'))).data
 }

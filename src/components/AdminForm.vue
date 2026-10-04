@@ -3,7 +3,7 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 
-<!-- Connection and permissions; used in the admin settings and in the app's settings dialog. -->
+<!-- The Immich connection; used in the admin settings and on the app's settings page. -->
 <template>
 	<form class="admin" @submit.prevent="save">
 		<NcTextField
@@ -22,38 +22,12 @@
 			placeholder="/mnt/nextcloud/{user}/"
 			:helperText="pathHelp" />
 
-		<NcTextField
-			v-model="form.minSize"
-			type="number"
-			min="0"
-			:label="t('Ignore pictures smaller than (pixels, shorter side)')"
-			:helperText="t('Icons and tiny images match almost any search. 0 shows everything.')" />
-
-		<fieldset class="admin__faces">
-			<legend>{{ t('Who may name, merge and hide people?') }}</legend>
-			<NcCheckboxRadioSwitch
-				v-for="m in faceModes"
-				:key="m.value"
-				v-model="form.faceMode"
-				type="radio"
-				:value="m.value"
-				name="face-mode">
-				{{ m.label }}
-			</NcCheckboxRadioSwitch>
-			<p class="admin__hint">
-				{{ t('Everyone only ever sees people from pictures they can open. Names are shared by all users.') }}
-			</p>
-		</fieldset>
-
 		<div class="admin__buttons">
 			<NcButton :disabled="busy" @click="test">
 				{{ t('Test connection') }}
 			</NcButton>
 			<NcButton variant="primary" type="submit" :disabled="busy">
 				{{ t('Save') }}
-			</NcButton>
-			<NcButton variant="tertiary" :disabled="busy" @click="reindex">
-				{{ t('Update people now') }}
 			</NcButton>
 		</div>
 		<NcNoteCard v-if="message" :type="ok ? 'success' : 'error'">
@@ -66,15 +40,14 @@
 import { loadState } from '@nextcloud/initial-state'
 import { reactive, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcPasswordField from '@nextcloud/vue/components/NcPasswordField'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
-import { errorMessage, reindexPeople, saveSettings, testSettings } from '../api.js'
+import { errorMessage, saveSettings, testSettings } from '../api.js'
 import { t } from '../l10n.js'
 
-const initial = loadState('immich_search', 'admin', { url: '', hasKey: false, pathPattern: '/mnt/nextcloud/{user}/', faceMode: 'all', minSize: 256 })
-const form = reactive({ url: initial.url, apiKey: '', pathPattern: initial.pathPattern, faceMode: initial.faceMode, minSize: String(initial.minSize) })
+const initial = loadState('immich_search', 'admin', { url: '', hasKey: false, pathPattern: '/mnt/nextcloud/{user}/' })
+const form = reactive({ url: initial.url, apiKey: '', pathPattern: initial.pathPattern })
 const hasKey = ref(initial.hasKey)
 const busy = ref(false)
 const message = ref('')
@@ -84,17 +57,6 @@ const ok = ref(true)
 const pathLabel = t('Path of a user\'s files inside Immich')
 const pathHelp = t('{user} stands for the Nextcloud user ID. Mount each user\'s files folder (in the data directory: user ID, then files) read-only there and add it to Immich as an external library.')
 
-const faceModes = [
-	{ value: 'all', label: t('Every user (people they can see)') },
-	{ value: 'admins', label: t('Only admins') },
-	{ value: 'off', label: t('Nobody, names come from Immich only') },
-]
-
-/**
- *
- * @param fn
- * @param success
- */
 async function act(fn, success) {
 	busy.value = true
 	try {
@@ -109,11 +71,8 @@ async function act(fn, success) {
 }
 
 const test = () => act(() => testSettings(form), (r) => t('Connected as {user}', { user: r.user }))
-/**
- *
- */
 function save() {
-	return act(() => saveSettings({ ...form, minSize: Number(form.minSize) || 0 }), (r) => {
+	return act(() => saveSettings(form), (r) => {
 		if (form.apiKey) {
 			hasKey.value = true
 		}
@@ -121,7 +80,6 @@ function save() {
 		return t('Saved, connected as {user}', { user: r.user })
 	})
 }
-const reindex = () => act(reindexPeople, () => t('People are updated with the next background job run (usually within 5 minutes).'))
 </script>
 
 <style scoped lang="scss">
@@ -130,12 +88,6 @@ const reindex = () => act(reindexPeople, () => t('People are updated with the ne
     flex-direction: column;
     gap: 12px;
     max-width: 560px;
-
-    &__faces {
-        margin-top: 4px;
-
-        legend { font-weight: bold; margin-bottom: 4px; }
-    }
 
     &__hint { color: var(--color-text-maxcontrast); }
 

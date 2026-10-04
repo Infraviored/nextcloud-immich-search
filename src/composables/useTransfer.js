@@ -46,10 +46,6 @@ export function useTransfer() {
 	return { busy, run }
 }
 
-/**
- *
- * @param mode
- */
 function pickFolder(mode) {
 	let chosen = null
 	const label = mode === 'move' ? t('Move here') : t('Copy here')

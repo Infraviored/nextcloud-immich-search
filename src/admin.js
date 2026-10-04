@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import { generateUrl } from '@nextcloud/router'
 import { createApp, h } from 'vue'
 import NcSettingsSection from '@nextcloud/vue/components/NcSettingsSection'
 import AdminForm from './components/AdminForm.vue'
@@ -12,5 +13,10 @@ createApp({
 	render: () => h(NcSettingsSection, {
 		name: t('Photo search (Immich)'),
 		description: t('One connection for everybody. Immich indexes the files of all users; everyone only finds what they can open in Nextcloud themselves.'),
-	}, () => h(AdminForm)),
+	}, () => [
+		h(AdminForm),
+		h('p', { style: 'margin-top: 16px' }, [
+			h('a', { href: generateUrl('/apps/immich_search/settings/indexing'), class: 'button' }, t('More settings in the app: indexing, search, people, status')),
+		]),
+	]),
 }).mount('#immich-search-admin')

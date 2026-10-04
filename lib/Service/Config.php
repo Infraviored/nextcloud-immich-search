@@ -90,6 +90,87 @@ class Config {
 		$this->config->setAppValue(Application::APP_ID, self::MIN_SIZE, (string)max(0, min(4000, $px)));
 	}
 
+	/**
+	 * Plain settings with a type and a default. Each is stored as one app config value;
+	 * lists as JSON. Validation happens in set().
+	 *
+	 * @var array<string, array{0: string, 1: mixed}>
+	 */
+	public const SETTINGS = [
+		// What Immich indexes (written into every library's exclusion patterns)
+		'excluded_formats' => ['list', ['svg', 'svgz', 'ico', 'icns', 'cur']],
+		'excluded_folders' => ['list', []],
+		// Results: pictures whose shorter side is below this (px) are never shown
+		'min_size' => ['int', self::DEFAULT_MIN_SIZE],
+		// ... and are taken out of Immich altogether (SmallImagePruner)
+		'prune_small' => ['bool', true],
+		// Nextcloud unified search
+		'search_photos' => ['bool', true],
+		'search_people' => ['bool', true],
+		'search_open_all' => ['bool', true],
+		'search_min_term' => ['int', 3],
+		'search_position' => ['enum:top,low', 'top'],
+		// People
+		'face_mode' => ['enum:all,admins,off', 'all'],
+		'people_min_count' => ['int', 1],
+		'people_interval_hours' => ['enum:1,6,24', '1'],
+		// Optional health check of Immich's machine-learning service (GET <url>/ping -> "pong")
+		'ml_ping_url' => ['url', ''],
+	];
+
+	public function get(string $key): mixed {
+		[$type, $default] = self::SETTINGS[$key];
+		$raw = $this->config->getAppValue(Application::APP_ID, $key, '');
+		if ($raw === '') {
+			return $default;
+		}
+		if ($raw === ' ') {
+			return $type === 'list' ? [] : '';
+		}
+		return match (true) {
+			$type === 'list' => json_decode($raw, true) ?: [],
+			$type === 'bool' => $raw === '1',
+			$type === 'int' => (int)$raw,
+			default => $raw,
+		};
+	}
+
+	public function set(string $key, mixed $value): void {
+		if (!isset(self::SETTINGS[$key])) {
+			throw new \InvalidArgumentException($key);
+		}
+		$type = self::SETTINGS[$key][0];
+		$raw = match (true) {
+			$type === 'list' => json_encode(array_values(array_unique(array_filter(array_map(
+				static fn ($v) => trim((string)$v), (array)$value), static fn ($v) => $v !== '')))),
+			$type === 'bool' => $value ? '1' : '0',
+			$type === 'int' => (string)max(0, min(10000, (int)$value)),
+			$type === 'url' => trim((string)$value) === '' ? '' : self::normalizeUrl((string)$value),
+			str_starts_with($type, 'enum:') => in_array((string)$value, explode(',', substr($type, 5)), true)
+				? (string)$value : throw new \InvalidArgumentException($key),
+		};
+		// Store '' only for "unset": a list or text that is empty on purpose must not fall back.
+		$this->config->setAppValue(Application::APP_ID, $key, $raw === '' ? ' ' : $raw);
+	}
+
+	/** @return array<string, mixed> */
+	public function all(): array {
+		$out = [];
+		foreach (array_keys(self::SETTINGS) as $key) {
+			$out[$key] = $this->get($key);
+		}
+		return $out;
+	}
+
+	/** Internal bookkeeping (JSON), not user-editable. */
+	public function getState(string $key): array {
+		return json_decode($this->config->getAppValue(Application::APP_ID, 'state_' . $key, '[]'), true) ?: [];
+	}
+
+	public function setState(string $key, array $value): void {
+		$this->config->setAppValue(Application::APP_ID, 'state_' . $key, json_encode($value));
+	}
+
 	public function isConfigured(): bool {
 		return $this->getUrl() !== '' && $this->hasApiKey();
 	}

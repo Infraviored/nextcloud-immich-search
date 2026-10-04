@@ -13,17 +13,22 @@ occ() { docker exec -u www-data "$CONTAINER" php occ "$@"; }
 
 make -s build >/dev/null
 
-# Browsers cache the app's scripts by version. If the built frontend changed but the
-# version did not, bump the patch version, or users keep seeing the old interface.
-stamp=$(cat js/*.mjs l10n/*.js templates/*.php 2>/dev/null | sha256sum | cut -c1-16)
+# Browsers cache the app's scripts and Nextcloud caches its routes by app version. If
+# anything shipped changed but the version did not, bump the patch version, or users keep
+# seeing the old interface and new routes answer 404.
+stamp=$(find js l10n templates lib appinfo img -type f ! -name info.xml -print0 | sort -z | xargs -0 cat | sha256sum | cut -c1-16)
 version=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
 last=$(cat build/.deployed 2>/dev/null || true)
 if [ -n "$last" ] && [ "${last% *}" = "$version" ] && [ "${last#* }" != "$stamp" ]; then
-    bumped=$(echo "$version" | awk -F. '{ $NF++; print }' OFS=.)
+    IFS=. read -r major minor patch <<< "$version"
+    bumped="$major.$minor.$((patch + 1))"
     sed -i "s:<version>$version</version>:<version>$bumped</version>:" appinfo/info.xml
     echo "frontend changed: version $version -> $bumped"
     version=$bumped
 fi
+
+# A malformed version puts the whole Nextcloud into "update required" (503 for everyone).
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid version '$version' in appinfo/info.xml" >&2; exit 1; }
 
 make -s dist >/dev/null
 tarball=build/immich_search-$version.tar.gz

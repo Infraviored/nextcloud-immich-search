@@ -43,10 +43,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['open', 'toggle'])
 
-/**
- *
- * @param event
- */
 function onClick(event) {
 	if (event.ctrlKey || event.metaKey || event.button !== 0) { // new tab etc.
 		return

@@ -80,33 +80,17 @@ let lastIndex = null
 let pressTimer = null
 let pressed = false
 
-/**
- *
- * @param item
- */
 function tooltip(item) {
 	const date = item.date ? new Date(item.date).toLocaleDateString() : ''
 	return [date, item.path].filter(Boolean).join('\n')
 }
 
-/**
- *
- * @param item
- * @param index
- * @param range
- */
 function toggle(item, index, range) {
 	const next = toggleSelection(props.selected, props.items, index, lastIndex, range)
 	lastIndex = index
 	emit('update:selected', next)
 }
 
-/**
- *
- * @param item
- * @param index
- * @param event
- */
 function onClick(item, index, event) {
 	if (pressed) {
 		pressed = false // the long-press already selected it
@@ -119,11 +103,6 @@ function onClick(item, index, event) {
 	}
 }
 
-/**
- *
- * @param item
- * @param index
- */
 function onTouchStart(item, index) {
 	pressed = false
 	pressTimer = window.setTimeout(() => {
@@ -133,17 +112,10 @@ function onTouchStart(item, index) {
 	}, LONG_PRESS_MS)
 }
 
-/**
- *
- */
 function cancelPress() {
 	window.clearTimeout(pressTimer)
 }
 
-/**
- *
- * @param event
- */
 function onTouchEnd(event) {
 	cancelPress()
 	if (pressed) {
@@ -151,20 +123,12 @@ function onTouchEnd(event) {
 	}
 }
 
-/**
- *
- * @param event
- */
 function onContextMenu(event) {
 	if (pressed) {
 		event.preventDefault()
 	}
 }
 
-/**
- *
- * @param event
- */
 function onKey(event) {
 	if (event.key === 'Escape' && selecting.value && !document.querySelector('.viewer, .modal-mask')) {
 		emit('update:selected', new Set())

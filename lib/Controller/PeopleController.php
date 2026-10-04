@@ -11,6 +11,7 @@ namespace OCA\ImmichSearch\Controller;
 
 use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\AssetSearch;
+use OCA\ImmichSearch\Service\Config;
 use OCA\ImmichSearch\Service\FaceCropper;
 use OCA\ImmichSearch\Service\ImmichClient;
 use OCA\ImmichSearch\Service\ImmichException;
@@ -42,6 +43,7 @@ class PeopleController extends Controller {
 		private FaceCropper $faces,
 		private ImmichClient $immich,
 		private Permissions $permissions,
+		private Config $config,
 		private IL10N $l,
 		private LoggerInterface $logger,
 	) {
@@ -53,10 +55,12 @@ class PeopleController extends Controller {
 	public function index(): JSONResponse {
 		return $this->guard(function () {
 			$mine = $this->index->forUser($this->uid());
+			// Unnamed clusters with very few pictures are mostly noise (background faces).
+			$minCount = max(1, (int)$this->config->get('people_min_count'));
 			$people = [];
 			foreach ($this->index->allPeople() as $p) {
 				$v = $mine['people'][$p['id']] ?? null;
-				if ($v !== null) {
+				if ($v !== null && (($p['name'] ?? '') !== '' || $v['count'] >= $minCount)) {
 					$people[] = [
 						'id' => $p['id'],
 						'name' => (string)($p['name'] ?? ''),

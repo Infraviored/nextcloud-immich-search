@@ -12,6 +12,7 @@ namespace OCA\ImmichSearch\Search;
 use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\AssetSearch;
 use OCA\ImmichSearch\Service\Config;
+use OCA\ImmichSearch\Service\UserPrefs;
 use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -28,12 +29,10 @@ use Psr\Log\LoggerInterface;
  * as the Files provider, so the Android app opens them in-app.
  */
 class ImmichProvider implements IProvider {
-	/** Shorter terms are almost always the start of a file name search. */
-	private const MIN_TERM = 3;
-
 	public function __construct(
 		private AssetSearch $search,
 		private Config $config,
+		private UserPrefs $prefs,
 		private IURLGenerator $url,
 		private IL10N $l,
 		private LoggerInterface $logger,
@@ -49,6 +48,9 @@ class ImmichProvider implements IProvider {
 	}
 
 	public function getOrder(string $route, array $routeParameters): int {
+		if ($this->config->get('search_position') === 'low') {
+			return 40;
+		}
 		// Directly below Files (order 5) where people look for pictures, lower elsewhere.
 		foreach (['files.', 'photos.', 'memories.', Application::APP_ID . '.'] as $prefix) {
 			if (str_starts_with($route, $prefix)) {
@@ -61,7 +63,10 @@ class ImmichProvider implements IProvider {
 	public function search(IUser $user, ISearchQuery $query): SearchResult {
 		$uid = $user->getUID();
 		$term = trim($query->getTerm());
-		if (mb_strlen($term) < self::MIN_TERM || !$this->config->isConfigured()) {
+		if (mb_strlen($term) < max(1, (int)$this->config->get('search_min_term'))
+			|| !$this->config->isConfigured()
+			|| !$this->config->get('search_photos')
+			|| $this->prefs->get($uid, 'search_disabled')) {
 			return SearchResult::complete($this->getName(), []);
 		}
 
@@ -77,7 +82,7 @@ class ImmichProvider implements IProvider {
 		}
 
 		$entries = array_map(fn (array $a) => $this->entry($a), $res['items']);
-		if ($query->getCursor() === null && $entries !== []) {
+		if ($query->getCursor() === null && $entries !== [] && $this->config->get('search_open_all')) {
 			// The search bar cannot select or move; this hands the search over to the app.
 			array_unshift($entries, new SearchResultEntry(
 				$this->url->getAbsoluteURL($this->url->imagePath(Application::APP_ID, 'app-dark.svg')),

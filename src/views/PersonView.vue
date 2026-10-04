@@ -73,9 +73,6 @@ watch(person, (p) => {
 	}
 })
 
-/**
- *
- */
 async function saveName() {
 	const value = name.value.trim()
 	if (!person.value || value === person.value.name) {
@@ -94,9 +91,6 @@ async function saveName() {
 	}
 }
 
-/**
- *
- */
 async function toggleHidden() {
 	try {
 		const res = await updatePerson(props.id, { hidden: !person.value.hidden })

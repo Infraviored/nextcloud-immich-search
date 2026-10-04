@@ -11,14 +11,12 @@ import { reactive } from 'vue'
  *   /apps/immich_search/            search (?q=&type=&person=)
  *   /apps/immich_search/people      all people
  *   /apps/immich_search/people/<id> one person
+ *   /apps/immich_search/settings[/<section>]
  */
 const base = generateUrl('/apps/immich_search')
 
 export const route = reactive(parse())
 
-/**
- *
- */
 function parse() {
 	const rest = window.location.pathname.slice(base.length).replace(/^\/+|\/+$/g, '')
 	const [section, id] = rest.split('/')
@@ -26,34 +24,24 @@ function parse() {
 	if (section === 'people' && id) {
 		return { name: 'person', id, query }
 	}
+	if (section === 'settings') {
+		return { name: 'settings', id: id || null, query }
+	}
 	if (section === 'people') {
 		return { name: 'people', id: null, query }
 	}
 	return { name: 'search', id: null, query }
 }
 
-/**
- *
- */
 function apply() {
 	Object.assign(route, parse())
 }
 
-/**
- *
- * @param path
- * @param query
- */
 export function href(path, query = {}) {
 	const qs = new URLSearchParams(Object.entries(query).filter(([, v]) => v !== '' && v !== null && v !== undefined)).toString()
 	return base + path + (qs ? '?' + qs : '')
 }
 
-/**
- *
- * @param path
- * @param query
- */
 export function navigate(path, query = {}) {
 	window.history.pushState(null, '', href(path, query))
 	apply()

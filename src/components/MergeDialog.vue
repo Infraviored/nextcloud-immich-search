@@ -66,9 +66,6 @@ const buttons = computed(() => [
 	} },
 ])
 
-/**
- *
- */
 async function merge() {
 	busy.value = true
 	error.value = ''

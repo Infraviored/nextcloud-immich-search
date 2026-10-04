@@ -41,7 +41,11 @@
 			</template>
 			<template #footer>
 				<ul class="app-navigation-entry__settings">
-					<NcAppNavigationItem :name="t('Settings')" @click.prevent="settingsOpen = true">
+					<NcAppNavigationItem
+						:name="t('Settings')"
+						:href="href('/settings')"
+						:active="route.name === 'settings'"
+						@click.prevent="navigate('/settings')">
 						<template #icon>
 							<NcIconSvgWrapper :path="mdiCogOutline" />
 						</template>
@@ -52,14 +56,14 @@
 
 		<NcAppContent :pageHeading="t('Photo search')">
 			<div class="content">
-				<nav v-if="page.configured" class="tabs" :aria-label="t('Photo search')">
+				<nav class="tabs" :aria-label="t('Photo search')">
 					<NcButton :variant="route.name === 'search' ? 'primary' : 'tertiary'" :href="href('/')" @click.prevent="navigate('/')">
 						<template #icon>
 							<NcIconSvgWrapper :path="mdiImageSearchOutline" />
 						</template>
 						{{ t('Search') }}
 					</NcButton>
-					<NcButton :variant="route.name === 'search' ? 'tertiary' : 'primary'" :href="href('/people')" @click.prevent="navigate('/people')">
+					<NcButton :variant="route.name === 'people' || route.name === 'person' ? 'primary' : 'tertiary'" :href="href('/people')" @click.prevent="navigate('/people')">
 						<template #icon>
 							<NcIconSvgWrapper :path="mdiAccountMultipleOutline" />
 						</template>
@@ -70,7 +74,7 @@
 						variant="tertiary"
 						:aria-label="t('Settings')"
 						:title="t('Settings')"
-						@click="settingsOpen = true">
+						@click="navigate('/settings')">
 						<template #icon>
 							<NcIconSvgWrapper :path="mdiCogOutline" />
 						</template>
@@ -84,7 +88,7 @@
 						<NcIconSvgWrapper :path="mdiImageSearchOutline" />
 					</template>
 					<template v-if="page.isAdmin" #action>
-						<NcButton variant="primary" @click="settingsOpen = true">
+						<NcButton variant="primary" @click="navigate('/settings')">
 							{{ t('Open settings') }}
 						</NcButton>
 					</template>
@@ -92,17 +96,16 @@
 				<SearchView v-else-if="route.name === 'search'" :people="peopleState.people" />
 				<PeopleView v-else-if="route.name === 'people'" />
 				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id" />
+				<SettingsView v-else-if="route.name === 'settings'" />
 			</div>
 		</NcAppContent>
-
-		<SettingsDialog v-model:open="settingsOpen" :isAdmin="page.isAdmin" />
 	</NcContent>
 </template>
 
 <script setup>
 import { mdiAccountMultipleOutline, mdiCogOutline, mdiImageSearchOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
@@ -110,17 +113,17 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
-import SettingsDialog from './components/SettingsDialog.vue'
 import PeopleView from './views/PeopleView.vue'
 import PersonView from './views/PersonView.vue'
 import SearchView from './views/SearchView.vue'
+import SettingsView from './views/SettingsView.vue'
 import { faceUrl } from './api.js'
 import { t } from './l10n.js'
 import { peopleState, reloadPeople } from './people.js'
+import { userPrefs } from './prefs.js'
 import { href, navigate, route } from './router.js'
 
 const page = loadState('immich_search', 'page', { configured: false, isAdmin: false })
-const settingsOpen = ref(false)
 
 /** Named, visible people for quick access in the navigation. */
 const named = computed(() => peopleState.people.filter((p) => p.name && !p.hidden))
@@ -128,6 +131,11 @@ const named = computed(() => peopleState.people.filter((p) => p.name && !p.hidde
 onMounted(() => {
 	if (page.configured) {
 		reloadPeople()
+	}
+	// Plain app URL: open the view the user chose as start view.
+	if (route.name === 'search' && !route.query.q && !route.query.person && userPrefs.start_view === 'people') {
+		window.history.replaceState(null, '', href('/people'))
+		route.name = 'people'
 	}
 })
 </script>

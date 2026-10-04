@@ -12,6 +12,7 @@ namespace OCA\ImmichSearch\Service;
 use OCP\Http\Client\IClientService;
 use OCP\Http\Client\IResponse;
 use OCP\IL10N;
+use Psr\Log\LoggerInterface;
 
 /**
  * Thin client for the Immich REST API with the instance's service key.
@@ -23,6 +24,7 @@ class ImmichClient {
 		private Config $config,
 		private IClientService $clientService,
 		private IL10N $l,
+		private LoggerInterface $logger,
 	) {
 	}
 
@@ -66,6 +68,7 @@ class ImmichClient {
 				'GET' => $client->get($url . '/api' . $endpoint, $options),
 				'POST' => $client->post($url . '/api' . $endpoint, $options),
 				'PUT' => $client->put($url . '/api' . $endpoint, $options),
+				'DELETE' => $client->delete($url . '/api' . $endpoint, $options),
 			};
 		} catch (\Throwable $e) {
 			throw new ImmichException($this->l->t('Immich is not reachable'), 502, $e);
@@ -78,6 +81,9 @@ class ImmichClient {
 			throw new ImmichException($this->l->t('Not found'), 404);
 		}
 		if ($status < 200 || $status >= 300) {
+			// Immich explains rejected requests in "message"; log it, it names the bad field.
+			$why = json_decode((string)$resp->getBody(), true)['message'] ?? '';
+			$this->logger->warning("Immich $method $endpoint: HTTP $status " . json_encode($why), ['app' => 'immich_search']);
 			throw new ImmichException($this->l->t('Immich answered with HTTP %s', [$status]), 502);
 		}
 		return $resp;

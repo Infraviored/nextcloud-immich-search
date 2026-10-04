@@ -112,17 +112,10 @@ const groups = computed(() => [
 ])
 const selectedPeople = computed(() => selected.value.map((id) => state.people.find((p) => p.id === id)).filter(Boolean))
 
-/**
- *
- * @param id
- */
 function toggle(id) {
 	selected.value = selected.value.includes(id) ? selected.value.filter((x) => x !== id) : [...selected.value, id]
 }
 
-/**
- *
- */
 async function onMerged() {
 	mergeOpen.value = false
 	selected.value = []
