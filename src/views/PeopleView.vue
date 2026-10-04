@@ -125,55 +125,55 @@ async function onMerged() {
 
 <style scoped lang="scss">
 .people {
-    &__bar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        gap: 8px 16px;
-        margin-bottom: 8px;
-    }
+	&__bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: 8px 16px;
+		margin-bottom: 8px;
+	}
 
-    &__filter { flex: 0 1 360px; }
+	&__filter { flex: 0 1 360px; }
 
-    &__selection {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-        padding: 6px 8px;
-        border-radius: var(--border-radius-large);
-        background: var(--color-primary-element-light);
-    }
+	&__selection {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 8px;
+		padding: 6px 8px;
+		border-radius: var(--border-radius-large);
+		background: var(--color-primary-element-light);
+	}
 
-    &__spacer { flex: 1; }
+	&__spacer { flex: 1; }
 
-    &__hint {
-        margin: 0 0 8px;
-        color: var(--color-text-maxcontrast);
-    }
+	&__hint {
+		margin: 0 0 8px;
+		color: var(--color-text-maxcontrast);
+	}
 
-    &__heading {
-        margin: 16px 0 4px;
-        font-size: 1.1em;
-    }
+	&__heading {
+		margin: 16px 0 4px;
+		font-size: 1.1em;
+	}
 
-    &__grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-        gap: 4px;
-    }
+	&__grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+		gap: 4px;
+	}
 
-    &__more {
-        display: flex;
-        justify-content: center;
-        padding: 16px 0;
-    }
+	&__more {
+		display: flex;
+		justify-content: center;
+		padding: 16px 0;
+	}
 }
 
 @media (max-width: 600px) {
-    .people__grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+	.people__grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 }
 </style>

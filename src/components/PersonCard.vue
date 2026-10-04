@@ -54,65 +54,65 @@ function onClick(event) {
 
 <style scoped lang="scss">
 .person {
-    position: relative;
+	position: relative;
 
-    &__link {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-        padding: 10px 4px;
-        border-radius: var(--border-radius-large);
-        text-align: center;
+	&__link {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		padding: 10px 4px;
+		border-radius: var(--border-radius-large);
+		text-align: center;
 
-        &:hover, &:focus-visible { background: var(--color-background-hover); }
-    }
+		&:hover, &:focus-visible { background: var(--color-background-hover); }
+	}
 
-    &__face {
-        width: 100%;
-        max-width: 128px;
-        aspect-ratio: 1;
-        margin-bottom: 6px;
-        border-radius: 50%;
-        object-fit: cover;
-        background: var(--color-background-dark);
-    }
+	&__face {
+		width: 100%;
+		max-width: 128px;
+		aspect-ratio: 1;
+		margin-bottom: 6px;
+		border-radius: 50%;
+		object-fit: cover;
+		background: var(--color-background-dark);
+	}
 
-    &__name {
-        max-width: 100%;
-        overflow: hidden;
-        font-weight: bold;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+	&__name {
+		max-width: 100%;
+		overflow: hidden;
+		font-weight: bold;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 
-        &--unnamed { font-weight: normal; color: var(--color-text-maxcontrast); }
-    }
+		&--unnamed { font-weight: normal; color: var(--color-text-maxcontrast); }
+	}
 
-    &__count {
-        font-size: var(--font-size-small, 13px);
-        color: var(--color-text-maxcontrast);
-    }
+	&__count {
+		font-size: var(--font-size-small, 13px);
+		color: var(--color-text-maxcontrast);
+	}
 
-    &__check {
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        display: flex;
-        margin: 0;
-        padding: 4px;
-        border: 0;
-        border-radius: 50%;
-        min-height: 0;
-        background: var(--color-main-background);
-        color: var(--color-text-maxcontrast);
-        cursor: pointer;
-    }
+	&__check {
+		position: absolute;
+		top: 6px;
+		left: 6px;
+		display: flex;
+		margin: 0;
+		padding: 4px;
+		border: 0;
+		border-radius: 50%;
+		min-height: 0;
+		background: var(--color-main-background);
+		color: var(--color-text-maxcontrast);
+		cursor: pointer;
+	}
 
-    &--selected {
-        .person__face { outline: 3px solid var(--color-primary-element); outline-offset: 2px; }
-        .person__check { color: var(--color-primary-element); }
-    }
+	&--selected {
+		.person__face { outline: 3px solid var(--color-primary-element); outline-offset: 2px; }
+		.person__check { color: var(--color-primary-element); }
+	}
 
-    &--hidden .person__face { opacity: 0.45; }
+	&--hidden .person__face { opacity: 0.45; }
 }
 </style>

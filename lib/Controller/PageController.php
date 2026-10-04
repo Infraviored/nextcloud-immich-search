@@ -17,6 +17,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\App\IAppManager;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\IRequest;
@@ -32,6 +33,7 @@ class PageController extends Controller {
 		private UserPrefs $prefs,
 		private IInitialState $initialState,
 		private IEventDispatcher $events,
+		private IAppManager $appManager,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -48,6 +50,8 @@ class PageController extends Controller {
 			'configured' => $this->config->isConfigured(),
 			'isAdmin' => $isAdmin,
 			'canManagePeople' => $this->permissions->canManagePeople($this->uid()),
+			// Albums live in the Photos app; the action is offered only if it is there.
+			'photosEnabled' => $this->appManager->isEnabledForUser('photos'),
 		]);
 		$this->initialState->provideInitialState('prefs', $this->prefs->all($this->uid()));
 		if ($isAdmin) {

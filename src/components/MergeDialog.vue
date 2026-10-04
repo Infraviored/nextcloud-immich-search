@@ -88,11 +88,11 @@ async function merge() {
 <style scoped lang="scss">
 .merge__list { margin: 8px 0 12px; }
 .merge__option {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
 
-    img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+	img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
 }
 .merge__error { color: var(--color-error-text); }
 </style>

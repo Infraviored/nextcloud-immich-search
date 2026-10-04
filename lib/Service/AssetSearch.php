@@ -62,13 +62,16 @@ class AssetSearch {
 	 *                                                   fetching Immich pages until half a page is filled, so a user who may see little
 	 *                                                   does not get a string of empty pages.
 	 */
-	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = ''): array {
+	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = ''): array {
 		$size = max(1, min(200, $size));
 		$items = [];
 		$next = max(1, $page);
 		for ($i = 0; $i < self::MAX_PAGES_PER_CALL && $next !== null && count($items) < intdiv($size + 1, 2); $i++) {
-			$assets = $this->immichPage($q, $next, $size, $person, $type);
+			$assets = $this->immichPage($q, $next, $size, $person, $type, $similar);
 			foreach ($assets['items'] ?? [] as $a) {
+				if ($a['id'] === $similar) {
+					continue; // the picture itself is its best match
+				}
 				$item = $this->visibleItem($uid, $a);
 				if ($item !== null) {
 					$items[] = $item;
@@ -105,7 +108,7 @@ class AssetSearch {
 		return $people;
 	}
 
-	private function immichPage(string $q, int $page, int $size, string $person, string $type): array {
+	private function immichPage(string $q, int $page, int $size, string $person, string $type, string $similar = ''): array {
 		$body = ['page' => $page, 'size' => $size];
 		if (in_array($type, self::TYPES, true)) {
 			$body['type'] = $type;
@@ -113,7 +116,11 @@ class AssetSearch {
 		if ($person !== '' && preg_match(self::UUID, $person)) {
 			$body['personIds'] = [$person];
 		}
-		if ($q !== '') {
+		if ($similar !== '' && preg_match(self::UUID, $similar)) {
+			// "More like this": rank by the picture's own embedding instead of a text
+			$endpoint = '/search/smart';
+			$body['queryAssetId'] = $similar;
+		} elseif ($q !== '') {
 			$endpoint = '/search/smart';
 			$body['query'] = $q;
 		} else {

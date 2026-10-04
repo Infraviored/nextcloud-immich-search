@@ -84,17 +84,17 @@ function save() {
 
 <style scoped lang="scss">
 .admin {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-width: 560px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-width: 560px;
 
-    &__hint { color: var(--color-text-maxcontrast); }
+	&__hint { color: var(--color-text-maxcontrast); }
 
-    &__buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
+	&__buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
 }
 </style>

@@ -25,6 +25,12 @@ return [
 		['name' => 'people#merge',        'url' => '/api/people/{id}/merge',     'verb' => 'POST'],
 
 		['name' => 'files#transfer',      'url' => '/api/files/transfer',        'verb' => 'POST'],
+		['name' => 'files#undo', 'url' => '/api/files/undo', 'verb' => 'POST'],
+		['name' => 'files#favorite', 'url' => '/api/files/favorite', 'verb' => 'POST'],
+		['name' => 'files#delete', 'url' => '/api/files/delete', 'verb' => 'POST'],
+		['name' => 'files#tags', 'url' => '/api/tags', 'verb' => 'GET'],
+		['name' => 'files#tag', 'url' => '/api/files/tag', 'verb' => 'POST'],
+		['name' => 'files#zip', 'url' => '/api/files/zip', 'verb' => 'GET'],
 
 		['name' => 'settings#save',       'url' => '/api/settings',              'verb' => 'PUT'],
 		['name' => 'settings#test',       'url' => '/api/settings/test',         'verb' => 'POST'],

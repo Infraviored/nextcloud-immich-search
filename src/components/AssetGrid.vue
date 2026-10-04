@@ -52,12 +52,20 @@
 				@click.stop>
 				<NcIconSvgWrapper :path="mdiFolderOutline" :size="18" />
 			</a>
+			<button
+				class="tile__similar"
+				type="button"
+				:title="t('Similar pictures')"
+				:aria-label="t('Similar pictures')"
+				@click.stop="emit('similar', item)">
+				<NcIconSvgWrapper :path="mdiImageMultipleOutline" :size="18" />
+			</button>
 		</div>
 	</div>
 </template>
 
 <script setup>
-import { mdiCheckboxBlankCircleOutline, mdiCheckCircle, mdiFolderOutline, mdiPlay } from '@mdi/js'
+import { mdiCheckboxBlankCircleOutline, mdiCheckCircle, mdiFolderOutline, mdiImageMultipleOutline, mdiPlay } from '@mdi/js'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import { fileUrl, thumbnailUrl } from '../api.js'
@@ -71,7 +79,7 @@ const props = defineProps({
 	selected: { type: Set, required: true },
 })
 
-const emit = defineEmits(['open', 'update:selected'])
+const emit = defineEmits(['open', 'similar', 'update:selected'])
 
 const LONG_PRESS_MS = 450
 
@@ -141,110 +149,114 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 
 <style scoped lang="scss">
 .grid {
-    --tile: 170px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr));
-    gap: 4px;
+	--tile: 170px;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr));
+	gap: 4px;
 
-    &--small { --tile: 110px; }
-    &--large { --tile: 260px; }
+	&--small { --tile: 110px; }
+	&--large { --tile: 260px; }
 }
 
 @media (max-width: 600px) {
-    .grid { --tile: 96px; gap: 2px; }
-    .grid--small { --tile: 80px; }
-    .grid--large { --tile: 160px; }
+	.grid { --tile: 96px; gap: 2px; }
+	.grid--small { --tile: 80px; }
+	.grid--large { --tile: 160px; }
 }
 
 .tile {
-    position: relative;
-    aspect-ratio: 1;
-    border-radius: var(--border-radius-small, 4px);
-    overflow: hidden;
-    background: var(--color-background-dark);
-    -webkit-touch-callout: none;
-    user-select: none;
+	position: relative;
+	aspect-ratio: 1;
+	border-radius: var(--border-radius-small, 4px);
+	overflow: hidden;
+	background: var(--color-background-dark);
+	-webkit-touch-callout: none;
+	user-select: none;
 
-    &__open {
-        display: block;
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: none;
-        cursor: pointer;
+	&__open {
+		display: block;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+		background: none;
+		cursor: pointer;
 
-        img {
-            display: block;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.12s ease;
-        }
-    }
+		img {
+			display: block;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			transition: transform 0.12s ease;
+		}
+	}
 
-    &__play {
-        position: absolute;
-        inset: 50% auto auto 50%;
-        transform: translate(-50%, -50%);
-        display: flex;
-        padding: 6px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.5);
-        color: #fff;
-        pointer-events: none;
-    }
+	&__play {
+		position: absolute;
+		inset: 50% auto auto 50%;
+		transform: translate(-50%, -50%);
+		display: flex;
+		padding: 6px;
+		border-radius: 50%;
+		background: rgba(0, 0, 0, 0.5);
+		color: #fff;
+		pointer-events: none;
+	}
 
-    &__check, &__folder {
-        position: absolute;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        border-radius: 50%;
-        opacity: 0;
-        transition: opacity 0.12s ease;
-        cursor: pointer;
-    }
+	&__check, &__folder, &__similar {
+		position: absolute;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		border-radius: 50%;
+		opacity: 0;
+		transition: opacity 0.12s ease;
+		cursor: pointer;
+	}
 
-    &__check {
-        top: 4px;
-        left: 4px;
-        width: 34px;
-        height: 34px;
-        min-height: 0;
-        background: transparent;
-        color: #fff;
-        filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.7));
-    }
+	&__check {
+		top: 4px;
+		left: 4px;
+		width: 34px;
+		height: 34px;
+		min-height: 0;
+		background: transparent;
+		color: #fff;
+		filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.7));
+	}
 
-    &__folder {
-        top: 6px;
-        right: 6px;
-        width: 30px;
-        height: 30px;
-        background: rgba(255, 255, 255, 0.85);
-        color: #222;
-    }
+	&__folder, &__similar {
+		top: 6px;
+		right: 6px;
+		width: 30px;
+		height: 30px;
+		background: rgba(255, 255, 255, 0.85);
+		color: #222;
+	}
 
-    &:hover, &:focus-within {
-        .tile__check, .tile__folder { opacity: 1; }
-    }
+	&__similar {
+		right: 42px;
+	}
 
-    &--selected {
-        .tile__open img { transform: scale(0.88); border-radius: 6px; }
-        .tile__check { opacity: 1; color: var(--color-primary-element); filter: drop-shadow(0 0 1px #fff); }
-    }
+	&:hover, &:focus-within {
+		.tile__check, .tile__folder, .tile__similar { opacity: 1; }
+	}
+
+	&--selected {
+		.tile__open img { transform: scale(0.88); border-radius: 6px; }
+		.tile__check { opacity: 1; color: var(--color-primary-element); filter: drop-shadow(0 0 1px #fff); }
+	}
 }
 
 // Touch screens have no hover: checkboxes show while selecting; "show in folder"
 // moves to the selection bar (one picture selected) instead of cluttering every tile.
 @media (hover: none) {
-    .tile__folder { display: none; }
-    .grid:has(.tile--selected) .tile__check { opacity: 1; }
+	.tile__folder, .tile__similar { display: none; }
+	.grid:has(.tile--selected) .tile__check { opacity: 1; }
 }
 </style>

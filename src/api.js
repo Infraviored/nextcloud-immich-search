@@ -21,8 +21,8 @@ export const thumbnailUrl = (id, size = 'thumbnail') => url(`/api/assets/${id}/t
 export const faceUrl = (id) => url(`/api/people/${id}/face`)
 export const fileUrl = (fileId) => generateUrl('/f/' + fileId)
 
-export async function search({ q = '', page = 1, person = '', type = '', literal = false }, signal) {
-	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0 }, signal })
+export async function search({ q = '', page = 1, person = '', type = '', literal = false, similar = '' }, signal) {
+	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0, similar }, signal })
 	return data
 }
 
@@ -97,3 +97,25 @@ export async function scanLibraries() {
 export async function pruneSmall() {
 	return (await axios.post(url('/api/admin/prune'))).data
 }
+
+export async function undoMove(moves) {
+	return (await axios.post(url('/api/files/undo'), { moves })).data
+}
+
+export async function favorite(fileIds, on) {
+	return (await axios.post(url('/api/files/favorite'), { fileIds, on })).data
+}
+
+export async function deleteFiles(fileIds) {
+	return (await axios.post(url('/api/files/delete'), { fileIds })).data
+}
+
+export async function getTags() {
+	return (await axios.get(url('/api/tags'))).data
+}
+
+export async function tagFiles(fileIds, tagIds, newTags) {
+	return (await axios.post(url('/api/files/tag'), { fileIds, tagIds, newTags })).data
+}
+
+export const zipUrl = (fileIds) => url('/api/files/zip') + '?ids=' + fileIds.join(',')

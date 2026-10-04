@@ -142,32 +142,32 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .content {
-    padding: 8px 16px 24px;
+	padding: 8px 16px 24px;
 }
 
 // Room for the navigation toggle button, which floats over the content's top left on wide screens.
 @media (min-width: 1025px) {
-    .content { padding-left: 56px; }
+	.content { padding-left: 56px; }
 }
 
 // On narrow screens it sits above the content instead.
 @media (max-width: 1024px) {
-    .content { padding-top: 48px; }
+	.content { padding-top: 48px; }
 }
 
 .tabs {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 14px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 14px;
 
-    &__spacer { flex: 1; }
+	&__spacer { flex: 1; }
 }
 
 .nav-face {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    object-fit: cover;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	object-fit: cover;
 }
 </style>

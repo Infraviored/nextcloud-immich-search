@@ -103,32 +103,32 @@ async function toggleHidden() {
 
 <style scoped lang="scss">
 .person-view {
-    &__header {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
+	&__header {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: 12px;
+	}
 
-    &__face {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
-        object-fit: cover;
-        background: var(--color-background-dark);
-    }
+	&__face {
+		width: 72px;
+		height: 72px;
+		border-radius: 50%;
+		object-fit: cover;
+		background: var(--color-background-dark);
+	}
 
-    &__title {
-        display: flex;
-        flex: 1 1 220px;
-        flex-direction: column;
-        gap: 2px;
+	&__title {
+		display: flex;
+		flex: 1 1 220px;
+		flex-direction: column;
+		gap: 2px;
 
-        h2 { margin: 0; }
-    }
+		h2 { margin: 0; }
+	}
 
-    &__count { color: var(--color-text-maxcontrast); }
-    &__error { color: var(--color-error-text); }
+	&__count { color: var(--color-text-maxcontrast); }
+	&__error { color: var(--color-error-text); }
 }
 </style>

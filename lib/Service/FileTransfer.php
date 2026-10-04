@@ -30,7 +30,7 @@ class FileTransfer {
 
 	/**
 	 * @param list<int> $fileIds
-	 * @return array{done: int, failed: list<array{fileId: int, name: string, error: string}>}
+	 * @return array{done: int, failed: list<array{fileId: int, name: string, error: string}>, moved: list<array{fileId: int, from: string}>}
 	 */
 	public function transfer(string $uid, array $fileIds, string $target, bool $copy): array {
 		$home = $this->rootFolder->getUserFolder($uid);
@@ -45,6 +45,7 @@ class FileTransfer {
 
 		$done = 0;
 		$failed = [];
+		$moved = [];
 		foreach (array_unique($fileIds) as $id) {
 			$node = $home->getFirstNodeById((int)$id);
 			if ($node === null) {
@@ -57,7 +58,13 @@ class FileTransfer {
 			}
 			try {
 				$path = $dest->getPath() . '/' . $dest->getNonExistingName($node->getName());
-				$copy ? $node->copy($path) : $node->move($path);
+				$from = $home->getRelativePath($node->getParent()->getPath());
+				if ($copy) {
+					$node->copy($path);
+				} else {
+					$node->move($path);
+					$moved[] = ['fileId' => (int)$id, 'from' => $from];
+				}
 				$done++;
 			} catch (\Throwable $e) {
 				$failed[] = ['fileId' => (int)$id, 'name' => $node->getName(), 'error' => $this->l->t('Not allowed')];
@@ -67,7 +74,7 @@ class FileTransfer {
 		if ($done > 0) {
 			$this->rescan();
 		}
-		return ['done' => $done, 'failed' => $failed];
+		return ['done' => $done, 'failed' => $failed, 'moved' => $moved];
 	}
 
 	/** Let Immich pick up the new paths now instead of at its next scheduled library scan. */

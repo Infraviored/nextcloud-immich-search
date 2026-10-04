@@ -49,8 +49,18 @@ class ApiController extends Controller {
 	 * @param bool $literal take $q as it is; otherwise a person's name at its start or end
 	 *                      becomes the person filter ("Tara beach" = Tara + "beach")
 	 */
-	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false): JSONResponse {
+	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false, string $similar = ''): JSONResponse {
 		$q = trim($q);
+		if ($similar !== '') {
+			return $this->guard(function () use ($page, $type, $similar) {
+				$uid = $this->uid();
+				// Only from a picture the user may see: its embedding says something about it.
+				if (!$this->search->maySee($uid, $similar)) {
+					throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
+				}
+				return new JSONResponse($this->search->search($uid, '', $page, self::PAGE_SIZE, '', $type, $similar) + ['person' => null]);
+			});
+		}
 		if ($q === '' && $person === '') {
 			return new JSONResponse(['items' => [], 'nextPage' => null]);
 		}
