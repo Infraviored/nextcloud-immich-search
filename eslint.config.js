@@ -8,7 +8,7 @@ import { recommended } from '@nextcloud/eslint-config'
 export default [
 	...recommended,
 	{
-		ignores: ['js/', 'build/', 'vendor/', 'l10n/'],
+		ignores: ['js/**', 'build/**', 'vendor/**', 'l10n/**'],
 	},
 	{
 		// Small, self-explaining helpers: a JSDoc block per arrow function is noise.
