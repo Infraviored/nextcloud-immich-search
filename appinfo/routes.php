@@ -35,6 +35,7 @@ return [
 
 		['name' => 'people#index',        'url' => '/api/people',                'verb' => 'GET'],
 		['name' => 'people#face',         'url' => '/api/people/{id}/face',      'verb' => 'GET'],
+		['name' => 'people#samples', 'url' => '/api/people/{id}/samples', 'verb' => 'GET'],
 		['name' => 'people#update',       'url' => '/api/people/{id}',           'verb' => 'PUT'],
 		['name' => 'people#merge',        'url' => '/api/people/{id}/merge',     'verb' => 'POST'],
 		['name' => 'people#faces', 'url' => '/api/assets/{assetId}/faces', 'verb' => 'GET'],

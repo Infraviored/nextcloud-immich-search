@@ -88,6 +88,24 @@ async function loadItems() {
 	}
 }
 
+/**
+ * Where most pictures are: the densest 1° cell and everything within ~2° around it.
+ * Fitting all markers would show the whole world as soon as there is one holiday abroad.
+ *
+ * @param list
+ */
+function homeBounds(list) {
+	const cells = new Map()
+	for (const m of list) {
+		const key = Math.floor(m[2]) + ':' + Math.floor(m[3])
+		cells.set(key, (cells.get(key) ?? 0) + 1)
+	}
+	const [best] = [...cells.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))
+	const [lat, lon] = best.split(':').map(Number)
+	const near = list.filter((m) => Math.abs(m[2] - lat - 0.5) <= 2.5 && Math.abs(m[3] - lon - 0.5) <= 2.5)
+	return L.latLngBounds(near.map((m) => [m[2], m[3]]))
+}
+
 function drop(fileIds) {
 	const gone = new Set(fileIds)
 	items.value = items.value.filter((i) => !gone.has(i.fileId))
@@ -98,9 +116,13 @@ function similar(item) {
 }
 
 onMounted(async () => {
-	map = L.map(mapEl.value, { worldCopyJump: true }).setView([48.1, 11.5], 4)
+	// One world, no copies to the left and right, and no zooming out past it.
+	const world = L.latLngBounds([-85, -180], [85, 180])
+	map = L.map(mapEl.value, { maxBounds: world, maxBoundsViscosity: 1, minZoom: 2 }).setView([48.1, 11.5], 4)
 	L.tileLayer(tileUrl(), {
 		maxZoom: 19,
+		noWrap: true,
+		bounds: world,
 		attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
 	}).addTo(map)
 
@@ -119,7 +141,7 @@ onMounted(async () => {
 		icon: L.divIcon({ className: 'map__pin', html: `<img src="${thumbnailUrl(m[0])}" loading="lazy" alt="">`, iconSize: [44, 44] }),
 	})))
 	map.addLayer(cluster)
-	map.fitBounds(cluster.getBounds(), { padding: [20, 20], maxZoom: 12 })
+	map.fitBounds(homeBounds(markers.value), { padding: [20, 20], maxZoom: 12 })
 	map.on('moveend', refreshArea)
 	refreshArea()
 })

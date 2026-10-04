@@ -95,20 +95,28 @@ class PeopleController extends Controller {
 		});
 	}
 
-	/** No CSRF check: loaded by <img> tags. Read-only. */
+	/**
+	 * The person's face, cut from a picture the user may see: the one the people index
+	 * picked, or $asset (one of samples()). No CSRF check: loaded by <img> tags. Read-only.
+	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	public function face(string $id): Response {
-		return $this->guard(function () use ($id) {
-			$asset = $this->visible($id)['asset'];
+	public function face(string $id, string $asset = ''): Response {
+		return $this->guard(function () use ($id, $asset) {
+			$default = $this->visible($id)['asset'];
+			if ($asset === '') {
+				$asset = $default;
+			} else {
+				$this->assetVisible($asset);
+			}
 			$resp = new DataDisplayResponse($this->faces->face($id, $asset), Http::STATUS_OK, ['Content-Type' => 'image/jpeg']);
 			$resp->cacheFor(86400, false);
 			return $resp;
 		});
 	}
 
-	#[NoAdminRequired]
 	/** @param string|null $birthDate YYYY-MM-DD, '' to remove */
+	#[NoAdminRequired]
 	#[UserRateLimit(limit: 300, period: 60)]
 	public function update(string $id, ?string $name = null, ?bool $hidden = null, ?bool $favorite = null, ?string $birthDate = null): JSONResponse {
 		return $this->guard(function () use ($id, $name, $hidden, $favorite, $birthDate) {
@@ -132,6 +140,33 @@ class PeopleController extends Controller {
 			$p = $this->immich->json('PUT', '/people/' . $id, $body);
 			return new JSONResponse(['id' => $id, 'name' => (string)($p['name'] ?? ''), 'hidden' => (bool)($p['isHidden'] ?? false),
 				'favorite' => (bool)($p['isFavorite'] ?? false), 'birthDate' => $p['birthDate'] ?? null]);
+		});
+	}
+
+	/**
+	 * A few different pictures of the person the user may see, newest, middle and oldest of
+	 * the recent ones – so one bad crop does not decide who someone is.
+	 *
+	 * @return list<string> asset ids
+	 */
+	#[NoAdminRequired]
+	public function samples(string $id, int $count = 3): JSONResponse {
+		return $this->guard(function () use ($id, $count) {
+			$this->visible($id);
+			$res = $this->immich->json('POST', '/search/metadata', ['personIds' => [$id], 'size' => 60, 'order' => 'desc'])['assets'] ?? [];
+			$ids = [];
+			foreach ($res['items'] ?? [] as $a) {
+				if ($this->assets->visibleItem($this->uid(), $a) !== null) {
+					$ids[] = $a['id'];
+				}
+			}
+			$count = max(1, min(6, $count));
+			if (count($ids) > $count) {
+				// spread over the list instead of three shots of the same afternoon
+				$step = (count($ids) - 1) / ($count - 1);
+				$ids = array_map(static fn ($i) => $ids[(int)round($i * $step)], range(0, $count - 1));
+			}
+			return new JSONResponse(array_values(array_unique($ids)));
 		});
 	}
 

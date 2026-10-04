@@ -17,14 +17,25 @@
 			</NcButton>
 			<img class="person-view__face" :src="faceUrl(id)" alt="">
 			<div class="person-view__title">
-				<form v-if="state.canManage" @submit.prevent="saveName">
+				<!-- Name and birthday in one row, so the two fields line up -->
+				<div v-if="state.canManage" class="person-view__fields">
+					<form class="person-view__name" @submit.prevent="saveName">
+						<NcTextField
+							v-model="name"
+							:label="t('Name')"
+							:placeholder="t('Name')"
+							:success="saved"
+							@blur="saveName" />
+					</form>
 					<NcTextField
-						v-model="name"
-						:label="t('Name')"
-						:placeholder="t('Who is this?')"
-						:success="saved"
-						@blur="saveName" />
-				</form>
+						v-if="person"
+						v-model="birthday"
+						class="person-view__birthday"
+						type="date"
+						:label="t('Birthday')"
+						:max="today"
+						@blur="saveBirthday(birthday)" />
+				</div>
 				<h2 v-else>
 					{{ person?.name || t('Unnamed') }}
 				</h2>
@@ -32,15 +43,6 @@
 					{{ n('{count} picture you can see', '{count} pictures you can see', person.count, { count: person.count }) }}
 					<template v-if="age !== null"> · {{ n('{count} year old', '{count} years old', age, { count: age }) }}</template>
 				</span>
-			</div>
-			<div v-if="state.canManage && person" class="person-view__birthday">
-				<label :for="'birthday-' + id">{{ t('Birthday') }}</label>
-				<input
-					:id="'birthday-' + id"
-					type="date"
-					:value="person.birthDate || ''"
-					:max="today"
-					@change="saveBirthday($event.target.value)">
 			</div>
 			<NcButton
 				v-if="state.canManage && person"
@@ -96,11 +98,15 @@ const props = defineProps({
 const person = computed(() => state.people.find((p) => p.id === props.id))
 const name = ref(person.value?.name ?? '')
 const saved = ref(false)
+const birthday = ref(person.value?.birthDate ?? '')
 const error = ref('')
 
 watch(person, (p) => {
 	if (p && !saved.value) {
 		name.value = p.name
+	}
+	if (p) {
+		birthday.value = p.birthDate ?? ''
 	}
 })
 
@@ -155,6 +161,9 @@ async function toggleFavorite() {
 }
 
 async function saveBirthday(value) {
+	if ((value || null) === (person.value?.birthDate ?? null)) {
+		return
+	}
 	try {
 		const res = await updatePerson(props.id, { birthDate: value })
 		patchPerson(props.id, { birthDate: res.birthDate })
@@ -179,6 +188,11 @@ async function toggleHidden() {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
+
+		// Fields of one height, side by side
+		:deep(.input-field) {
+			margin-block: 0;
+		}
 		gap: 12px;
 		margin-bottom: 12px;
 	}
@@ -189,6 +203,25 @@ async function toggleHidden() {
 		border-radius: 50%;
 		object-fit: cover;
 		background: var(--color-background-dark);
+	}
+
+	&__fields {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		align-items: center;
+
+		:deep(.input-field) {
+			margin-block: 0;
+		}
+	}
+
+	&__name {
+		flex: 1 1 200px;
+	}
+
+	&__birthday {
+		flex: 0 0 170px;
 	}
 
 	&__title {
@@ -203,13 +236,5 @@ async function toggleHidden() {
 	&__count { color: var(--color-text-maxcontrast); }
 	&__error { color: var(--color-error-text); }
 
-	&__birthday {
-		display: flex;
-		flex-direction: column;
-		font-size: var(--font-size-small, 13px);
-		color: var(--color-text-maxcontrast);
-
-		input { margin: 0; }
-	}
 }
 </style>

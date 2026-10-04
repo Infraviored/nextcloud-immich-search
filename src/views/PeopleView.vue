@@ -24,7 +24,7 @@
 				<template #icon>
 					<NcIconSvgWrapper :path="mdiAccountQuestionOutline" />
 				</template>
-				{{ t('Who is this?') }}
+				{{ t('Label people') }}
 			</NcButton>
 		</div>
 		<NamingDialog v-if="naming" @close="naming = false" />

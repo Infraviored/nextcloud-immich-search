@@ -18,7 +18,7 @@ export function errorMessage(e) {
 }
 
 export const thumbnailUrl = (id, size = 'thumbnail') => url(`/api/assets/${id}/thumbnail`) + (size === 'preview' ? '?size=preview' : '')
-export const faceUrl = (id) => url(`/api/people/${id}/face`)
+export const faceUrl = (id, asset = '') => url(`/api/people/${id}/face`) + (asset ? '?asset=' + asset : '')
 export const fileUrl = (fileId) => generateUrl('/f/' + fileId)
 export const previewUrl = (fileId) => generateUrl('/core/preview?fileId={fileId}&x=256&y=256&a=1&mimeFallback=true', { fileId })
 
@@ -165,4 +165,8 @@ export async function deleteFace(faceId, assetId) {
 
 export async function assetForFile(fileId) {
 	return (await axios.get(url(`/api/files/${fileId}/asset`))).data
+}
+
+export async function personSamples(id) {
+	return (await axios.get(url(`/api/people/${id}/samples`))).data
 }

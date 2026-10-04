@@ -211,6 +211,7 @@ OC.L10N.register(
         "Invalid value for %s": "Ungültiger Wert für %s",
         "Jump to year": "Zu Jahr springen",
         "Keep": "Behalten",
+        "Label people": "Personen benennen",
         "Large tiles": "Große Kacheln",
         "Last scan": "Letzter Scan",
         "Libraries": "Bibliotheken",

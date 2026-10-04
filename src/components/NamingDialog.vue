@@ -4,13 +4,21 @@
 -->
 
 <!--
-  "Who is this?" in a row: the unnamed people with the most pictures, one after another.
-  Type a name to name them; pick someone known to merge them into that person.
+  Label people in a row: the unnamed people with the most pictures, one after another, each
+  with three faces from different pictures. Type a name to name them; pick someone known to
+  merge them into that person.
 -->
 <template>
-	<NcDialog :name="t('Who is this?')" size="normal" @closing="$emit('close')">
+	<NcDialog :name="t('Label people')" size="normal" @closing="$emit('close')">
 		<div v-if="person" class="naming">
-			<img :src="faceUrl(person.id)" alt="" class="naming__face">
+			<div class="naming__faces">
+				<img
+					v-for="a in samples"
+					:key="a"
+					:src="faceUrl(person.id, a)"
+					alt=""
+					class="naming__face">
+			</div>
 			<p class="naming__count">
 				{{ n('{count} picture', '{count} pictures', person.count, { count: person.count }) }}
 				· {{ t('{index} of {total}', { index: index + 1, total: queue.length }) }}
@@ -46,11 +54,11 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
-import { faceUrl, mergePeople, updatePerson } from '../api.js'
+import { faceUrl, mergePeople, personSamples, updatePerson } from '../api.js'
 import { useAction } from '../composables/useAction.js'
 import { n, t } from '../l10n.js'
 import { patchPerson, peopleState, reloadPeople } from '../people.js'
@@ -64,6 +72,22 @@ const choice = ref(null)
 const { busy, act } = useAction()
 
 const person = computed(() => queue[index.value] ?? null)
+/** Asset ids of three pictures of the current person; '' = the default face until loaded */
+const samples = ref([''])
+
+watch(person, async (p) => {
+	samples.value = ['']
+	if (p) {
+		try {
+			const ids = await personSamples(p.id)
+			if (person.value === p && ids.length) {
+				samples.value = ids
+			}
+		} catch {
+			// keep the default face
+		}
+	}
+}, { immediate: true })
 const named = computed(() => peopleState.people.filter((p) => p.name).map((p) => ({ id: p.id, name: p.name })))
 
 function next() {
@@ -105,9 +129,17 @@ async function hide() {
 	align-items: center;
 	gap: 8px;
 
+	&__faces {
+		display: flex;
+		gap: 10px;
+		justify-content: center;
+		width: 100%;
+	}
+
 	&__face {
-		width: 200px;
-		height: 200px;
+		width: min(30%, 160px);
+		aspect-ratio: 1;
+		height: auto;
 		border-radius: 50%;
 		object-fit: cover;
 	}

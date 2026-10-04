@@ -30,7 +30,7 @@
 					v-model="personOption"
 					class="search__person"
 					:options="peopleOptions"
-					:inputLabel="t('Person')"
+					:ariaLabelCombobox="t('Person')"
 					:placeholder="t('All people')"
 					label="name"
 					:clearable="true"
@@ -266,8 +266,13 @@ onBeforeUnmount(() => controller?.abort())
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px 12px;
-		align-items: flex-end;
+		align-items: center;
 		margin-bottom: 8px;
+
+		// One height and no stray margins, so text field, select and switches line up
+		:deep(.input-field), :deep(.v-select) {
+			margin-block: 0;
+		}
 	}
 
 	&__input {
@@ -279,7 +284,7 @@ onBeforeUnmount(() => controller?.abort())
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px 12px;
-		align-items: flex-end;
+		align-items: center;
 	}
 
 	&__person {
