@@ -16,11 +16,15 @@ docker exec "$CONTAINER" rm -rf "$TARGET.new"
 tar --exclude=.git --exclude=deploy.sh -cf - . | docker exec -i "$CONTAINER" sh -c "mkdir $TARGET.new && tar -xf - -C $TARGET.new"
 docker exec "$CONTAINER" sh -c "chown -R www-data:www-data $TARGET.new && rm -rf $TARGET && mv $TARGET.new $TARGET"
 
-if occ app:list --enabled --output=json | grep -q '"immich_search"'; then
-    # A version bump in appinfo/info.xml needs the upgrade step, otherwise Nextcloud
-    # shows the update screen on the next page load.
-    occ upgrade --no-interaction >/dev/null || true
-else
+new=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
+old=$(occ config:app:get immich_search installed_version 2>/dev/null || true)
+enabled=$(occ config:app:get immich_search enabled 2>/dev/null || true)
+
+if [ "$enabled" != "yes" ]; then
     occ app:enable immich_search
+elif [ "$new" != "$old" ]; then
+    # A version bump needs the upgrade step, otherwise Nextcloud shows its update screen.
+    # It switches maintenance mode on for a few seconds, so only run it when needed.
+    occ upgrade --no-interaction >/dev/null 2>&1
 fi
-occ app:list --output=json | python3 -c 'import json,sys; print("immich_search", json.load(sys.stdin)["enabled"].get("immich_search", "NICHT aktiv"))'
+echo "immich_search $(occ config:app:get immich_search installed_version) aktiv"
