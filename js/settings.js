@@ -3,12 +3,17 @@
 
     const APP = 'immich_search';
     const $ = (id) => document.getElementById(id);
+    const tr = (s, v) => t(APP, s, v);
 
     async function send(method, path) {
         const r = await fetch(OC.generateUrl('/apps/' + APP + path), {
             method,
             headers: { requesttoken: OC.requestToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: $('fs-url').value.trim(), apiKey: $('fs-key').value.trim() }),
+            body: JSON.stringify({
+                url: $('fs-url').value.trim(),
+                apiKey: $('fs-key').value.trim(),
+                pathPattern: $('fs-path').value.trim(),
+            }),
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.error || data.message || 'HTTP ' + r.status);
@@ -20,24 +25,29 @@
         $('fs-msg').style.color = ok ? 'var(--color-success-text)' : 'var(--color-error-text)';
     }
 
+    function keyStored() {
+        $('fs-key').value = '';
+        $('fs-key').placeholder = tr('stored, leave empty to keep');
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-        const s = OCP.InitialState.loadState(APP, 'settings', { url: '', hasKey: false });
+        const s = OCP.InitialState.loadState(APP, 'settings', { url: '', hasKey: false, pathPattern: '' });
         $('fs-url').value = s.url;
-        $('fs-key').placeholder = s.hasKey ? 'gespeichert, leer lassen zum Behalten' : '';
+        $('fs-path').value = s.pathPattern;
+        if (s.hasKey) keyStored();
 
         $('fs-test').addEventListener('click', async () => {
-            msg('Teste …', true);
-            try { msg('Verbunden als ' + (await send('POST', '/api/settings/test')).user, true); }
+            msg(tr('Testing …'), true);
+            try { msg(tr('Connected as {user}', { user: (await send('POST', '/api/settings/test')).user }), true); }
             catch (e) { msg(e.message, false); }
         });
 
         $('fs-save').addEventListener('click', async () => {
-            msg('Speichere …', true);
+            msg(tr('Saving …'), true);
             try {
                 const r = await send('PUT', '/api/settings');
-                $('fs-key').value = '';
-                $('fs-key').placeholder = 'gespeichert, leer lassen zum Behalten';
-                msg('Gespeichert, verbunden als ' + r.user, true);
+                keyStored();
+                msg(tr('Saved, connected as {user}', { user: r.user }), true);
             } catch (e) { msg(e.message, false); }
         });
     });

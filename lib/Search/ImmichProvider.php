@@ -6,6 +6,7 @@ namespace OCA\ImmichSearch\Search;
 use OCA\ImmichSearch\AppInfo\Application;
 use OCA\ImmichSearch\Service\AssetSearch;
 use OCA\ImmichSearch\Service\Config;
+use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\Search\IProvider;
@@ -15,7 +16,8 @@ use OCP\Search\SearchResultEntry;
 use Psr\Log\LoggerInterface;
 
 /**
- * Global search bar: "Frau am Strand" finds pictures by what is on them.
+ * Global search bar: "woman on the beach" finds pictures by what is on them.
+ * Only files the user can open in Nextcloud are returned (see AssetSearch).
  * Hits link to the real Nextcloud file and carry the same fileId/path attributes
  * as the Files provider, so the Android app opens them in-app.
  */
@@ -27,6 +29,7 @@ class ImmichProvider implements IProvider {
         private AssetSearch $search,
         private Config $config,
         private IURLGenerator $url,
+        private IL10N $l,
         private LoggerInterface $logger,
     ) {
     }
@@ -36,7 +39,7 @@ class ImmichProvider implements IProvider {
     }
 
     public function getName(): string {
-        return 'Fotos nach Inhalt';
+        return $this->l->t('Photos by content');
     }
 
     public function getOrder(string $route, array $routeParameters): int {
@@ -52,25 +55,25 @@ class ImmichProvider implements IProvider {
     public function search(IUser $user, ISearchQuery $query): SearchResult {
         $uid = $user->getUID();
         $term = trim($query->getTerm());
-        if (mb_strlen($term) < self::MIN_TERM || !$this->config->isConfigured($uid)) {
+        if (mb_strlen($term) < self::MIN_TERM || !$this->config->isConfigured()) {
             return SearchResult::complete($this->getName(), []);
         }
 
-        // Immich pages are fixed-size, so the cursor is an offset that is a multiple of the limit.
-        $limit = max(1, $query->getLimit());
-        $offset = max(0, (int)$query->getCursor());
+        // The cursor is the next Immich page. One call can consume several pages
+        // (AssetSearch skips hits the user may not see), so it is not an offset.
+        $page = max(1, (int)$query->getCursor());
         try {
-            $res = $this->search->search($uid, $term, intdiv($offset, $limit) + 1, $limit);
+            $res = $this->search->search($uid, $term, $page, max(1, $query->getLimit()));
         } catch (\Throwable $e) {
-            // Immich down, or its ML container stopped by gpu-guard: no results, no error page.
-            $this->logger->info('Fotosuche (globale Suche): ' . $e->getMessage(), ['app' => Application::APP_ID]);
+            // Immich or its machine-learning container down: no results, no error page.
+            $this->logger->info('Photo search (unified search): ' . $e->getMessage(), ['app' => Application::APP_ID]);
             return SearchResult::complete($this->getName(), []);
         }
 
         $entries = array_map(fn (array $a) => $this->entry($a, $term), $res['items']);
         return $res['nextPage'] === null
             ? SearchResult::complete($this->getName(), $entries)
-            : SearchResult::paginated($this->getName(), $entries, $offset + $limit);
+            : SearchResult::paginated($this->getName(), $entries, $res['nextPage']);
     }
 
     private function entry(array $a, string $term): SearchResultEntry {
@@ -81,13 +84,13 @@ class ImmichProvider implements IProvider {
 
         $sub = [];
         if ($a['type'] === 'VIDEO') {
-            $sub[] = 'Video';
+            $sub[] = $this->l->t('Video');
         }
         if ($a['date'] !== null) {
-            $sub[] = date('d.m.Y', strtotime($a['date']));
+            $sub[] = $this->l->l('date', strtotime($a['date']));
         }
         if ($a['path'] !== null) {
-            $sub[] = ltrim(dirname($a['path']), '/') ?: 'Dateien';
+            $sub[] = ltrim(dirname($a['path']), '/') ?: $this->l->t('Files');
         }
 
         $entry = new SearchResultEntry($thumb, $a['name'], implode(' · ', $sub), $link,

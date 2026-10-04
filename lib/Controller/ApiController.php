@@ -15,6 +15,7 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\Response;
+use OCP\IL10N;
 use OCP\IRequest;
 use Psr\Log\LoggerInterface;
 
@@ -28,6 +29,7 @@ class ApiController extends Controller {
         private Config $config,
         private AssetSearch $search,
         private ImmichClient $immich,
+        private IL10N $l,
         private LoggerInterface $logger,
     ) {
         parent::__construct(Application::APP_ID, $request);
@@ -46,29 +48,28 @@ class ApiController extends Controller {
 
     #[NoAdminRequired]
     public function people(): JSONResponse {
-        return $this->guard(fn () => new JSONResponse($this->search->people($this->uid())));
+        return $this->guard(function () {
+            $this->uid();
+            return new JSONResponse($this->search->people());
+        });
     }
 
-    /** No CSRF check: loaded by <img> tags, which cannot send the request token. Read-only. */
+    /**
+     * Only for assets whose file the user can reach in Nextcloud.
+     * No CSRF check: loaded by <img> tags, which cannot send the request token. Read-only.
+     */
     #[NoAdminRequired]
     #[NoCSRFRequired]
     public function thumbnail(string $id, string $size = 'thumbnail'): Response {
-        $size = $size === 'preview' ? 'preview' : 'thumbnail';
-        return $this->image('/assets/' . $id . '/thumbnail?size=' . $size, $id);
-    }
-
-    #[NoAdminRequired]
-    #[NoCSRFRequired]
-    public function personThumbnail(string $id): Response {
-        return $this->image('/people/' . $id . '/thumbnail', $id);
-    }
-
-    private function image(string $endpoint, string $id): Response {
         if (!preg_match(AssetSearch::UUID, $id)) {
-            return new JSONResponse(['error' => 'Ungültige ID'], Http::STATUS_BAD_REQUEST);
+            return new JSONResponse(['error' => $this->l->t('Invalid ID')], Http::STATUS_BAD_REQUEST);
         }
-        return $this->guard(function () use ($endpoint) {
-            $img = $this->immich->binary($this->uid(), $endpoint);
+        $size = $size === 'preview' ? 'preview' : 'thumbnail';
+        return $this->guard(function () use ($id, $size) {
+            if (!$this->search->maySee($this->uid(), $id)) {
+                return new JSONResponse(['error' => $this->l->t('Not found')], Http::STATUS_NOT_FOUND);
+            }
+            $img = $this->immich->binary('/assets/' . $id . '/thumbnail?size=' . $size);
             $resp = new DataDisplayResponse($img['body'], Http::STATUS_OK, ['Content-Type' => $img['type']]);
             $resp->cacheFor(self::IMAGE_CACHE_SECONDS, false);
             return $resp;
@@ -77,10 +78,10 @@ class ApiController extends Controller {
 
     private function uid(): string {
         if ($this->userId === null) {
-            throw new ImmichException('Nicht angemeldet', Http::STATUS_UNAUTHORIZED);
+            throw new ImmichException($this->l->t('Not logged in'), Http::STATUS_UNAUTHORIZED);
         }
-        if (!$this->config->isConfigured($this->userId)) {
-            throw new ImmichException('Immich ist nicht eingerichtet (Persönliche Einstellungen → Fotosuche)', Http::STATUS_PRECONDITION_FAILED);
+        if (!$this->config->isConfigured()) {
+            throw new ImmichException($this->l->t('Photo search is not set up yet'), Http::STATUS_PRECONDITION_FAILED);
         }
         return $this->userId;
     }
@@ -92,8 +93,8 @@ class ApiController extends Controller {
         } catch (ImmichException $e) {
             return new JSONResponse(['error' => $e->getMessage()], $e->getCode() ?: Http::STATUS_BAD_GATEWAY);
         } catch (\Throwable $e) {
-            $this->logger->error('Fotosuche: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
-            return new JSONResponse(['error' => 'Interner Fehler'], Http::STATUS_INTERNAL_SERVER_ERROR);
+            $this->logger->error('Photo search failed: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
+            return new JSONResponse(['error' => $this->l->t('Internal error')], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
     }
 }

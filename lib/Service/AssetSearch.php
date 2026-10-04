@@ -5,32 +5,97 @@ namespace OCA\ImmichSearch\Service;
 
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\Files\Node;
 use OCP\Files\NotFoundException;
+use OCP\ICache;
+use OCP\ICacheFactory;
+use OCP\IUserManager;
 
 /**
- * Immich smart (CLIP) search, with each hit mapped back to the real Nextcloud file.
+ * Immich smart (CLIP) search, filtered by Nextcloud's own permissions.
  *
- * Immich reads the Nextcloud data dir read-only as an external library mounted at
- * /mnt/nextcloud/<uid>/ (~/docker-projects/immich/docker-compose.yml), so
- * "/mnt/nextcloud/florian/Fotos/a.jpg" is "/Fotos/a.jpg" in florian's files.
+ * Immich indexes every user's Nextcloud files read-only as external libraries
+ * under one service account. Config::getPathPattern() says where: with
+ * "/mnt/nextcloud/{user}/", the hit "/mnt/nextcloud/alice/Photos/a.jpg" is
+ * alice's "/Photos/a.jpg". It is shown to the searching user only if that file
+ * is reachable in their own Nextcloud (own file or shared with them), under the
+ * path they know it by ("/Shared/Photos/a.jpg" for a share recipient).
+ *
+ * Assets that passed the check are remembered per user, so the thumbnail
+ * endpoint can authorize without asking Immich again.
  */
 class AssetSearch {
     public const UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
-    private const MOUNT_PREFIX = '/mnt/nextcloud/';
     private const TYPES = ['IMAGE', 'VIDEO'];
+    private const GRANT_TTL = 86400;
+    /** Immich pages fetched at most per call when the permission filter drops most hits. */
+    private const MAX_PAGES_PER_CALL = 5;
+
+    private ICache $grants;
+    /** @var array<string, ?Folder> */
+    private array $folders = [];
 
     public function __construct(
         private ImmichClient $immich,
+        private Config $config,
         private IRootFolder $rootFolder,
+        private IUserManager $users,
+        ICacheFactory $cacheFactory,
     ) {
+        $this->grants = $cacheFactory->createDistributed('immich_search_grants');
     }
 
     /**
-     * @param string $q free text; empty means "everything", newest first (useful with $person)
-     * @return array{items: list<array>, nextPage: ?int}
+     * @param string $q free text; empty means newest first (useful with $person)
+     * @return array{items: list<array>, nextPage: ?int} only items the user may see. Keeps
+     *         fetching Immich pages until half a page is filled, so a user who may see little
+     *         does not get a string of empty pages.
      */
     public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = ''): array {
-        $body = ['page' => max(1, $page), 'size' => max(1, min(200, $size))];
+        $size = max(1, min(200, $size));
+        $items = [];
+        $next = max(1, $page);
+        for ($i = 0; $i < self::MAX_PAGES_PER_CALL && $next !== null && count($items) < intdiv($size + 1, 2); $i++) {
+            $assets = $this->immichPage($q, $next, $size, $person, $type);
+            foreach ($assets['items'] ?? [] as $a) {
+                $item = $this->visibleItem($uid, $a);
+                if ($item !== null) {
+                    $items[] = $item;
+                }
+            }
+            $next = isset($assets['nextPage']) ? (int)$assets['nextPage'] : null;
+        }
+        return ['items' => $items, 'nextPage' => $next];
+    }
+
+    /** May $uid see this asset? Asks Immich for its path if the user has not been shown it yet. */
+    public function maySee(string $uid, string $assetId): bool {
+        if ($this->grants->get($uid . '/' . $assetId) !== null) {
+            return true;
+        }
+        try {
+            $asset = $this->immich->json('GET', '/assets/' . $assetId);
+        } catch (ImmichException) {
+            return false;
+        }
+        return $this->visibleItem($uid, $asset) !== null;
+    }
+
+    /** @return list<array{id: string, name: string}> named, visible people, sorted by name */
+    public function people(): array {
+        $raw = $this->immich->json('GET', '/people?withHidden=false&size=1000')['people'] ?? [];
+        $people = [];
+        foreach ($raw as $p) {
+            if (($p['name'] ?? '') !== '') {
+                $people[] = ['id' => $p['id'], 'name' => $p['name']];
+            }
+        }
+        usort($people, static fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+        return $people;
+    }
+
+    private function immichPage(string $q, int $page, int $size, string $person, string $type): array {
+        $body = ['page' => $page, 'size' => $size];
         if (in_array($type, self::TYPES, true)) {
             $body['type'] = $type;
         }
@@ -45,49 +110,66 @@ class AssetSearch {
             $endpoint = '/search/metadata';
             $body['order'] = 'desc';
         }
-
-        $assets = $this->immich->json($uid, 'POST', $endpoint, $body)['assets'] ?? [];
-        $folder = $this->rootFolder->getUserFolder($uid);
-        $items = array_map(fn (array $a) => $this->toItem($uid, $folder, $a), $assets['items'] ?? []);
-        $next = $assets['nextPage'] ?? null;
-        return ['items' => $items, 'nextPage' => $next === null ? null : (int)$next];
+        return $this->immich->json('POST', $endpoint, $body)['assets'] ?? [];
     }
 
-    /** @return list<array{id: string, name: string}> named, visible people, sorted by name */
-    public function people(string $uid): array {
-        $raw = $this->immich->json($uid, 'GET', '/people?withHidden=false&size=1000')['people'] ?? [];
-        $named = array_values(array_filter($raw, static fn (array $p) => ($p['name'] ?? '') !== ''));
-        $people = array_map(static fn (array $p) => ['id' => $p['id'], 'name' => $p['name']], $named);
-        usort($people, static fn ($a, $b) => strcasecmp($a['name'], $b['name']));
-        return $people;
-    }
-
-    private function toItem(string $uid, Folder $folder, array $a): array {
-        $path = $this->toNextcloudPath($uid, $a['originalPath'] ?? '');
-        $node = null;
-        if ($path !== null) {
-            try {
-                $node = $folder->get($path);
-            } catch (NotFoundException) {
-                // Moved or deleted since Immich last scanned the library.
-            }
+    /** The hit as $uid sees it, or null if the file is not reachable for $uid. */
+    private function visibleItem(string $uid, array $a): ?array {
+        $node = $this->nodeFor($uid, $a['originalPath'] ?? '');
+        if ($node === null) {
+            return null;
         }
+        $this->grants->set($uid . '/' . $a['id'], 1, self::GRANT_TTL);
         return [
             'id' => $a['id'],
             'type' => $a['type'] ?? 'IMAGE',
             'date' => $a['localDateTime'] ?? $a['fileCreatedAt'] ?? null,
-            'name' => $a['originalFileName'] ?? ($path !== null ? basename($path) : ''),
-            'path' => $node !== null ? $path : null,
-            'fileId' => $node?->getId(),
-            'mime' => $node?->getMimetype(),
+            'name' => $node->getName(),
+            'path' => $this->userFolder($uid)->getRelativePath($node->getPath()),
+            'fileId' => $node->getId(),
+            'mime' => $node->getMimetype(),
         ];
     }
 
-    private function toNextcloudPath(string $uid, string $immichPath): ?string {
-        $prefix = self::MOUNT_PREFIX . $uid . '/';
-        if (!str_starts_with($immichPath, $prefix)) {
+    private function nodeFor(string $uid, string $immichPath): ?Node {
+        [$owner, $rel] = $this->splitImmichPath($immichPath) ?? [null, null];
+        $ownerFolder = $owner !== null ? $this->userFolder($owner) : null;
+        $mine = $this->userFolder($uid);
+        if ($ownerFolder === null || $mine === null) {
             return null;
         }
-        return '/' . substr($immichPath, strlen($prefix));
+        try {
+            $file = $ownerFolder->get($rel);
+        } catch (NotFoundException) {
+            return null; // moved or deleted since Immich last scanned
+        }
+        if ($owner === $uid) {
+            return $file;
+        }
+        // A file has the same id everywhere; it resolves in $uid's tree only if shared with them.
+        return $mine->getFirstNodeById($file->getId());
+    }
+
+    /** "/mnt/nextcloud/alice/Photos/a.jpg" -> ["alice", "Photos/a.jpg"], null if outside the pattern. */
+    private function splitImmichPath(string $path): ?array {
+        [$before, $after] = explode(Config::USER_PLACEHOLDER, $this->config->getPathPattern(), 2);
+        if (!str_starts_with($path, $before)) {
+            return null;
+        }
+        $rest = substr($path, strlen($before));
+        $end = $after === '' ? false : strpos($rest, $after);
+        if ($end === false || $end === 0) {
+            return null;
+        }
+        $owner = substr($rest, 0, $end);
+        $rel = substr($rest, $end + strlen($after));
+        return str_contains($owner, '/') || $rel === '' ? null : [$owner, $rel];
+    }
+
+    private function userFolder(string $uid): ?Folder {
+        if (!array_key_exists($uid, $this->folders)) {
+            $this->folders[$uid] = $this->users->userExists($uid) ? $this->rootFolder->getUserFolder($uid) : null;
+        }
+        return $this->folders[$uid];
     }
 }

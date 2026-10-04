@@ -10,9 +10,8 @@ use OCP\AppFramework\Services\IInitialState;
 use OCP\Settings\ISettings;
 use OCP\Util;
 
-class Personal implements ISettings {
+class Admin implements ISettings {
     public function __construct(
-        private ?string $userId,
         private Config $config,
         private IInitialState $initialState,
     ) {
@@ -20,8 +19,9 @@ class Personal implements ISettings {
 
     public function getForm(): TemplateResponse {
         $this->initialState->provideInitialState('settings', [
-            'url' => $this->config->getUrl((string)$this->userId),
-            'hasKey' => $this->config->hasApiKey((string)$this->userId),
+            'url' => $this->config->getUrl(),
+            'hasKey' => $this->config->hasApiKey(),
+            'pathPattern' => $this->config->getPathPattern(),
         ]);
         Util::addScript(Application::APP_ID, 'settings');
         return new TemplateResponse(Application::APP_ID, 'settings');

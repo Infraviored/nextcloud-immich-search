@@ -1,71 +1,91 @@
-# Fotosuche (Nextcloud-App `immich_search`)
+# Photo search for Nextcloud (`immich_search`)
 
-Sucht in den Nextcloud-Fotos nach Bildinhalt ("Frau am Strand", "Hund im Schnee") und nach
-Personen. Die Bildanalyse macht Immich (CLIP-Modell und Gesichtserkennung); diese App ist nur
-die Oberfläche in Nextcloud. Eigenbau für flo-server, ersetzt die App `integration_immich`.
+Find pictures in Nextcloud by describing them – "woman on the beach", "dog in the snow" – or by
+person. The image understanding (CLIP) and face recognition come from a self-hosted
+[Immich](https://immich.app) that indexes your Nextcloud files **read-only**. This app is the
+Nextcloud side: search UI, unified search provider, permission checks.
 
-## Wo die Suche auftaucht
+## What users get
 
-| Ort | Wie |
+| Where | How |
 |---|---|
-| Globale Suchleiste (Lupe oben, jede Seite) | Abschnitt „Fotos nach Inhalt", ab 3 Zeichen |
-| Nextcloud-Android-App | Dieselbe Suche, die Treffer öffnen die Datei in der App |
-| Eigene Seite „Fotosuche" im Menü | Raster mit Nachladen, Filter nach Person und Foto/Video |
+| Unified search bar (every page) | Section "Photos by content", from 3 characters |
+| Nextcloud Android / iOS app | Same search; results carry `fileId`/`path` like Files results |
+| "Photo search" page in the app menu | Grid with infinite scroll, person and photo/video filter |
 
-Ein Treffer ist immer die **echte Nextcloud-Datei**: Klick öffnet sie im Nextcloud-Viewer
-(Videos spielen dort ab), das Ordner-Symbol springt in den Ordner.
+A result is always the **real Nextcloud file**: clicking opens it in the Nextcloud viewer
+(videos play), the folder icon jumps to its folder. Thumbnails are fetched server-side, so
+Immich does not need to be reachable from the internet.
 
-## Wie es zusammenhängt
+## Who finds what
 
+One index, Nextcloud decides. Immich indexes the files of all users under one service account.
+For every hit the app maps Immich's path back to the owner's file and checks whether the
+searching user can reach that file in their own Nextcloud (own file or shared with them). If
+not, the hit is dropped – and its thumbnail endpoint refuses it as well. Share recipients see
+the file under their own path (e.g. `/Shared/Photos/…`). Unsharing takes effect immediately.
+
+Shared across users: **person names** (one Immich account). The pictures behind a name are
+still filtered.
+
+## Setup
+
+**1. Give Immich read-only access to the Nextcloud data** – one mount per user, or the whole
+data directory. Example for the Immich `docker-compose.yml`:
+
+```yaml
+  immich-server:
+    volumes:
+      - /srv/nextcloud-data/alice/files:/mnt/nextcloud/alice:ro
+      - /srv/nextcloud-data/bob/files:/mnt/nextcloud/bob:ro
 ```
-Browser / Android ── Nextcloud ── immich_search ──HTTP──▶ Immich (192.168.178.2:2283)
-                                     │                        │
-                                     └── Dateipfad ◀──────────┘ originalPath
-```
 
-Immich liest die Nextcloud-Dateien schreibgeschützt als externe Bibliothek unter
-`/mnt/nextcloud/<benutzer>/` (`~/docker-projects/immich/docker-compose.yml`). Daraus wird
-der Nextcloud-Pfad (`/mnt/nextcloud/florian/Fotos/a.jpg` → `/Fotos/a.jpg`).
-Bilder und Vorschauen holt Nextcloud serverseitig, darum geht alles auch von unterwegs,
-obwohl Immich nur im Heimnetz lauscht.
+**2. In Immich**, as the service account (an admin): Administration → External libraries →
+one library per mount with import path `/mnt/nextcloud/<user>`. Create an API key
+(Account settings → API keys) with permission "all".
 
-## Einrichten
-
-Pro Benutzer: Persönliche Einstellungen → Weitere Einstellungen → „Fotosuche (Immich)",
-oder per occ (Schlüssel über stdin, taucht so nirgends auf):
+**3. Install the app** (see below) and set it up – Administration settings → Additional
+settings → "Photo search (Immich)", or:
 
 ```bash
-docker exec -i -u www-data nextcloud-aio-nextcloud php occ immich_search:configure florian \
-    --url http://192.168.178.2:2283 --key-stdin < ~/docker-projects/immich/api-key
-docker exec -u www-data nextcloud-aio-nextcloud php occ immich_search:configure \
-    --default-url http://192.168.178.2:2283     # Standard für alle ohne eigene Adresse
+occ immich_search:configure --url http://immich:2283 --key-stdin < api-key
+occ immich_search:configure --path-pattern '/mnt/nextcloud/{user}/'   # default
 ```
 
-Der API-Schlüssel liegt verschlüsselt in den Benutzereinstellungen.
+The path pattern says where Immich sees a user's files; `{user}` is the Nextcloud user ID.
+The key is stored encrypted and read from stdin so it never shows up in a process list.
 
-## Ändern und ausrollen
+## Install / develop
 
-Kein Build-Schritt: PHP und reines JavaScript.
+No build step – PHP and plain JavaScript.
 
 ```bash
-./deploy.sh      # prüft PHP-Syntax, kopiert in den Container, aktiviert/aktualisiert
+make lint      # PHP syntax + translation JSON
+make dist      # build/immich_search-<version>.tar.gz, unpack into custom_apps/
+make deploy    # install into a dockerized Nextcloud (CONTAINER=..., default AIO)
 ```
 
-Bei Änderungen an `appinfo/info.xml` die Version erhöhen.
+Bump `<version>` in `appinfo/info.xml` for every release; Nextcloud runs the upgrade step then.
 
-| Datei | Aufgabe |
+| File | Job |
 |---|---|
-| `lib/Service/AssetSearch.php` | Suche bei Immich, Abbildung auf Nextcloud-Dateien |
-| `lib/Service/ImmichClient.php` | HTTP zu Immich, Fehler als `ImmichException` |
-| `lib/Service/Config.php` | Adresse und (verschlüsselter) Schlüssel pro Benutzer |
-| `lib/Search/ImmichProvider.php` | Globale Suche / Android |
-| `lib/Controller/ApiController.php` | JSON-API und Vorschaubilder für die eigene Seite |
-| `js/search.js`, `css/search.css` | Seite „Fotosuche" |
+| `lib/Service/AssetSearch.php` | Immich search, permission check, path mapping |
+| `lib/Service/ImmichClient.php` | HTTP to Immich, errors as `ImmichException` |
+| `lib/Service/Config.php` | URL, encrypted key, path pattern |
+| `lib/Search/ImmichProvider.php` | Unified search / mobile apps |
+| `lib/Controller/ApiController.php` | JSON API and permission-checked thumbnails |
+| `lib/Controller/SettingsController.php`, `lib/Settings/Admin.php` | Admin settings |
+| `js/search.js`, `css/search.css`, `templates/main.php` | The search page |
+| `l10n/` | Translations (English source, German) |
 
-## Grenzen
+## Limits
 
-- Ist der ML-Container von Immich aus (z. B. von `gpu-guard` gestoppt, weil VibeVoice den
-  Grafikspeicher braucht), liefert die Suche nichts. Die globale Suche zeigt dann einfach
-  keinen Abschnitt, die Seite eine Fehlermeldung.
-- Personen erscheinen im Filter erst, wenn sie in Immich einen Namen haben.
-- Dateien, die seit dem letzten Immich-Scan verschoben wurden, öffnen nur als Vorschau.
+- If Immich or its machine-learning container is down, the search returns nothing (unified
+  search shows no section, the page shows an error).
+- Persons appear in the filter once they have a name in Immich.
+- Files moved since Immich's last library scan are not found until the next scan.
+- Immich only analyses what it has finished indexing; a large first import takes hours.
+
+## License
+
+AGPL-3.0-or-later

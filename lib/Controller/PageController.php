@@ -18,7 +18,6 @@ use OCP\Util;
 class PageController extends Controller {
     public function __construct(
         IRequest $request,
-        private string $userId,
         private Config $config,
         private IInitialState $initialState,
         private IEventDispatcher $events,
@@ -35,8 +34,8 @@ class PageController extends Controller {
             $this->events->dispatchTyped(new \OCA\Viewer\Event\LoadViewer());
         }
         $this->initialState->provideInitialState('page', [
-            'configured' => $this->config->isConfigured($this->userId),
-            'settingsUrl' => $this->url->linkToRoute('settings.PersonalSettings.index', ['section' => 'additional']),
+            'configured' => $this->config->isConfigured(),
+            'settingsUrl' => $this->url->linkToRoute('settings.AdminSettings.index', ['section' => 'additional']),
         ]);
         Util::addScript(Application::APP_ID, 'search');
         Util::addStyle(Application::APP_ID, 'search');

@@ -1,5 +1,5 @@
 /**
- * Fotosuche page. Plain JS on purpose: no build step, nothing to break on updates.
+ * Photo search page. Plain JS on purpose: no build step, nothing to break on updates.
  * Hits open as the real Nextcloud file in Nextcloud's viewer (videos play there).
  */
 (function () {
@@ -8,13 +8,14 @@
     const APP = 'immich_search';
     const url = (p) => OC.generateUrl('/apps/' + APP + p);
     const $ = (id) => document.getElementById(id);
+    const tr = (s, v) => t(APP, s, v);
     const page = OCP.InitialState.loadState(APP, 'page', { configured: false });
 
     const state = { q: '', person: '', type: '', page: 1, items: [], next: null, ctrl: null };
 
     function fmtDate(s) {
         const d = s ? new Date(s) : null;
-        return d && !isNaN(d) ? d.toLocaleDateString('de-DE') : '';
+        return d && !isNaN(d) ? d.toLocaleDateString(OC.getLanguage()) : '';
     }
 
     function status(text, link) {
@@ -63,7 +64,7 @@
         btn.type = 'button';
         btn.className = 'fs-open';
         btn.title = [fmtDate(item.date), item.path || item.name].filter(Boolean).join('\n');
-        btn.setAttribute('aria-label', 'Öffnen: ' + item.name);
+        btn.setAttribute('aria-label', tr('Open {name}', { name: item.name }));
         const img = new Image();
         img.loading = 'lazy';
         img.decoding = 'async';
@@ -83,8 +84,8 @@
             const a = document.createElement('a');
             a.className = 'fs-folder icon-folder';
             a.href = OC.generateUrl('/f/' + item.fileId);
-            a.title = 'Im Ordner zeigen';
-            a.setAttribute('aria-label', 'Im Ordner zeigen');
+            a.title = tr('Show in folder');
+            a.setAttribute('aria-label', a.title);
             el.append(a);
         }
         return el;
@@ -114,13 +115,13 @@
         }
         $('fs-more').hidden = true;
         if (!state.q && !state.person) {
-            status('Beschreib, was auf dem Bild sein soll, oder wähle eine Person.');
+            status(tr('Describe what should be in the picture, or pick a person.'));
             return;
         }
 
         if (state.ctrl) state.ctrl.abort();
         const ctrl = state.ctrl = new AbortController();
-        status(state.items.length ? 'Lade mehr …' : 'Suche …');
+        status(state.items.length ? tr('Loading more …') : tr('Searching …'));
         try {
             const p = new URLSearchParams({ q: state.q, page: state.page, person: state.person, type: state.type });
             const data = await api('/api/search?' + p, ctrl.signal);
@@ -133,11 +134,12 @@
             state.next = data.nextPage;
             if (state.next) state.page = state.next;
             $('fs-more').hidden = !state.next;
+            const count = state.items.length + (state.next ? '+' : '');
             status(state.items.length
-                ? state.items.length + (state.next ? '+' : '') + ' Treffer' + (state.q ? ', beste zuerst' : ', neueste zuerst')
-                : 'Nichts gefunden.');
+                ? (state.q ? tr('{count} results, best first', { count }) : tr('{count} results, newest first', { count }))
+                : (state.next ? tr('Nothing yet, searching further …') : tr('Nothing found.')));
         } catch (e) {
-            if (e.name !== 'AbortError') status('Fehler: ' + e.message);
+            if (e.name !== 'AbortError') status(tr('Error: {message}', { message: e.message }));
         } finally {
             if (state.ctrl === ctrl) state.ctrl = null;
         }
@@ -146,7 +148,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         if (!page.configured) {
             $('fs-form').hidden = true;
-            status('Immich ist für dein Konto noch nicht verbunden.', { href: page.settingsUrl, text: 'Jetzt einrichten' });
+            status(tr('Photo search is not set up yet. An admin can do that under Administration settings → Additional settings.'), { href: page.settingsUrl, text: tr('Open') });
             return;
         }
 

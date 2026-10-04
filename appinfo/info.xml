@@ -2,28 +2,40 @@
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
     <id>immich_search</id>
-    <name>Fotosuche</name>
-    <summary>Fotos und Videos nach Inhalt suchen ("Frau am Strand"), über Immich</summary>
-    <description>Eigenbau für flo-server. Durchsucht die Nextcloud-Fotos über Immichs Bildverständnis
-(CLIP) und Gesichtserkennung, öffnet Treffer als echte Nextcloud-Datei. Hängt sich in die
-globale Nextcloud-Suche ein, damit funktioniert die Suche auch in der Android-App.</description>
-    <version>1.0.0</version>
+    <name>Photo search</name>
+    <summary>Search photos and videos by what is in them, using Immich</summary>
+    <description><![CDATA[
+Find pictures in your Nextcloud by describing them: "woman on the beach", "dog in the snow",
+"birthday cake". The image understanding (CLIP) and face recognition come from a self-hosted
+[Immich](https://immich.app) that indexes your Nextcloud files read-only.
+
+- **Everywhere you already search:** a "Photos by content" section in the unified search bar
+  and in the Nextcloud mobile apps, plus a dedicated page with person and photo/video filters.
+- **Opens the real file:** results are your Nextcloud files, shown in the Nextcloud viewer
+  (videos play), with a jump to the containing folder.
+- **Nextcloud permissions decide:** one shared index, but every user only finds files they can
+  open in Nextcloud themselves, their own and those shared with them. Thumbnails are checked too.
+- **No Immich account per user:** one service key, configured by the admin.
+    ]]></description>
+    <version>1.2.0</version>
     <licence>agpl</licence>
-    <author>flo</author>
+    <author>Florian Schneider</author>
     <namespace>ImmichSearch</namespace>
     <category>multimedia</category>
+    <category>search</category>
     <dependencies>
+        <php min-version="8.1"/>
         <nextcloud min-version="30" max-version="35"/>
     </dependencies>
     <commands>
         <command>OCA\ImmichSearch\Command\Configure</command>
     </commands>
     <settings>
-        <personal>OCA\ImmichSearch\Settings\Personal</personal>
+        <admin>OCA\ImmichSearch\Settings\Admin</admin>
     </settings>
     <navigations>
         <navigation>
-            <name>Fotosuche</name>
+            <name>Photo search</name>
             <route>immich_search.page.index</route>
             <icon>app.svg</icon>
             <order>6</order>

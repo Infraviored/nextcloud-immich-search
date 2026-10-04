@@ -8,13 +8,17 @@ use OCP\IConfig;
 use OCP\Security\ICrypto;
 
 /**
- * Per-user Immich connection. The API key is stored encrypted; the server URL
- * falls back to the instance default (app config "default_url").
+ * The one Immich connection of this instance. Immich indexes every user's files
+ * under one service account; who may see which hit is decided by Nextcloud
+ * (see AssetSearch), so there are no per-user keys. The key is stored encrypted.
  */
 class Config {
+    public const USER_PLACEHOLDER = '{user}';
+    public const DEFAULT_PATH_PATTERN = '/mnt/nextcloud/{user}/';
+
     private const URL = 'url';
     private const KEY = 'api_key';
-    private const DEFAULT_URL = 'default_url';
+    private const PATH_PATTERN = 'path_pattern';
 
     public function __construct(
         private IConfig $config,
@@ -22,16 +26,12 @@ class Config {
     ) {
     }
 
-    public function getUrl(string $uid): string {
-        $url = $this->config->getUserValue($uid, Application::APP_ID, self::URL, '');
-        if ($url === '') {
-            $url = $this->config->getAppValue(Application::APP_ID, self::DEFAULT_URL, '');
-        }
-        return rtrim($url, '/');
+    public function getUrl(): string {
+        return rtrim($this->config->getAppValue(Application::APP_ID, self::URL, ''), '/');
     }
 
-    public function getApiKey(string $uid): string {
-        $stored = $this->config->getUserValue($uid, Application::APP_ID, self::KEY, '');
+    public function getApiKey(): string {
+        $stored = $this->config->getAppValue(Application::APP_ID, self::KEY, '');
         if ($stored === '') {
             return '';
         }
@@ -42,23 +42,48 @@ class Config {
         }
     }
 
-    public function hasApiKey(string $uid): bool {
-        return $this->config->getUserValue($uid, Application::APP_ID, self::KEY, '') !== '';
+    public function hasApiKey(): bool {
+        return $this->config->getAppValue(Application::APP_ID, self::KEY, '') !== '';
     }
 
-    public function isConfigured(string $uid): bool {
-        return $this->getUrl($uid) !== '' && $this->hasApiKey($uid);
+    /**
+     * Where Immich sees a user's Nextcloud files, e.g. "/mnt/nextcloud/{user}/" when the
+     * Nextcloud data dir "<datadir>/<user>/files" is mounted there into the Immich container.
+     */
+    public function getPathPattern(): string {
+        return $this->config->getAppValue(Application::APP_ID, self::PATH_PATTERN, self::DEFAULT_PATH_PATTERN);
     }
 
-    public function setUrl(string $uid, string $url): void {
+    public function isConfigured(): bool {
+        return $this->getUrl() !== '' && $this->hasApiKey();
+    }
+
+    public function setUrl(string $url): void {
+        $this->config->setAppValue(Application::APP_ID, self::URL, self::normalizeUrl($url));
+    }
+
+    public function setApiKey(string $key): void {
+        $this->config->setAppValue(Application::APP_ID, self::KEY, $this->crypto->encrypt(trim($key)));
+    }
+
+    public function setPathPattern(string $pattern): void {
+        $this->config->setAppValue(Application::APP_ID, self::PATH_PATTERN, self::normalizePathPattern($pattern));
+    }
+
+    public static function normalizeUrl(string $url): string {
         $url = rtrim(trim($url), '/');
-        if ($url !== '' && !preg_match('#^https?://#i', $url)) {
-            throw new \InvalidArgumentException('Die Adresse muss mit http:// oder https:// beginnen');
+        if (!preg_match('#^https?://[^/]+#i', $url)) {
+            throw new \InvalidArgumentException('url');
         }
-        $this->config->setUserValue($uid, Application::APP_ID, self::URL, $url);
+        return $url;
     }
 
-    public function setApiKey(string $uid, string $key): void {
-        $this->config->setUserValue($uid, Application::APP_ID, self::KEY, $this->crypto->encrypt(trim($key)));
+    /** Exactly one {user}, absolute, ending in "/". */
+    public static function normalizePathPattern(string $pattern): string {
+        $pattern = trim($pattern);
+        if (!str_starts_with($pattern, '/') || substr_count($pattern, self::USER_PLACEHOLDER) !== 1) {
+            throw new \InvalidArgumentException('path_pattern');
+        }
+        return rtrim($pattern, '/') . '/';
     }
 }
