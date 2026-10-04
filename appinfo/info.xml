@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>immich_search</id>
+    <name>Fotosuche</name>
+    <summary>Fotos und Videos nach Inhalt suchen ("Frau am Strand"), über Immich</summary>
+    <description>Eigenbau für flo-server. Durchsucht die Nextcloud-Fotos über Immichs Bildverständnis
+(CLIP) und Gesichtserkennung, öffnet Treffer als echte Nextcloud-Datei. Hängt sich in die
+globale Nextcloud-Suche ein, damit funktioniert die Suche auch in der Android-App.</description>
+    <version>1.0.0</version>
+    <licence>agpl</licence>
+    <author>flo</author>
+    <namespace>ImmichSearch</namespace>
+    <category>multimedia</category>
+    <dependencies>
+        <nextcloud min-version="30" max-version="35"/>
+    </dependencies>
+    <commands>
+        <command>OCA\ImmichSearch\Command\Configure</command>
+    </commands>
+    <settings>
+        <personal>OCA\ImmichSearch\Settings\Personal</personal>
+    </settings>
+    <navigations>
+        <navigation>
+            <name>Fotosuche</name>
+            <route>immich_search.page.index</route>
+            <icon>app.svg</icon>
+            <order>6</order>
+        </navigation>
+    </navigations>
+</info>
