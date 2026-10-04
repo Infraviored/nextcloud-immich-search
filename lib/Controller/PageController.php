@@ -55,6 +55,7 @@ class PageController extends Controller {
             'hasKey' => $this->config->hasApiKey(),
             'pathPattern' => $this->config->getPathPattern(),
             'faceMode' => $this->config->getFaceMode(),
+            'minSize' => $this->config->getMinSize(),
         ]);
     }
 

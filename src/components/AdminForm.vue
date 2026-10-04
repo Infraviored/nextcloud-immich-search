@@ -11,6 +11,12 @@
             placeholder="/mnt/nextcloud/{user}/"
             :helper-text="pathHelp" />
 
+        <NcTextField v-model="form.minSize"
+            type="number"
+            min="0"
+            :label="t('Ignore pictures smaller than (pixels, shorter side)')"
+            :helper-text="t('Icons and tiny images match almost any search. 0 shows everything.')" />
+
         <fieldset class="admin__faces">
             <legend>{{ t('Who may name, merge and hide people?') }}</legend>
             <NcCheckboxRadioSwitch v-for="m in faceModes" :key="m.value" v-model="form.faceMode" type="radio" :value="m.value" name="face-mode">
@@ -39,8 +45,8 @@ import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { errorMessage, reindexPeople, saveSettings, testSettings } from '../api.js'
 import { t } from '../l10n.js'
 
-const initial = loadState('immich_search', 'admin', { url: '', hasKey: false, pathPattern: '/mnt/nextcloud/{user}/', faceMode: 'all' })
-const form = reactive({ url: initial.url, apiKey: '', pathPattern: initial.pathPattern, faceMode: initial.faceMode })
+const initial = loadState('immich_search', 'admin', { url: '', hasKey: false, pathPattern: '/mnt/nextcloud/{user}/', faceMode: 'all', minSize: 256 })
+const form = reactive({ url: initial.url, apiKey: '', pathPattern: initial.pathPattern, faceMode: initial.faceMode, minSize: String(initial.minSize) })
 const hasKey = ref(initial.hasKey)
 const busy = ref(false)
 const message = ref('')
@@ -70,7 +76,7 @@ async function act(fn, success) {
 }
 
 const test = () => act(() => testSettings(form), (r) => t('Connected as {user}', { user: r.user }))
-const save = () => act(() => saveSettings(form), (r) => {
+const save = () => act(() => saveSettings({ ...form, minSize: Number(form.minSize) || 0 }), (r) => {
     if (form.apiKey) hasKey.value = true
     form.apiKey = ''
     return t('Saved, connected as {user}', { user: r.user })

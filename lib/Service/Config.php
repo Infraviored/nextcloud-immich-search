@@ -20,6 +20,8 @@ class Config {
     private const KEY = 'api_key';
     private const PATH_PATTERN = 'path_pattern';
     private const FACE_MODE = 'face_mode';
+    private const MIN_SIZE = 'min_size';
+    public const DEFAULT_MIN_SIZE = 256;
 
     /** Who may name, merge and hide people. Everyone only ever sees people from pictures they can open. */
     public const FACE_MODES = ['all', 'admins', 'off'];
@@ -68,6 +70,18 @@ class Config {
             throw new \InvalidArgumentException('face_mode');
         }
         $this->config->setAppValue(Application::APP_ID, self::FACE_MODE, $mode);
+    }
+
+    /**
+     * Pictures whose shorter side is below this (px) are never shown: icons, emoji,
+     * thumbnails of thumbnails. Their embeddings match almost anything. 0 = off.
+     */
+    public function getMinSize(): int {
+        return max(0, (int)$this->config->getAppValue(Application::APP_ID, self::MIN_SIZE, (string)self::DEFAULT_MIN_SIZE));
+    }
+
+    public function setMinSize(int $px): void {
+        $this->config->setAppValue(Application::APP_ID, self::MIN_SIZE, (string)max(0, min(4000, $px)));
     }
 
     public function isConfigured(): bool {

@@ -23,6 +23,7 @@ class Admin implements ISettings {
             'hasKey' => $this->config->hasApiKey(),
             'pathPattern' => $this->config->getPathPattern(),
             'faceMode' => $this->config->getFaceMode(),
+            'minSize' => $this->config->getMinSize(),
         ]);
         Util::addScript(Application::APP_ID, Application::APP_ID . '-admin');
         return new TemplateResponse(Application::APP_ID, 'admin');

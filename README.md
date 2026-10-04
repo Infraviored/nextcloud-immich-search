@@ -98,6 +98,9 @@ browsers fetch the new scripts (they are cached by version).
 
 ## Limits
 
+- Pictures whose shorter side is below a minimum (default 256 px, admin setting) and SVGs are
+  never shown: their embeddings match almost any query. Better still, exclude icon formats in
+  the Immich library (`**/*.svg`, `**/*.ico`) so they are not indexed at all.
 - If Immich or its machine-learning container is down, the search returns nothing (unified
   search shows no section, the page shows an error).
 - New faces and changed sharing show up in People with the next hourly index run.

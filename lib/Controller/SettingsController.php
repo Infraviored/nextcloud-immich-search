@@ -28,8 +28,8 @@ class SettingsController extends Controller {
     }
 
     /** An empty key keeps the stored one, so the form never has to show it. */
-    public function save(string $url, string $apiKey = '', string $pathPattern = Config::DEFAULT_PATH_PATTERN, string $faceMode = 'all'): JSONResponse {
-        return $this->respond(function () use ($url, $apiKey, $pathPattern, $faceMode) {
+    public function save(string $url, string $apiKey = '', string $pathPattern = Config::DEFAULT_PATH_PATTERN, string $faceMode = 'all', int $minSize = Config::DEFAULT_MIN_SIZE): JSONResponse {
+        return $this->respond(function () use ($url, $apiKey, $pathPattern, $faceMode, $minSize) {
             $pattern = $this->validPattern($pathPattern);
             if (!in_array($faceMode, Config::FACE_MODES, true)) {
                 throw new \InvalidArgumentException('faceMode');
@@ -38,6 +38,7 @@ class SettingsController extends Controller {
             $this->config->setUrl($url);
             $this->config->setPathPattern($pattern);
             $this->config->setFaceMode($faceMode);
+            $this->config->setMinSize($minSize);
             if ($apiKey !== '') {
                 $this->config->setApiKey($apiKey);
             }

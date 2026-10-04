@@ -38,6 +38,7 @@ class AssetSearch {
     private array $folders = [];
     /** @var array<string, array{0: ?string, 1: ?Node}> */
     private array $owners = [];
+    private ?int $minSize = null;
 
     public function __construct(
         private ImmichClient $immich,
@@ -122,6 +123,9 @@ class AssetSearch {
      * $grant remembers the asset for the thumbnail check; bulk callers (PeopleIndex) skip that.
      */
     public function visibleItem(string $uid, array $a, bool $grant = true): ?array {
+        if ($this->tooSmallOrIcon($a)) {
+            return null;
+        }
         $node = $this->nodeFor($uid, $a['originalPath'] ?? '');
         if ($node === null) {
             return null;
@@ -138,6 +142,18 @@ class AssetSearch {
             'fileId' => $node->getId(),
             'mime' => $node->getMimetype(),
         ];
+    }
+
+    /** Vector icons and tiny images: the index matches them to almost any query. */
+    private function tooSmallOrIcon(array $a): bool {
+        if (str_starts_with((string)($a['originalMimeType'] ?? ''), 'image/svg')) {
+            return true;
+        }
+        $min = $this->minSize ??= $this->config->getMinSize();
+        $w = (int)($a['width'] ?? 0);
+        $h = (int)($a['height'] ?? 0);
+        // Unknown size (0) is let through: videos and some formats have none.
+        return $min > 0 && $w > 0 && $h > 0 && min($w, $h) < $min;
     }
 
     private function nodeFor(string $uid, string $immichPath): ?Node {

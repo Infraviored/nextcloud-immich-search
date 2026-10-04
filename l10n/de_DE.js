@@ -48,6 +48,8 @@ OC.L10N.register(
         "Files": "Dateien",
         "Find person": "Person finden",
         "Hide": "Ausblenden",
+        "Icons and tiny images match almost any search. 0 shows everything.": "Icons und winzige Bilder passen auf fast jede Suche. 0 zeigt alles.",
+        "Ignore pictures smaller than (pixels, shorter side)": "Bilder ignorieren, die kleiner sind als (Pixel, kürzere Seite)",
         "Immich address": "Immich-Adresse",
         "Immich answered with HTTP %s": "Immich antwortet mit HTTP %s",
         "Immich is not reachable": "Immich ist nicht erreichbar",
