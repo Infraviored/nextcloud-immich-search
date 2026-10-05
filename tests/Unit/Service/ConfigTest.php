@@ -7,9 +7,9 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Tests\Unit\Service;
+namespace OCA\Glimpse\Tests\Unit\Service;
 
-use OCA\ImmichSearch\Service\Config;
+use OCA\Glimpse\Service\Config;
 use OCP\IConfig;
 use OCP\Security\ICrypto;
 use PHPUnit\Framework\Attributes\DataProvider;

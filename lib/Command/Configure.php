@@ -7,17 +7,17 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Command;
+namespace OCA\Glimpse\Command;
 
-use OCA\ImmichSearch\Service\Config;
+use OCA\Glimpse\Service\Config;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * occ immich_search:configure --url http://immich:2283 --key-stdin < api-key
- * occ immich_search:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < password
+ * occ glimpse:configure --url http://immich:2283 --key-stdin < api-key
+ * occ glimpse:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < password
  * Secrets are read from stdin so they never show up in shell history or process lists.
  */
 class Configure extends Command {
@@ -28,7 +28,7 @@ class Configure extends Command {
 	}
 
 	protected function configure(): void {
-		$this->setName('immich_search:configure')
+		$this->setName('glimpse:configure')
 			->setDescription('Set the Immich connection used by photo search')
 			->addOption('url', null, InputOption::VALUE_REQUIRED, 'Immich base URL, e.g. http://immich:2283')
 			->addOption('key-stdin', null, InputOption::VALUE_NONE, 'Read the API key from stdin')

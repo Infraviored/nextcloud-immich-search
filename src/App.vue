@@ -4,8 +4,8 @@
 -->
 
 <template>
-	<NcContent appName="immich_search">
-		<NcAppNavigation :aria-label="t('Photo search')">
+	<NcContent appName="glimpse">
+		<NcAppNavigation :aria-label="t('Glimpse')">
 			<template #list>
 				<NcAppNavigationItem
 					v-for="v in views"
@@ -58,9 +58,9 @@
 			</template>
 		</NcAppNavigation>
 
-		<NcAppContent :pageHeading="t('Photo search')">
+		<NcAppContent :pageHeading="t('Glimpse')">
 			<div class="content">
-				<nav class="tabs" :aria-label="t('Photo search')">
+				<nav class="tabs" :aria-label="t('Glimpse')">
 					<NcButton
 						v-for="v in views"
 						:key="v.name"
@@ -110,7 +110,7 @@
 
 				<NcEmptyContent
 					v-if="!page.configured && route.name !== 'settings'"
-					:name="t('Photo search is not set up yet')"
+					:name="t('Glimpse is not set up yet')"
 					:description="page.isAdmin ? t('Connect it to Immich in the settings.') : t('Ask an admin to connect it to Immich.')">
 					<template #icon>
 						<NcIconSvgWrapper :path="mdiImageSearchOutline" />
@@ -178,7 +178,7 @@ import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { folderUrl, viewerState } from './viewer.js'
 
-const page = loadState('immich_search', 'page', { configured: false, isAdmin: false })
+const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
 
 const views = [
 	{ name: 'search', path: '/', label: t('Search'), icon: mdiImageSearchOutline },

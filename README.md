@@ -1,4 +1,4 @@
-# Photo search for Nextcloud (`immich_search`)
+# Glimpse – photo search for Nextcloud
 
 A photo app for Nextcloud that understands your pictures. Describe what you are looking for –
 "woman on the beach", "dog in the snow" – or pick a person. The image understanding (CLIP),
@@ -65,8 +65,8 @@ keys). External libraries can be created from the app later (Settings → What g
 `make deploy` (see below). Then in the app: Settings → Connection, or
 
 ```bash
-occ immich_search:configure --url http://immich:2283 --key-stdin < api-key
-occ immich_search:configure --path-pattern '/mnt/nextcloud/{user}/'   # default
+occ glimpse:configure --url http://immich:2283 --key-stdin < api-key
+occ glimpse:configure --path-pattern '/mnt/nextcloud/{user}/'   # default
 ```
 
 The path pattern says where Immich sees a user's files; `{user}` is the Nextcloud user ID.
@@ -90,16 +90,16 @@ GRANT UPDATE ("originalPath", "originalFileName", checksum) ON asset TO nextclou
 ```
 
 ```bash
-occ immich_search:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < password
+occ glimpse:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < password
 ```
 
 ### Background jobs and commands
 
 | What | When | Command |
 |---|---|---|
-| People and map index | hourly (admin setting: 1/6/24 h), skipped if nothing changed | `occ immich_search:people-index` |
-| Take tiny images out of Immich | every 15 min, new images only | `occ immich_search:prune [--full]` |
-| Connection | – | `occ immich_search:configure` |
+| People and map index | hourly (admin setting: 1/6/24 h), skipped if nothing changed | `occ glimpse:people-index` |
+| Take tiny images out of Immich | every 15 min, new images only | `occ glimpse:prune [--full]` |
+| Connection | – | `occ glimpse:configure` |
 
 Nextcloud's cron must run (AIO does this by itself).
 
@@ -114,7 +114,7 @@ make lint      # PHP syntax + translation JSON
 make test      # PHPUnit (against nextcloud/ocp stubs) + Vitest
 npm run lint   # ESLint, @nextcloud/eslint-config
 composer cs:check
-make dist      # build/immich_search-<version>.tar.gz
+make dist      # build/glimpse-<version>.tar.gz
 make deploy    # into a dockerized Nextcloud (CONTAINER=..., default AIO)
 NC_URL=… NC_USER=… NC_PASS=<app password> npm run e2e   # live smoke test, pictures blurred
 ```

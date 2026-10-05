@@ -7,7 +7,7 @@ Wie die App hier eingebunden ist. Das Allgemeine steht im README.
 | Immich | `~/docker-projects/immich/` (Compose, `api-key`, `admin-login.txt`), Web-UI `http://192.168.178.2:2283` (nur LAN) |
 | Mounts | `/mnt/nas/nextcloud/<uid>/files` → `/mnt/nextcloud/<uid>:ro`, derzeit `florian` und `tara` |
 | Bibliotheken | „Nextcloud florian", „Nextcloud tara", beide gehören Flos Immich-Konto (= Dienstkonto) |
-| Nextcloud | AIO, Container `nextcloud-aio-nextcloud`, App unter `custom_apps/immich_search` |
+| Nextcloud | AIO, Container `nextcloud-aio-nextcloud`, App unter `custom_apps/glimpse` |
 | Ausrollen | `make deploy` (erhöht die Version selbst, wenn sich etwas geändert hat) |
 
 ## Verschieben ohne Neu-Analyse
@@ -21,7 +21,7 @@ Bilder nicht neu analysiert werden, trägt die App jeden Umzug direkt in Immichs
 | Netz | `immich_postgres` hängt zusätzlich im Netz `nextcloud-aio` (Compose, `networks:`) |
 | Datenbank-Rolle | `nextcloud_moves`: darf nur `id`, `originalPath`, `libraryId`, `checksumAlgorithm` von `asset` lesen und `originalPath`, `originalFileName`, `checksum` ändern |
 | Passwort | `~/docker-projects/immich/nextcloud-db-password` (600), in Nextcloud verschlüsselt |
-| Einrichten | `occ immich_search:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < nextcloud-db-password` |
+| Einrichten | `occ glimpse:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < nextcloud-db-password` |
 
 Fällt die Verbindung aus, klappt das Verschieben trotzdem; nur analysiert Immich das Bild
 dann beim nächsten Scan neu (Warnung im Nextcloud-Log). Nicht abgedeckt: Änderungen direkt
@@ -41,8 +41,8 @@ Mehr nicht: die App braucht keine Konfiguration pro Benutzer.
 | Personen- und Karten-Index | stündlich, übersprungen wenn nichts geändert | wer welche Personen/Marker sieht |
 | Mini-Bilder | alle 15 min | neue Bilder unter 256 px aus Immich nehmen |
 
-Laufen über den Nextcloud-Cron der AIO. Von Hand: `occ immich_search:people-index`,
-`occ immich_search:prune --full`. Status: in der App unter Einstellungen → Status.
+Laufen über den Nextcloud-Cron der AIO. Von Hand: `occ glimpse:people-index`,
+`occ glimpse:prune --full`. Status: in der App unter Einstellungen → Status.
 
 PHP-Änderungen werden bis zu 60 s gecacht (`opcache.revalidate_freq`): nach `make deploy`
 kurz warten, bevor man testet.

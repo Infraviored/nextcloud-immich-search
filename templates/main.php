@@ -5,4 +5,4 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 ?>
-<div id="immich-search"></div>
+<div id="glimpse"></div>

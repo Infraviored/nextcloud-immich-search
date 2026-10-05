@@ -7,15 +7,15 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Command;
+namespace OCA\Glimpse\Command;
 
-use OCA\ImmichSearch\Service\SmallImagePruner;
+use OCA\Glimpse\Service\SmallImagePruner;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
-/** occ immich_search:prune [--full] — take tiny images out of Immich now. */
+/** occ glimpse:prune [--full] — take tiny images out of Immich now. */
 class PruneCommand extends Command {
 	public function __construct(
 		private SmallImagePruner $pruner,
@@ -24,7 +24,7 @@ class PruneCommand extends Command {
 	}
 
 	protected function configure(): void {
-		$this->setName('immich_search:prune')
+		$this->setName('glimpse:prune')
 			->setDescription('Take images below the minimum size out of Immich (normally every 15 minutes, new images only)')
 			->addOption('full', null, InputOption::VALUE_NONE, 'Check every image, not only new ones');
 	}

@@ -7,9 +7,9 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
-use OCA\ImmichSearch\AppInfo\Application;
+use OCA\Glimpse\AppInfo\Application;
 use Psr\Log\LoggerInterface;
 
 /**

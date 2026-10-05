@@ -7,13 +7,13 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\AppInfo;
+namespace OCA\Glimpse\AppInfo;
 
-use OCA\ImmichSearch\Dashboard\MemoriesWidget;
-use OCA\ImmichSearch\Listener\LoadFilesScripts;
-use OCA\ImmichSearch\Listener\TrackMoves;
-use OCA\ImmichSearch\Search\ImmichProvider;
-use OCA\ImmichSearch\Search\PeopleProvider;
+use OCA\Glimpse\Dashboard\MemoriesWidget;
+use OCA\Glimpse\Listener\LoadFilesScripts;
+use OCA\Glimpse\Listener\TrackMoves;
+use OCA\Glimpse\Search\ImmichProvider;
+use OCA\Glimpse\Search\PeopleProvider;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -22,7 +22,7 @@ use OCP\Files\Events\Node\BeforeNodeRenamedEvent;
 use OCP\Files\Events\Node\NodeRenamedEvent;
 
 class Application extends App implements IBootstrap {
-	public const APP_ID = 'immich_search';
+	public const APP_ID = 'glimpse';
 
 	public function __construct() {
 		parent::__construct(self::APP_ID);

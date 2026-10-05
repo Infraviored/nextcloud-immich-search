@@ -7,15 +7,15 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Command;
+namespace OCA\Glimpse\Command;
 
-use OCA\ImmichSearch\Service\MapIndex;
-use OCA\ImmichSearch\Service\PeopleIndex;
+use OCA\Glimpse\Service\MapIndex;
+use OCA\Glimpse\Service\PeopleIndex;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-/** occ immich_search:people-index — rebuild now instead of waiting for the hourly job. */
+/** occ glimpse:people-index — rebuild now instead of waiting for the hourly job. */
 class PeopleIndexCommand extends Command {
 	public function __construct(
 		private PeopleIndex $index,
@@ -25,7 +25,7 @@ class PeopleIndexCommand extends Command {
 	}
 
 	protected function configure(): void {
-		$this->setName('immich_search:people-index')
+		$this->setName('glimpse:people-index')
 			->setDescription('Rebuild which people and map markers each user may see (normally hourly in the background)');
 	}
 

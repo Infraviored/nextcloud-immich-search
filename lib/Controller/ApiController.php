@@ -7,15 +7,15 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\AssetSearch;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\ImmichClient;
-use OCA\ImmichSearch\Service\ImmichException;
-use OCA\ImmichSearch\Service\PeopleNames;
-use OCA\ImmichSearch\Service\PrivateArea;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\AssetSearch;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\ImmichClient;
+use OCA\Glimpse\Service\ImmichException;
+use OCA\Glimpse\Service\PeopleNames;
+use OCA\Glimpse\Service\PrivateArea;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -128,7 +128,7 @@ class ApiController extends Controller {
 			throw new ImmichException($this->l->t('Not logged in'), Http::STATUS_UNAUTHORIZED);
 		}
 		if (!$this->config->isConfigured()) {
-			throw new ImmichException($this->l->t('Photo search is not set up yet'), Http::STATUS_PRECONDITION_FAILED);
+			throw new ImmichException($this->l->t('Glimpse is not set up yet'), Http::STATUS_PRECONDITION_FAILED);
 		}
 		return $uid;
 	}
@@ -140,7 +140,7 @@ class ApiController extends Controller {
 		} catch (ImmichException $e) {
 			return new JSONResponse(['error' => $e->getMessage()], $e->getCode() ?: Http::STATUS_BAD_GATEWAY);
 		} catch (\Throwable $e) {
-			$this->logger->error('Photo search failed: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
+			$this->logger->error('Glimpse failed: ' . $e->getMessage(), ['app' => Application::APP_ID, 'exception' => $e]);
 			return new JSONResponse(['error' => $this->l->t('Internal error')], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 	}

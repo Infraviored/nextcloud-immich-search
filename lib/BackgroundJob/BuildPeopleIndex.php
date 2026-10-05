@@ -7,12 +7,12 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\BackgroundJob;
+namespace OCA\Glimpse\BackgroundJob;
 
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\MapIndex;
-use OCA\ImmichSearch\Service\PeopleIndex;
-use OCA\ImmichSearch\Service\PrivateArea;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\MapIndex;
+use OCA\Glimpse\Service\PeopleIndex;
+use OCA\Glimpse\Service\PrivateArea;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\BackgroundJob\TimedJob;

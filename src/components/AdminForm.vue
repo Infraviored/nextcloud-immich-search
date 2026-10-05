@@ -46,7 +46,7 @@ import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { errorMessage, saveSettings, testSettings } from '../api.js'
 import { t } from '../l10n.js'
 
-const initial = loadState('immich_search', 'admin', { url: '', hasKey: false, pathPattern: '/mnt/nextcloud/{user}/' })
+const initial = loadState('glimpse', 'admin', { url: '', hasKey: false, pathPattern: '/mnt/nextcloud/{user}/' })
 const form = reactive({ url: initial.url, apiKey: '', pathPattern: initial.pathPattern })
 const hasKey = ref(initial.hasKey)
 const busy = ref(false)

@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 use OCP\Http\Client\IClientService;
 use OCP\Http\Client\IResponse;
@@ -60,7 +60,7 @@ class ImmichClient {
 
 	private function send(string $url, string $method, string $endpoint, array $options): IResponse {
 		if ($url === '') {
-			throw new ImmichException($this->l->t('Photo search is not set up yet'), 412);
+			throw new ImmichException($this->l->t('Glimpse is not set up yet'), 412);
 		}
 		$client = $this->clientService->newClient();
 		try {
@@ -83,7 +83,7 @@ class ImmichClient {
 		if ($status < 200 || $status >= 300) {
 			// Immich explains rejected requests in "message"; log it, it names the bad field.
 			$why = json_decode((string)$resp->getBody(), true)['message'] ?? '';
-			$this->logger->warning("Immich $method $endpoint: HTTP $status " . json_encode($why), ['app' => 'immich_search']);
+			$this->logger->warning("Immich $method $endpoint: HTTP $status " . json_encode($why), ['app' => 'glimpse']);
 			throw new ImmichException($this->l->t('Immich answered with HTTP %s', [$status]), 502);
 		}
 		return $resp;

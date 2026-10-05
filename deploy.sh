@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 
 CONTAINER=${CONTAINER:-nextcloud-aio-nextcloud}
 APPS_DIR=${APPS_DIR:-/var/www/html/custom_apps}
-TARGET=$APPS_DIR/immich_search
+TARGET=$APPS_DIR/glimpse
 occ() { docker exec -u www-data "$CONTAINER" php occ "$@"; }
 
 make -s build >/dev/null
@@ -31,20 +31,20 @@ fi
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid version '$version' in appinfo/info.xml" >&2; exit 1; }
 
 make -s dist >/dev/null
-tarball=build/immich_search-$version.tar.gz
+tarball=build/glimpse-$version.tar.gz
 
 docker exec "$CONTAINER" rm -rf "$TARGET.new"
 docker exec -i "$CONTAINER" sh -c "mkdir $TARGET.new && tar -xzf - -C $TARGET.new --strip-components=1" < "$tarball"
 docker exec "$CONTAINER" sh -c "chown -R www-data:www-data $TARGET.new && rm -rf $TARGET && mv $TARGET.new $TARGET"
 
 new=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
-old=$(occ config:app:get immich_search installed_version 2>/dev/null || true)
-enabled=$(occ config:app:get immich_search enabled 2>/dev/null || true)
+old=$(occ config:app:get glimpse installed_version 2>/dev/null || true)
+enabled=$(occ config:app:get glimpse enabled 2>/dev/null || true)
 
 if [ "$enabled" != "yes" ]; then
-    occ app:enable immich_search
+    occ app:enable glimpse
 elif [ "$new" != "$old" ]; then
     occ upgrade --no-interaction >/dev/null 2>&1
 fi
 mkdir -p build && echo "$version $stamp" > build/.deployed
-echo "immich_search $(occ config:app:get immich_search installed_version) active"
+echo "glimpse $(occ config:app:get glimpse installed_version) active"

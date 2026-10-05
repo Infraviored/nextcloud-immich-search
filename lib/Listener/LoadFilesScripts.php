@@ -7,17 +7,17 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Listener;
+namespace OCA\Glimpse\Listener;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\Config;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\Config;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\Util;
 
 /**
  * In the Files app: the "Similar pictures" action and the sidebar tab with the people in a
- * picture (js/immich_search-files.mjs).
+ * picture (js/glimpse-files.mjs).
  *
  * @template-implements IEventListener<Event>
  */

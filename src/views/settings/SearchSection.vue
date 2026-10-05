@@ -23,7 +23,7 @@
 				{{ t('People (search a name, open their pictures)') }}
 			</NcCheckboxRadioSwitch>
 			<NcCheckboxRadioSwitch v-model="s.search_open_all" type="switch" @update:modelValue="save({ search_open_all: $event })">
-				{{ t('First entry “Open all results in Photo search”') }}
+				{{ t('First entry “Open all results in Glimpse”') }}
 			</NcCheckboxRadioSwitch>
 
 			<NcTextField
@@ -58,7 +58,7 @@ import { useAction } from '../../composables/useAction.js'
 import { t } from '../../l10n.js'
 import { saveUserPrefs, userPrefs } from '../../prefs.js'
 
-const page = loadState('immich_search', 'page', { isAdmin: false })
+const page = loadState('glimpse', 'page', { isAdmin: false })
 const s = ref(null)
 const { act } = useAction()
 

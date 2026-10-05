@@ -7,12 +7,12 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Dashboard;
+namespace OCA\Glimpse\Dashboard;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\Discover;
-use OCA\ImmichSearch\Service\PrivateArea;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\Discover;
+use OCA\Glimpse\Service\PrivateArea;
 use OCP\Dashboard\IAPIWidgetV2;
 use OCP\Dashboard\IIconWidget;
 use OCP\Dashboard\Model\WidgetItem;
@@ -57,7 +57,7 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 	}
 
 	public function getUrl(): ?string {
-		return $this->url->linkToRouteAbsolute('immich_search.page.indextimeline');
+		return $this->url->linkToRouteAbsolute('glimpse.page.indextimeline');
 	}
 
 	public function load(): void {
@@ -65,7 +65,7 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 
 	public function getItemsV2(string $userId, ?string $since = null, int $limit = 7): WidgetItems {
 		if (!$this->config->isConfigured()) {
-			return new WidgetItems([], $this->l->t('Photo search is not set up yet'));
+			return new WidgetItems([], $this->l->t('Glimpse is not set up yet'));
 		}
 		$items = [];
 		try {
@@ -77,7 +77,7 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 						$a['name'],
 						$this->l->n('%n year ago', '%n years ago', $years),
 						$this->url->linkToRouteAbsolute('files.View.showFile', ['fileid' => $a['fileId']]),
-						$this->url->linkToRouteAbsolute('immich_search.api.thumbnail', ['id' => $a['id']]),
+						$this->url->linkToRouteAbsolute('glimpse.api.thumbnail', ['id' => $a['id']]),
 						(string)$a['fileId'],
 					);
 					if (count($items) >= $limit) {

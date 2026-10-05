@@ -7,9 +7,9 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
-use OCA\ImmichSearch\AppInfo\Application;
+use OCA\Glimpse\AppInfo\Application;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
@@ -52,7 +52,7 @@ class TileProxy {
 		} catch (NotFoundException) {
 		}
 		$resp = $this->clientService->newClient()->get(sprintf(self::SOURCE, $z, $x, $y), [
-			'headers' => ['User-Agent' => 'Nextcloud immich_search (photo map; contact: server admin)'],
+			'headers' => ['User-Agent' => 'Nextcloud glimpse (photo map; contact: server admin)'],
 			'timeout' => 10,
 		]);
 		$png = (string)$resp->getBody();

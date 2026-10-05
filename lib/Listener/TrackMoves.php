@@ -7,10 +7,10 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-namespace OCA\ImmichSearch\Listener;
+namespace OCA\Glimpse\Listener;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\MoveTracker;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\MoveTracker;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\Files\Events\Node\BeforeNodeRenamedEvent;

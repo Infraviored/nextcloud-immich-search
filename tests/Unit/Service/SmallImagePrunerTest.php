@@ -7,12 +7,12 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Tests\Unit\Service;
+namespace OCA\Glimpse\Tests\Unit\Service;
 
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\ImmichClient;
-use OCA\ImmichSearch\Service\IndexAdmin;
-use OCA\ImmichSearch\Service\SmallImagePruner;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\ImmichClient;
+use OCA\Glimpse\Service\IndexAdmin;
+use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\IConfig;
 use OCP\Security\ICrypto;
 use PHPUnit\Framework\TestCase;

@@ -7,10 +7,10 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Tests\Unit\Service;
+namespace OCA\Glimpse\Tests\Unit\Service;
 
-use OCA\ImmichSearch\Service\PeopleIndex;
-use OCA\ImmichSearch\Service\PeopleNames;
+use OCA\Glimpse\Service\PeopleIndex;
+use OCA\Glimpse\Service\PeopleNames;
 use OCP\ICache;
 use OCP\ICacheFactory;
 use PHPUnit\Framework\Attributes\DataProvider;

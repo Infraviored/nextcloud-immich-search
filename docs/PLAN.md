@@ -1,4 +1,4 @@
-# Plan: Fotosuche (`immich_search`)
+# Plan: Glimpse (`glimpse`, vorher `immich_search`)
 
 ## Stand 2026-10-04, Version 3.0.0
 
@@ -33,7 +33,7 @@ Leitlinien, die für jede Phase gelten:
   Benutzer nicht auch in Dateien öffnen könnte. Jede neue Funktion geht durch `AssetSearch::visibleItem`.
 - **Die echte Datei ist das Objekt.** Aktionen (verschieben, taggen, löschen) laufen über
   Nextcloud, nie über Immich. Immich ist schreibgeschützt eingebunden.
-- **Eine App, ein Einstieg.** Alles lebt unter `immich_search`; die globale Nextcloud-Suche und
+- **Eine App, ein Einstieg.** Alles lebt unter `glimpse`; die globale Nextcloud-Suche und
   die Datei-Seitenleiste sind nur Türen hinein.
 - **Handy zuerst mitdenken.** Jede Ansicht wird auf 390 px Breite geprüft (Playwright, Bilder
   unscharf geschaltet).
@@ -55,7 +55,7 @@ Leitlinien, die für jede Phase gelten:
 
 ## Phase 1 – Einstellungsseite in der App
 
-Neuer Reiter **Einstellungen** (`/apps/immich_search/settings`) statt des Dialogs. Admins
+Neuer Reiter **Einstellungen** (`/apps/glimpse/settings`) statt des Dialogs. Admins
 sehen alles, Benutzer nur „Darstellung" und „Status". Die Admin-Sektion in den
 Nextcloud-Einstellungen verlinkt nur noch hierher.
 
@@ -162,7 +162,7 @@ Abnahme: Ein neues 64×64-PNG in Nextcloud erzeugt keinen Analyse-Job mehr (prü
 
 ## Phase 9 – Veröffentlichen
 
-- Name und Icon festlegen (heute „Photo search"/„Fotosuche"), Screenshots, App-Store-Text.
+- [x] Name: **Glimpse** (App-ID `glimpse`, Zertifikat beantragt: nextcloud/app-certificate-requests#1301). Offen: Screenshots, App-Store-Text.
 - App-Signatur (Nextcloud-Zertifikat), Veröffentlichung im App Store.
 - Sicherheits-Review: Rechteprüfung, Rate-Limits auf den Bild-Endpunkten, keine Immich-IDs ohne Rechtecheck.
 - Dokumentation: Einrichtung mit Docker-Compose-Beispiel für Nextcloud AIO und klassische Installationen.
@@ -182,7 +182,7 @@ Abnahme: Ein neues 64×64-PNG in Nextcloud erzeugt keinen Analyse-Job mehr (prü
 
 ## Offene Fragen
 
-1. Name der App für den Store – bleibt es „Fotosuche/Photo search"?
+1. ~~Name der App für den Store~~ – entschieden: Glimpse.
 2. Sollen **Photos** (Nextcloud) und **Memories** abgeschaltet werden, sobald Zeitleiste und Karte da sind?
 3. Privat-Bereich: reicht ein Schalter, oder Passwort-Abfrage?
 4. Soll die App irgendwann ohne Immich auskommen (eigene Analyse) – oder bleibt Immich gesetzt? (Empfehlung: bleibt.)

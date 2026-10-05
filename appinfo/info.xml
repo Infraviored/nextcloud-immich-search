@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
-	<id>immich_search</id>
-	<name>Photo search</name>
+	<id>glimpse</id>
+	<name>Glimpse</name>
 	<summary>Search photos and videos by what is in them, using Immich</summary>
 	<description><![CDATA[
 A photo app for Nextcloud that understands your pictures. Describe what you are looking for –
@@ -16,7 +16,7 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
   searchable.
 - **Sort in bulk:** select many (long-press on touch), move or copy into folders with undo,
   tag, favorite, add to an album, download as ZIP, delete.
-- **People:** name, merge, hide, birthdays, favorites; assign single faces; "Who is this?"
+- **People:** name, merge, hide, birthdays, favorites; assign single faces; "Label people"
   naming in a row. Faces are cut only from pictures the viewer may open.
 - **Private area:** folders, people and single pictures that only show after unlocking with
   your password – never in the global search.
@@ -26,10 +26,10 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 - In the Files app: a "Similar pictures" action and a sidebar tab with the people in a picture.
   A dashboard widget shows today's memories.
 	]]></description>
-	<version>3.0.7</version>
+	<version>4.0.0</version>
 	<licence>agpl</licence>
 	<author>Florian Schneider</author>
-	<namespace>ImmichSearch</namespace>
+	<namespace>Glimpse</namespace>
 	<category>multimedia</category>
 	<category>search</category>
 	<website>https://github.com/Infraviored/nextcloud-immich-search</website>
@@ -40,21 +40,21 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 		<nextcloud min-version="30" max-version="35"/>
 	</dependencies>
 	<background-jobs>
-		<job>OCA\ImmichSearch\BackgroundJob\BuildPeopleIndex</job>
-		<job>OCA\ImmichSearch\BackgroundJob\PruneSmallImages</job>
+		<job>OCA\Glimpse\BackgroundJob\BuildPeopleIndex</job>
+		<job>OCA\Glimpse\BackgroundJob\PruneSmallImages</job>
 	</background-jobs>
 	<commands>
-		<command>OCA\ImmichSearch\Command\Configure</command>
-		<command>OCA\ImmichSearch\Command\PeopleIndexCommand</command>
-		<command>OCA\ImmichSearch\Command\PruneCommand</command>
+		<command>OCA\Glimpse\Command\Configure</command>
+		<command>OCA\Glimpse\Command\PeopleIndexCommand</command>
+		<command>OCA\Glimpse\Command\PruneCommand</command>
 	</commands>
 	<settings>
-		<admin>OCA\ImmichSearch\Settings\Admin</admin>
+		<admin>OCA\Glimpse\Settings\Admin</admin>
 	</settings>
 	<navigations>
 		<navigation>
-			<name>Photo search</name>
-			<route>immich_search.page.index</route>
+			<name>Glimpse</name>
+			<route>glimpse.page.index</route>
 			<icon>app.svg</icon>
 			<order>6</order>
 		</navigation>

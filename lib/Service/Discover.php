@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 /**
  * Things Immich already works out for the whole library – "on this day" memories and

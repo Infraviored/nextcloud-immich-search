@@ -16,10 +16,10 @@ import { installViewerFix } from './viewerFix.js'
 
 const svg = (path) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${path}"/></svg>`
 const isPicture = (node) => /^(image|video)\//.test(node?.mime ?? '')
-const TAG = 'immich-search-sidebar-tab'
+const TAG = 'glimpse-sidebar-tab'
 
 registerFileAction({
-	id: 'immich-search-similar',
+	id: 'glimpse-similar',
 	displayName: () => t('Similar pictures'),
 	iconSvgInline: () => svg(mdiImageMultipleOutline),
 	enabled: ({ nodes }) => nodes.length === 1 && isPicture(nodes[0]),
@@ -28,7 +28,7 @@ registerFileAction({
 		const node = nodes[0]
 		try {
 			const asset = await assetForFile(node.fileid)
-			window.location.href = generateUrl('/apps/immich_search/?similar={id}&name={name}', { id: asset.id, name: node.basename })
+			window.location.href = generateUrl('/apps/glimpse/?similar={id}&name={name}', { id: asset.id, name: node.basename })
 			return null
 		} catch {
 			return false // not indexed (yet): Files shows "action failed"
@@ -37,7 +37,7 @@ registerFileAction({
 })
 
 registerSidebarTab({
-	id: 'immich_search',
+	id: 'glimpse',
 	displayName: t('People'),
 	iconSvgInline: svg(mdiImageSearchOutline),
 	order: 90,

@@ -6,10 +6,10 @@
  */
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\BackgroundJob;
+namespace OCA\Glimpse\BackgroundJob;
 
-use OCA\ImmichSearch\Service\MapIndex;
-use OCA\ImmichSearch\Service\PeopleIndex;
+use OCA\Glimpse\Service\MapIndex;
+use OCA\Glimpse\Service\PeopleIndex;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\QueuedJob;
 

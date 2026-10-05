@@ -42,7 +42,7 @@ import StatusSection from './settings/StatusSection.vue'
 import { t } from '../l10n.js'
 import { href, navigate, route } from '../router.js'
 
-const page = loadState('immich_search', 'page', { isAdmin: false })
+const page = loadState('glimpse', 'page', { isAdmin: false })
 
 const sections = [
 	{ id: 'status', name: t('Status'), icon: mdiChartBoxOutline, component: StatusSection },

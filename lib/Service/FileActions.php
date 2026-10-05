@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -144,7 +144,7 @@ class FileActions {
 				$fn($node);
 				$done++;
 			} catch (\Throwable $e) {
-				$this->logger->info('File action failed: ' . $e->getMessage(), ['app' => 'immich_search']);
+				$this->logger->info('File action failed: ' . $e->getMessage(), ['app' => 'glimpse']);
 				$failed[] = ['fileId' => $id, 'name' => $node->getName(), 'error' => $this->l->t('Not allowed')];
 			}
 		}

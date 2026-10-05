@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 use OCP\Http\Client\IClientService;
 use OCP\IUserManager;

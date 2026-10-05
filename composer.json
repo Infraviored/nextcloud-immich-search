@@ -1,12 +1,12 @@
 {
-    "name": "infraviored/immich_search",
+    "name": "infraviored/glimpse",
     "description": "Nextcloud app: search photos by content and people, powered by Immich",
     "license": "AGPL-3.0-or-later",
     "type": "project",
     "autoload-dev": {
         "psr-4": {
-            "OCA\\ImmichSearch\\": "lib/",
-            "OCA\\ImmichSearch\\Tests\\": "tests/",
+            "OCA\\Glimpse\\": "lib/",
+            "OCA\\Glimpse\\Tests\\": "tests/",
             "OCP\\": "vendor/nextcloud/ocp/OCP/",
             "NCU\\": "vendor/nextcloud/ocp/NCU/"
         }

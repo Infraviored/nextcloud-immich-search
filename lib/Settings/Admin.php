@@ -7,10 +7,10 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Settings;
+namespace OCA\Glimpse\Settings;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\Config;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\Config;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\Settings\ISettings;

@@ -7,13 +7,13 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Search;
+namespace OCA\Glimpse\Search;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\PeopleNames;
-use OCA\ImmichSearch\Service\PrivateArea;
-use OCA\ImmichSearch\Service\UserPrefs;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\PeopleNames;
+use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\UserPrefs;
 use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -70,10 +70,10 @@ class PeopleProvider implements IProvider {
 			return SearchResult::complete($this->getName(), []);
 		}
 		$entries = array_map(fn (array $p) => new SearchResultEntry(
-			$this->url->linkToRouteAbsolute('immich_search.people.face', ['id' => $p['id']]),
+			$this->url->linkToRouteAbsolute('glimpse.people.face', ['id' => $p['id']]),
 			$p['name'],
 			$this->l->n('%n picture', '%n pictures', $p['count']),
-			$this->url->linkToRouteAbsolute('immich_search.page.indexperson', ['id' => $p['id']]),
+			$this->url->linkToRouteAbsolute('glimpse.page.indexperson', ['id' => $p['id']]),
 			'icon-user',
 			true,
 		), array_slice($hits, 0, max(1, $query->getLimit())));

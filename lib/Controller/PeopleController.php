@@ -7,17 +7,17 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\AssetSearch;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\FaceCropper;
-use OCA\ImmichSearch\Service\ImmichClient;
-use OCA\ImmichSearch\Service\ImmichException;
-use OCA\ImmichSearch\Service\PeopleIndex;
-use OCA\ImmichSearch\Service\Permissions;
-use OCA\ImmichSearch\Service\PrivateArea;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\AssetSearch;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\FaceCropper;
+use OCA\Glimpse\Service\ImmichClient;
+use OCA\Glimpse\Service\ImmichException;
+use OCA\Glimpse\Service\PeopleIndex;
+use OCA\Glimpse\Service\Permissions;
+use OCA\Glimpse\Service\PrivateArea;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;

@@ -35,5 +35,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/immich_search-*.tar.gz \
+          gh release create "$GITHUB_REF_NAME" build/glimpse-*.tar.gz \
             --title "$GITHUB_REF_NAME" --notes-file <(awk "/^## \\[${GITHUB_REF_NAME#v}\\]/{f=1;next} /^## \\[/{f=0} f" CHANGELOG.md)

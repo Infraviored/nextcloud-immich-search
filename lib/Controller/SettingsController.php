@@ -7,13 +7,13 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\BackgroundJob\RebuildPeopleIndexNow;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\ImmichClient;
-use OCA\ImmichSearch\Service\ImmichException;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\BackgroundJob\RebuildPeopleIndexNow;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\ImmichClient;
+use OCA\Glimpse\Service\ImmichException;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;

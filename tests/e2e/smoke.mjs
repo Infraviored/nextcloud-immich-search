@@ -15,7 +15,7 @@ import { mkdirSync } from 'node:fs'
  */
 import { chromium } from 'playwright'
 
-const base = (process.env.NC_URL || '').replace(/\/$/, '') + '/apps/immich_search'
+const base = (process.env.NC_URL || '').replace(/\/$/, '') + '/apps/glimpse'
 const auth = 'Basic ' + Buffer.from(`${process.env.NC_USER}:${process.env.NC_PASS}`).toString('base64')
 const pages = ['/', '/?q=dog', '/timeline', '/people', '/map', '/folders', '/duplicates', '/settings/status', '/settings/private']
 const sizes = { desktop: { width: 1400, height: 900 }, phone: { width: 390, height: 844 } }
@@ -43,7 +43,7 @@ for (const [device, viewport] of Object.entries(sizes)) {
 		const problems = []
 		page.on('pageerror', (e) => problems.push('script error: ' + e.message))
 		page.on('response', (r) => {
-			if (r.status() >= 400 && r.url().includes('/apps/immich_search/') && r.status() !== 404) {
+			if (r.status() >= 400 && r.url().includes('/apps/glimpse/') && r.status() !== 404) {
 				problems.push(`${r.status()} ${r.url()}`)
 			}
 		})

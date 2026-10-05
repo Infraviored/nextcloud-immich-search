@@ -8,13 +8,13 @@ import { reactive } from 'vue'
 
 /**
  * A few lines instead of vue-router: three views, deep-linkable and reload-safe
- *   /apps/immich_search/            search (?q=&type=&person=)
- *   /apps/immich_search/people      all people
- *   /apps/immich_search/people/<id> one person
- *   /apps/immich_search/settings[/<section>]
- *   /apps/immich_search/timeline | map | folders | duplicates
+ *   /apps/glimpse/            search (?q=&type=&person=)
+ *   /apps/glimpse/people      all people
+ *   /apps/glimpse/people/<id> one person
+ *   /apps/glimpse/settings[/<section>]
+ *   /apps/glimpse/timeline | map | folders | duplicates
  */
-const base = generateUrl('/apps/immich_search')
+const base = generateUrl('/apps/glimpse')
 
 export const route = reactive(parse())
 

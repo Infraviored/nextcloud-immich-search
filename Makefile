@@ -1,10 +1,10 @@
 # make build    frontend (Vue) into js/
 # make lint     PHP syntax check (inside the Nextcloud container if there is no local php)
 # make test     PHP unit tests (in a php container if there is no local php) and JS tests
-# make dist     release tarball for manual install or the app store: build/immich_search-<version>.tar.gz
+# make dist     release tarball for manual install or the app store: build/glimpse-<version>.tar.gz
 # make deploy   install into the local Nextcloud container (see deploy.sh)
 
-APP     := immich_search
+APP     := glimpse
 VERSION := $(shell sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
 FILES   := appinfo img js l10n lib templates LICENSE README.md
 PHP     ?= $(shell command -v php || echo "docker exec -i $${CONTAINER:-nextcloud-aio-nextcloud} php")
@@ -34,7 +34,7 @@ dist: lint build
 	@tar --exclude='*.map' --transform 's,^,$(APP)/,' -czf build/$(APP)-$(VERSION).tar.gz $(FILES)
 	@echo build/$(APP)-$(VERSION).tar.gz
 
-# make sign KEY=immich_search.key CERT=immich_search.crt   (see docs/RELEASE.md)
+# make sign KEY=glimpse.key CERT=glimpse.crt   (see docs/RELEASE.md)
 sign: dist
 	@rm -rf build/sign && mkdir -p build/sign && tar -xzf build/$(APP)-$(VERSION).tar.gz -C build/sign
 	docker cp build/sign/$(APP) $${CONTAINER:-nextcloud-aio-nextcloud}:/tmp/$(APP)-sign

@@ -11,12 +11,12 @@ import { t } from './l10n.js'
 
 createApp({
 	render: () => h(NcSettingsSection, {
-		name: t('Photo search (Immich)'),
+		name: t('Glimpse (Immich)'),
 		description: t('One connection for everybody. Immich indexes the files of all users; everyone only finds what they can open in Nextcloud themselves.'),
 	}, () => [
 		h(AdminForm),
 		h('p', { style: 'margin-top: 16px' }, [
-			h('a', { href: generateUrl('/apps/immich_search/settings/indexing'), class: 'button' }, t('More settings in the app: indexing, search, people, status')),
+			h('a', { href: generateUrl('/apps/glimpse/settings/indexing'), class: 'button' }, t('More settings in the app: indexing, search, people, status')),
 		]),
 	]),
-}).mount('#immich-search-admin')
+}).mount('#glimpse-admin')

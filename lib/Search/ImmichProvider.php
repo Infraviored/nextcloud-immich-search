@@ -7,14 +7,14 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Search;
+namespace OCA\Glimpse\Search;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\AssetSearch;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\PeopleNames;
-use OCA\ImmichSearch\Service\PrivateArea;
-use OCA\ImmichSearch\Service\UserPrefs;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\AssetSearch;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\PeopleNames;
+use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\UserPrefs;
 use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -88,7 +88,7 @@ class ImmichProvider implements IProvider {
 			$res = $this->search->search($uid, $text, $page, max(1, $query->getLimit()), $person ?? '');
 		} catch (\Throwable $e) {
 			// Immich or its machine-learning container down: no results, no error page.
-			$this->logger->info('Photo search (unified search): ' . $e->getMessage(), ['app' => Application::APP_ID]);
+			$this->logger->info('Glimpse (unified search): ' . $e->getMessage(), ['app' => Application::APP_ID]);
 			return SearchResult::complete($this->getName(), []);
 		}
 
@@ -98,9 +98,9 @@ class ImmichProvider implements IProvider {
 			// The search bar cannot select or move; this hands the search over to the app.
 			array_unshift($entries, new SearchResultEntry(
 				$this->url->getAbsoluteURL($this->url->imagePath(Application::APP_ID, 'app-dark.svg')),
-				$this->l->t('Open all results in Photo search'),
+				$this->l->t('Open all results in Glimpse'),
 				$this->l->t('Select several, move into folders'),
-				$this->url->linkToRouteAbsolute('immich_search.page.index') . '?q=' . rawurlencode($term),
+				$this->url->linkToRouteAbsolute('glimpse.page.index') . '?q=' . rawurlencode($term),
 				'icon-search',
 			));
 		}
@@ -110,7 +110,7 @@ class ImmichProvider implements IProvider {
 	}
 
 	private function entry(array $a): SearchResultEntry {
-		$thumb = $this->url->linkToRouteAbsolute('immich_search.api.thumbnail', ['id' => $a['id']]);
+		$thumb = $this->url->linkToRouteAbsolute('glimpse.api.thumbnail', ['id' => $a['id']]);
 		$link = $this->url->linkToRouteAbsolute('files.View.showFile', ['fileid' => $a['fileId']]);
 
 		$sub = [];

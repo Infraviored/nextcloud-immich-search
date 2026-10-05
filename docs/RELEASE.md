@@ -16,7 +16,7 @@
 
 The App Store only accepts signed apps:
 
-1. Request a certificate for the app id `immich_search`: create a private key and CSR and open
+1. Request a certificate for the app id `glimpse`: create a private key and CSR and open
    a pull request at https://github.com/nextcloud/app-certificate-requests (instructions in
    that repository). The key never leaves your machine.
 2. Sign the build: `occ integrity:sign-app --privateKey=… --certificate=… --path=<unpacked app>`

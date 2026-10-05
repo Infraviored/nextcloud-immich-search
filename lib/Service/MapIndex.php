@@ -7,9 +7,9 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
-use OCA\ImmichSearch\AppInfo\Application;
+use OCA\Glimpse\AppInfo\Application;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;

@@ -7,9 +7,9 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
-use OCA\ImmichSearch\AppInfo\Application;
+use OCA\Glimpse\AppInfo\Application;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
@@ -27,7 +27,7 @@ use OCP\ISession;
  */
 class PrivateArea {
 	private const FOLDER = 'private';
-	private const SESSION_KEY = 'immich_search_private_until';
+	private const SESSION_KEY = 'glimpse_private_until';
 	private const UNLOCK_SECONDS = 1800;
 	private IAppData $appData;
 	/** @var array<string, array> */

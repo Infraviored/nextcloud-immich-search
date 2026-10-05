@@ -91,7 +91,7 @@ const props = defineProps({
  */
 const emit = defineEmits(['removed', 'refresh', 'similar'])
 
-const page = loadState('immich_search', 'page', { photosEnabled: false })
+const page = loadState('glimpse', 'page', { photosEnabled: false })
 const selected = ref(new Set())
 const dialog = ref(null)
 const { busy: transferBusy, run: runTransfer } = useTransfer(() => emit('refresh'))

@@ -144,7 +144,7 @@ export function installViewerFix(version = window.OC?.config?.version) {
 	}
 	const wrap = () => {
 		const viewer = window.OCA?.Viewer
-		if (!viewer || viewer.open.immichSearchFix) {
+		if (!viewer || viewer.open.glimpseFix) {
 			return !!viewer
 		}
 		const open = viewer.open.bind(viewer)
@@ -157,7 +157,7 @@ export function installViewerFix(version = window.OC?.config?.version) {
 				.then((list) => open(list?.length ? { ...options, list } : options))
 				.catch(() => open(options))
 		}
-		fixed.immichSearchFix = true
+		fixed.glimpseFix = true
 		viewer.open = fixed
 		return true
 	}

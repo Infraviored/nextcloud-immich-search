@@ -66,7 +66,7 @@ const people = ref([])
 const faceCount = ref(0)
 const similar = ref([])
 
-const appUrl = (path) => generateUrl('/apps/immich_search' + path)
+const appUrl = (path) => generateUrl('/apps/glimpse' + path)
 
 async function load() {
 	if (!props.node || !props.active) {

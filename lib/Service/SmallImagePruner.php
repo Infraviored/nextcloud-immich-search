@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 use Psr\Log\LoggerInterface;
 
@@ -101,7 +101,7 @@ class SmallImagePruner {
 			foreach (array_chunk(array_keys($small), 500) as $ids) {
 				$this->immich->json('DELETE', '/assets', ['ids' => $ids, 'force' => false]);
 			}
-			$this->logger->info(sprintf('Pruned %d tiny images (%d checked)', count($small), $checked), ['app' => 'immich_search']);
+			$this->logger->info(sprintf('Pruned %d tiny images (%d checked)', count($small), $checked), ['app' => 'glimpse']);
 		}
 		$total = (int)($state['total'] ?? 0) + count($small);
 		$this->config->setState('prune', ['since' => $started, 'last' => time(), 'pruned' => count($small), 'total' => $total]);

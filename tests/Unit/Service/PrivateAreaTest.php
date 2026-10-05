@@ -7,10 +7,10 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Tests\Unit\Service;
+namespace OCA\Glimpse\Tests\Unit\Service;
 
-use OCA\ImmichSearch\Service\ImmichClient;
-use OCA\ImmichSearch\Service\PrivateArea;
+use OCA\Glimpse\Service\ImmichClient;
+use OCA\Glimpse\Service\PrivateArea;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;

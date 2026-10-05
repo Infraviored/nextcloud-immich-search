@@ -7,13 +7,13 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\ImmichException;
-use OCA\ImmichSearch\Service\IndexAdmin;
-use OCA\ImmichSearch\Service\SmallImagePruner;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\ImmichException;
+use OCA\Glimpse\Service\IndexAdmin;
+use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;

@@ -1,5 +1,5 @@
 OC.L10N.register(
-    "immich_search",
+    "glimpse",
     {
         "_%n picture_::_%n pictures_": [
             "%n Bild",
@@ -188,7 +188,7 @@ OC.L10N.register(
         "Files": "Dateien",
         "Find person": "Person finden",
         "Finding faces": "Gesichter finden",
-        "First entry “Open all results in Photo search”": "Erster Eintrag „Alle Treffer in der Fotosuche öffnen“",
+        "First entry “Open all results in Glimpse”": "Erster Eintrag „Alle Treffer in Glimpse öffnen“",
         "Folder": "Ordner",
         "Folder is private": "Ordner ist privat",
         "Folders": "Ordner",
@@ -269,7 +269,7 @@ OC.L10N.register(
         "One connection for everybody. Immich indexes the files of all users; everyone only finds what they can open in Nextcloud themselves.": "Eine Verbindung für alle. Immich indexiert die Dateien aller Benutzer; jeder findet nur, was er in Nextcloud selbst öffnen darf.",
         "Only admins": "Nur Admins",
         "only the first ones are shown": "nur die ersten werden gezeigt",
-        "Open all results in Photo search": "Alle Treffer in der Fotosuche öffnen",
+        "Open all results in Glimpse": "Alle Treffer in Glimpse öffnen",
         "Open settings": "Einstellungen öffnen",
         "Open {name}": "{name} öffnen",
         "Optional. Address of Immich's machine-learning container as Nextcloud reaches it, e.g. http://immich-machine-learning:3003. Only “/ping” is called, which loads no model.": "Optional. Adresse des Machine-Learning-Containers von Immich, wie Nextcloud ihn erreicht, z. B. http://immich-machine-learning:3003. Aufgerufen wird nur „/ping“, das lädt kein Modell.",
@@ -285,9 +285,9 @@ OC.L10N.register(
         "People list": "Personenliste",
         "People list updated {time} ({seconds} s, {count} people).": "Personenliste aktualisiert {time} ({seconds} s, {count} Personen).",
         "Person": "Person",
-        "Photo search": "Fotosuche",
-        "Photo search (Immich)": "Fotosuche (Immich)",
-        "Photo search is not set up yet": "Die Fotosuche ist noch nicht eingerichtet",
+        "Glimpse": "Glimpse",
+        "Glimpse (Immich)": "Glimpse (Immich)",
+        "Glimpse is not set up yet": "Glimpse ist noch nicht eingerichtet",
         "Photos": "Fotos",
         "Photos by content": "Fotos nach Inhalt",
         "Pictures of {name}": "Bilder von {name}",

@@ -8,7 +8,7 @@ import { ref } from 'vue'
 import { errorMessage, transfer, undoMove } from '../api.js'
 import { n, t } from '../l10n.js'
 
-const RECENT_KEY = 'immich_search.recentTargets'
+const RECENT_KEY = 'glimpse.recentTargets'
 const RECENT_MAX = 5
 
 /** Folders moved or copied to lately (this device), newest first. */

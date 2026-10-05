@@ -3,7 +3,17 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [Unreleased]
+## [4.0.0] - 2026-10-05
+
+### Changed
+- **Renamed to Glimpse**: app id `glimpse` (was `immich_search`), PHP namespace `OCA\Glimpse`,
+  commands `occ glimpse:*`, URL `/apps/glimpse/`. Moving an existing install over: copy the
+  app config and user preferences to the new id, move `appdata_*/immich_search` to
+  `appdata_*/glimpse`, `occ files:scan-app-data glimpse` (done this way on flo-server).
+
+### Fixed
+- Map tiles were always requested at zoom 0, so every tile showed the whole world.
+
 
 ### Added
 - Moves and renames in Nextcloud are carried over to Immich (optional, needs a restricted

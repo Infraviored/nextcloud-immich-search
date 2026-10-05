@@ -8,7 +8,7 @@ import { reactive, watch } from 'vue'
 import { savePrefs } from './api.js'
 
 // Per-device display preferences: a phone and a desktop want different tile sizes.
-const KEY = 'immich_search.prefs'
+const KEY = 'glimpse.prefs'
 const defaults = { tileSize: 'medium' }
 
 function load() {
@@ -30,7 +30,7 @@ watch(prefs, () => {
 })
 
 // Per-user preferences, stored on the server (UserPrefs.php), follow the user everywhere.
-export const userPrefs = reactive(loadState('immich_search', 'prefs', { search_disabled: false, start_view: 'search', show_videos: true }))
+export const userPrefs = reactive(loadState('glimpse', 'prefs', { search_disabled: false, start_view: 'search', show_videos: true }))
 
 export async function saveUserPrefs(changes) {
 	Object.assign(userPrefs, await savePrefs(changes))

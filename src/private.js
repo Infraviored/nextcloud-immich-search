@@ -12,7 +12,7 @@ import { errorMessage } from './api.js'
 
 import '@nextcloud/password-confirmation/style.css'
 
-const url = (path) => generateUrl('/apps/immich_search/api/private' + path)
+const url = (path) => generateUrl('/apps/glimpse/api/private' + path)
 
 /**
  * The private area as the frontend knows it. `version` goes up whenever what is visible

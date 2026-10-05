@@ -6,7 +6,7 @@
 import { createAppConfig } from '@nextcloud/vite-config'
 
 // Entry points: the app page, the admin settings section, the Files app integration.
-// Output goes to js/ as immich_search-<entry>.mjs, which Util::addScript loads.
+// Output goes to js/ as glimpse-<entry>.mjs, which Util::addScript loads.
 export default createAppConfig({
 	main: 'src/main.js',
 	admin: 'src/admin.js',

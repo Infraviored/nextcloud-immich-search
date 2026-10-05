@@ -7,10 +7,10 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\BackgroundJob;
+namespace OCA\Glimpse\BackgroundJob;
 
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\SmallImagePruner;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
 

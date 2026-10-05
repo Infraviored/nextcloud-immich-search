@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 use OCP\ICache;
 use OCP\ICacheFactory;
@@ -25,7 +25,7 @@ class PeopleNames {
 		private PeopleIndex $index,
 		ICacheFactory $cacheFactory,
 	) {
-		$this->cache = $cacheFactory->createDistributed('immich_search_names');
+		$this->cache = $cacheFactory->createDistributed('glimpse_names');
 	}
 
 	/** @return array<string, array{name: string, count: int}> person id => name, named and visible only */

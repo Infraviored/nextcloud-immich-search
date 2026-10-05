@@ -7,9 +7,9 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
-use OCA\ImmichSearch\AppInfo\Application;
+use OCA\Glimpse\AppInfo\Application;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\NotFoundException;
@@ -99,7 +99,7 @@ class PeopleIndex {
 		}
 		$secs = (int)round(microtime(true) - $start);
 		$this->config->setState('people_index', ['updated' => time(), 'seconds' => $secs, 'people' => count($people), 'users' => count($uids), 'signature' => $signature]);
-		$this->logger->info(sprintf('People index rebuilt: %d people, %d users, %ds', count($people), count($uids), $secs), ['app' => 'immich_search']);
+		$this->logger->info(sprintf('People index rebuilt: %d people, %d users, %ds', count($people), count($uids), $secs), ['app' => 'glimpse']);
 		return [count($people), $secs, false];
 	}
 

@@ -7,11 +7,11 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\FileActions;
-use OCA\ImmichSearch\Service\FileTransfer;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\FileActions;
+use OCA\Glimpse\Service\FileTransfer;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;

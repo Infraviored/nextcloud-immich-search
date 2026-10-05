@@ -7,9 +7,9 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-namespace OCA\ImmichSearch\Tests\Unit\Service;
+namespace OCA\Glimpse\Tests\Unit\Service;
 
-use OCA\ImmichSearch\Service\MoveTracker;
+use OCA\Glimpse\Service\MoveTracker;
 use PHPUnit\Framework\TestCase;
 
 class MoveTrackerTest extends TestCase {

@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -68,7 +68,7 @@ class FileTransfer {
 				$done++;
 			} catch (\Throwable $e) {
 				$failed[] = ['fileId' => (int)$id, 'name' => $node->getName(), 'error' => $this->l->t('Not allowed')];
-				$this->logger->info('Transfer failed: ' . $e->getMessage(), ['app' => 'immich_search']);
+				$this->logger->info('Transfer failed: ' . $e->getMessage(), ['app' => 'glimpse']);
 			}
 		}
 		if ($done > 0) {
@@ -84,7 +84,7 @@ class FileTransfer {
 				$this->immich->json('POST', '/libraries/' . $lib['id'] . '/scan');
 			}
 		} catch (\Throwable $e) {
-			$this->logger->info('Library rescan failed: ' . $e->getMessage(), ['app' => 'immich_search']);
+			$this->logger->info('Library rescan failed: ' . $e->getMessage(), ['app' => 'glimpse']);
 		}
 	}
 }

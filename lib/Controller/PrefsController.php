@@ -7,13 +7,13 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\ImmichException;
-use OCA\ImmichSearch\Service\IndexAdmin;
-use OCA\ImmichSearch\Service\Permissions;
-use OCA\ImmichSearch\Service\UserPrefs;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\ImmichException;
+use OCA\Glimpse\Service\IndexAdmin;
+use OCA\Glimpse\Service\Permissions;
+use OCA\Glimpse\Service\UserPrefs;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;

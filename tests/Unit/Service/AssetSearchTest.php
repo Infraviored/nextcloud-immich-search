@@ -7,11 +7,11 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Tests\Unit\Service;
+namespace OCA\Glimpse\Tests\Unit\Service;
 
-use OCA\ImmichSearch\Service\AssetSearch;
-use OCA\ImmichSearch\Service\Config;
-use OCA\ImmichSearch\Service\ImmichClient;
+use OCA\Glimpse\Service\AssetSearch;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\ImmichClient;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;

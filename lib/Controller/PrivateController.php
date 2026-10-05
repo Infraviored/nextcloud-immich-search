@@ -7,11 +7,11 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\PrivateArea;
-use OCA\ImmichSearch\Service\UserPrefs;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\UserPrefs;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;

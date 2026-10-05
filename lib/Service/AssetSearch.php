@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Service;
+namespace OCA\Glimpse\Service;
 
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -53,7 +53,7 @@ class AssetSearch {
 		private IUserManager $users,
 		ICacheFactory $cacheFactory,
 	) {
-		$this->grants = $cacheFactory->createDistributed('immich_search_grants');
+		$this->grants = $cacheFactory->createDistributed('glimpse_grants');
 	}
 
 	/**

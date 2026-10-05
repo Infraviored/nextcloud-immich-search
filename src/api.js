@@ -6,7 +6,7 @@
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 
-const url = (path) => generateUrl('/apps/immich_search' + path)
+const url = (path) => generateUrl('/apps/glimpse' + path)
 
 /**
  * Error message from our JSON errors, or a generic one.
