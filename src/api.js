@@ -149,7 +149,8 @@ export async function mapMarkers() {
 	return (await axios.get(url('/api/map'))).data
 }
 
-export const tileUrl = () => url('/api/tiles/{z}/{x}/{y}')
+// Leaflet fills in {z}/{x}/{y}; generateUrl would drop them as unknown parameters.
+export const tileUrl = () => url('/api/tiles') + '/{z}/{x}/{y}'
 
 export async function getFaces(assetId) {
 	return (await axios.get(url(`/api/assets/${assetId}/faces`))).data
