@@ -11,12 +11,15 @@ namespace OCA\ImmichSearch\AppInfo;
 
 use OCA\ImmichSearch\Dashboard\MemoriesWidget;
 use OCA\ImmichSearch\Listener\LoadFilesScripts;
+use OCA\ImmichSearch\Listener\TrackMoves;
 use OCA\ImmichSearch\Search\ImmichProvider;
 use OCA\ImmichSearch\Search\PeopleProvider;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
+use OCP\Files\Events\Node\BeforeNodeRenamedEvent;
+use OCP\Files\Events\Node\NodeRenamedEvent;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'immich_search';
@@ -33,6 +36,8 @@ class Application extends App implements IBootstrap {
 		// Files app: "similar pictures" action and the sidebar tab
 		$context->registerEventListener(\OCA\Files\Event\LoadAdditionalScriptsEvent::class, LoadFilesScripts::class);
 		$context->registerEventListener(\OCA\Files\Event\LoadSidebar::class, LoadFilesScripts::class);
+		$context->registerEventListener(BeforeNodeRenamedEvent::class, TrackMoves::class);
+		$context->registerEventListener(NodeRenamedEvent::class, TrackMoves::class);
 	}
 
 	public function boot(IBootContext $context): void {

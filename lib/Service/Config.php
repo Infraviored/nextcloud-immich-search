@@ -27,6 +27,8 @@ class Config {
 	private const PATH_PATTERN = 'path_pattern';
 	private const FACE_MODE = 'face_mode';
 	private const MIN_SIZE = 'min_size';
+	private const DB = 'immich_db';
+	private const DB_PASSWORD = 'immich_db_password';
 	public const DEFAULT_MIN_SIZE = 256;
 
 	/** Who may name, merge and hide people. Everyone only ever sees people from pictures they can open. */
@@ -181,6 +183,36 @@ class Config {
 
 	public function setApiKey(string $key): void {
 		$this->config->setAppValue(Application::APP_ID, self::KEY, $this->crypto->encrypt(trim($key)));
+	}
+
+	/**
+	 * Immich's database, to carry moves over (see MoveTracker), or null if not set up.
+	 *
+	 * @return ?array{host: string, port: int, name: string, user: string, password: string}
+	 */
+	public function getDatabase(): ?array {
+		$db = json_decode($this->config->getAppValue(Application::APP_ID, self::DB, ''), true);
+		$stored = $this->config->getAppValue(Application::APP_ID, self::DB_PASSWORD, '');
+		if (!is_array($db) || ($db['host'] ?? '') === '' || $stored === '') {
+			return null;
+		}
+		try {
+			$password = $this->crypto->decrypt($stored);
+		} catch (\Exception) {
+			return null;
+		}
+		return ['host' => $db['host'], 'port' => (int)($db['port'] ?? 5432), 'name' => $db['name'] ?? 'immich', 'user' => $db['user'] ?? '', 'password' => $password];
+	}
+
+	public function setDatabase(string $host, int $port, string $name, string $user): void {
+		if (!preg_match('/^[A-Za-z0-9._-]+$/', $host) || $port < 1 || $port > 65535 || $name === '' || $user === '') {
+			throw new \InvalidArgumentException('database');
+		}
+		$this->config->setAppValue(Application::APP_ID, self::DB, json_encode(['host' => $host, 'port' => $port, 'name' => $name, 'user' => $user]));
+	}
+
+	public function setDatabasePassword(string $password): void {
+		$this->config->setAppValue(Application::APP_ID, self::DB_PASSWORD, $this->crypto->encrypt($password));
 	}
 
 	public function setPathPattern(string $pattern): void {

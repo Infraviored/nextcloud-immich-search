@@ -10,6 +10,23 @@ Wie die App hier eingebunden ist. Das Allgemeine steht im README.
 | Nextcloud | AIO, Container `nextcloud-aio-nextcloud`, App unter `custom_apps/immich_search` |
 | Ausrollen | `make deploy` (erhöht die Version selbst, wenn sich etwas geändert hat) |
 
+## Verschieben ohne Neu-Analyse
+
+Immich kennt Dateien externer Bibliotheken nur am Pfad. Damit verschobene oder umbenannte
+Bilder nicht neu analysiert werden, trägt die App jeden Umzug direkt in Immichs Datenbank ein
+(`lib/Service/MoveTracker.php`).
+
+| Was | Wo |
+|---|---|
+| Netz | `immich_postgres` hängt zusätzlich im Netz `nextcloud-aio` (Compose, `networks:`) |
+| Datenbank-Rolle | `nextcloud_moves`: darf nur `id`, `originalPath`, `libraryId`, `checksumAlgorithm` von `asset` lesen und `originalPath`, `originalFileName`, `checksum` ändern |
+| Passwort | `~/docker-projects/immich/nextcloud-db-password` (600), in Nextcloud verschlüsselt |
+| Einrichten | `occ immich_search:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < nextcloud-db-password` |
+
+Fällt die Verbindung aus, klappt das Verschieben trotzdem; nur analysiert Immich das Bild
+dann beim nächsten Scan neu (Warnung im Nextcloud-Log). Nicht abgedeckt: Änderungen direkt
+auf der Platte und Verschieben zwischen Benutzern (das ist in Nextcloud eine Kopie).
+
 ## Neuen Benutzer aufnehmen
 
 1. Mount in `~/docker-projects/immich/docker-compose.yml` ergänzen, `docker compose up -d immich-server`

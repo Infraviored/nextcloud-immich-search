@@ -75,6 +75,24 @@ The key is stored encrypted and read from stdin so it never shows up in a proces
 **4. Libraries:** Settings → What gets indexed → "Libraries per user" lists users without one
 and creates them (the mount from step 1 must exist).
 
+**5. Optional – keep pictures when they are moved.** Immich knows library files only by path:
+a moved or renamed picture (or folder) is imported again and analysed from scratch, and faces
+assigned by hand are lost. The app can carry every move in Nextcloud over to Immich's
+database. Give the Nextcloud container network access to Immich's Postgres and create a user
+that may only touch asset paths:
+
+```sql
+CREATE ROLE nextcloud_moves LOGIN PASSWORD '…';
+GRANT CONNECT ON DATABASE immich TO nextcloud_moves;
+GRANT USAGE ON SCHEMA public TO nextcloud_moves;
+GRANT SELECT (id, "originalPath", "libraryId", "checksumAlgorithm") ON asset TO nextcloud_moves;
+GRANT UPDATE ("originalPath", "originalFileName", checksum) ON asset TO nextcloud_moves;
+```
+
+```bash
+occ immich_search:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < password
+```
+
 ### Background jobs and commands
 
 | What | When | Command |
@@ -113,6 +131,8 @@ and browsers cache scripts by version. PHP changes can take up to a minute to sh
 | `lib/Service/PrivateArea.php` | Private folders, people, files; session unlock |
 | `lib/Service/SmallImagePruner.php`, `IndexAdmin.php` | Index hygiene, status, libraries |
 | `lib/Service/FileTransfer.php`, `FileActions.php` | Bulk actions as the user |
+| `lib/Service/MoveTracker.php`, `lib/Listener/TrackMoves.php` | Moves in Nextcloud → Immich paths |
+| `src/viewerFix.js` | Viewer workaround for large folders in the Files app |
 | `lib/Service/Discover.php`, `FolderBrowser.php`, `TileProxy.php` | Memories, duplicates, folders, map tiles |
 | `lib/Search/` | Nextcloud search providers |
 | `lib/Controller/` | JSON API, permission-checked images |
@@ -129,6 +149,8 @@ and browsers cache scripts by version. PHP changes can take up to a minute to sh
   characters or with braces in file names; the app packs and sanitizes its patterns
   accordingly ([details](lib/Service/SmallImagePruner.php)).
 - Merging people cannot be undone (Immich has no unmerge).
+- Moves are carried over only when they happen through Nextcloud and stay with the same
+  owner; this writes to Immich's database directly, as Immich has no API for it.
 
 ## License
 

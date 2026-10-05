@@ -3,6 +3,23 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [Unreleased]
+
+### Added
+- Moves and renames in Nextcloud are carried over to Immich (optional, needs a restricted
+  database user): pictures keep their analysis and faces instead of being imported again.
+- "Show in folder" on the viewer opened from the app.
+
+### Changed
+- Search starts on Enter and when leaving the field.
+- People are sorted by number of pictures everywhere.
+- "Who is this?" is now "Label people", with three faces per person.
+
+### Fixed
+- Opening a picture in a folder with thousands of files froze the browser for a minute
+  (nextcloud/viewer#3015). The app hands the viewer its list; in the Files app a workaround
+  does the same until Nextcloud 33.0.10 / 34.0.5 / 35.0.1.
+
 ## [3.0.0] - 2026-10-04
 
 ### Added
