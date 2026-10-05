@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-// Loaded into the Files app: a "Similar pictures" action and a sidebar tab with the
-// people in a picture.
+// Loaded into the Files app: a "Similar pictures" action, a sidebar tab with the
+// people in a picture, and a workaround for the viewer freezing in large folders.
 import { mdiImageMultipleOutline, mdiImageSearchOutline } from '@mdi/js'
 import { registerFileAction, registerSidebarTab } from '@nextcloud/files'
 import { generateUrl } from '@nextcloud/router'
@@ -12,6 +12,7 @@ import { defineCustomElement } from 'vue'
 import SidebarTab from './components/SidebarTab.vue'
 import { assetForFile } from './api.js'
 import { t } from './l10n.js'
+import { installViewerFix } from './viewerFix.js'
 
 const svg = (path) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${path}"/></svg>`
 const isPicture = (node) => /^(image|video)\//.test(node?.mime ?? '')
@@ -49,3 +50,5 @@ registerSidebarTab({
 		}
 	},
 })
+
+installViewerFix()
