@@ -71,9 +71,14 @@ class ApiController extends Controller {
 		return $this->guard(function () use ($q, $page, $person, $type, $literal) {
 			$uid = $this->uid();
 			$resolved = null;
+			// Private people while locked: not recognised by name, and nothing to show by id
+			$hidden = $this->privateArea->hiddenPeople($uid);
+			if ($person !== '' && in_array($person, $hidden, true)) {
+				return new JSONResponse(['items' => [], 'nextPage' => null, 'person' => null]);
+			}
 			if ($person === '' && !$literal) {
 				[$found, $rest] = $this->names->split($uid, $q);
-				if ($found !== null) {
+				if ($found !== null && !in_array($found, $hidden, true)) {
 					$resolved = ['id' => $found, 'name' => $this->names->visible($uid)[$found]['name'], 'rest' => $rest];
 					[$person, $q] = [$found, $rest];
 				}
