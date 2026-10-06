@@ -27,8 +27,9 @@ use OCP\IUserManager;
  * is reachable in their own Nextcloud (own file or shared with them), under the
  * path they know it by ("/Shared/Photos/a.jpg" for a share recipient).
  *
- * Assets that passed the check are remembered per user, so the thumbnail
- * endpoint can authorize without asking Immich again.
+ * Assets that passed the check are remembered per user with their file id, so the
+ * thumbnail endpoint can authorize without asking Immich again. Each use checks that
+ * the file still resolves for the user: a revoked share ends access right away.
  */
 class AssetSearch {
 	public const UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
@@ -53,7 +54,8 @@ class AssetSearch {
 		private IUserManager $users,
 		ICacheFactory $cacheFactory,
 	) {
-		$this->grants = $cacheFactory->createDistributed('glimpse_grants');
+		// "_v2": grants hold the file id now; older entries (just 1) must not count
+		$this->grants = $cacheFactory->createDistributed('glimpse_grants_v2');
 	}
 
 	/**
@@ -137,7 +139,11 @@ class AssetSearch {
 
 	/** May $uid see this asset? Asks Immich for its path if the user has not been shown it yet. */
 	public function maySee(string $uid, string $assetId): bool {
-		if ($this->grants->get($uid . '/' . $assetId) !== null) {
+		if (!preg_match(self::UUID, $assetId)) {
+			return false;
+		}
+		$fileId = $this->grants->get($uid . '/' . $assetId);
+		if (is_int($fileId) && $this->userFolder($uid)?->getFirstNodeById($fileId) !== null) {
 			return true;
 		}
 		try {
@@ -197,7 +203,7 @@ class AssetSearch {
 			return null;
 		}
 		if ($grant) {
-			$this->grants->set($uid . '/' . $a['id'], 1, self::GRANT_TTL);
+			$this->grants->set($uid . '/' . $a['id'], $node->getId(), self::GRANT_TTL);
 		}
 		return [
 			'id' => $a['id'],
