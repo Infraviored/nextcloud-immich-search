@@ -15,7 +15,6 @@ use OCA\Glimpse\Service\FileTransfer;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
-use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\Response;
@@ -27,6 +26,8 @@ use OCP\IUserSession;
 /** Bulk actions on the selection. Every one runs as the user with Nextcloud's permission checks. */
 class FilesController extends Controller {
 	private const MAX_FILES = 2000;
+	/** Also keeps the archive below the 4 GiB a plain (non-ZIP64) ZIP can hold. */
+	public const MAX_ZIP_BYTES = 4 * 1000 ** 3;
 
 	public function __construct(
 		IRequest $request,
@@ -48,6 +49,9 @@ class FilesController extends Controller {
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 60, period: 60)]
 	public function undo(array $moves = []): JSONResponse {
+		if (!self::validMoves($moves)) {
+			return new JSONResponse(['error' => 'moves'], Http::STATUS_BAD_REQUEST);
+		}
 		return $this->run(array_column($moves, 'fileId'), fn () => $this->actions->undoMove($this->uid(), $moves));
 	}
 
@@ -74,27 +78,81 @@ class FilesController extends Controller {
 		return $this->run($fileIds, fn ($ids) => $this->actions->tag($this->uid(), $ids, $tagIds, $newTags));
 	}
 
-	/** ZIP of the selection; a plain link (GET), so the browser downloads it. */
+	/**
+	 * ZIP of the selection. A form POST (fields "ids", comma separated, and "requesttoken"),
+	 * so the browser downloads it and a large selection does not hit URL length limits.
+	 */
 	#[NoAdminRequired]
-	#[NoCSRFRequired]
 	#[UserRateLimit(limit: 20, period: 60)]
 	public function zip(string $ids = ''): Response {
-		$fileIds = array_filter(array_map('intval', explode(',', $ids)));
-		if ($fileIds === [] || count($fileIds) > self::MAX_FILES) {
-			return new JSONResponse(['error' => 'ids'], Http::STATUS_BAD_REQUEST);
+		$fileIds = array_values(array_unique(array_filter(array_map('intval', explode(',', $ids)))));
+		if ($fileIds === []) {
+			return new JSONResponse(['error' => $this->l->t('No files selected')], Http::STATUS_BAD_REQUEST);
+		}
+		if (count($fileIds) > self::MAX_FILES) {
+			return new JSONResponse(['error' => $this->l->t('At most %d files can be downloaded at once', [self::MAX_FILES])], Http::STATUS_BAD_REQUEST);
+		}
+		['files' => $files, 'failed' => $failed] = $this->actions->readable($this->uid(), $fileIds);
+		$total = array_sum(array_map(static fn ($f) => (float)$f->getSize(), $files));
+		if ($total > self::MAX_ZIP_BYTES) {
+			return new JSONResponse(['error' => $this->l->t('The selection is too large to download at once (at most %s GB)', [self::MAX_ZIP_BYTES / 1000 ** 3])], Http::STATUS_BAD_REQUEST);
 		}
 		$zip = new ZipResponse($this->request, $this->l->t('Photos') . '-' . date('Y-m-d'));
 		$names = [];
-		foreach ($this->actions->readable($this->uid(), $fileIds) as $file) {
-			// Same name from different folders: keep both
-			$name = $file->getName();
-			for ($i = 2; isset($names[$name]); $i++) {
-				$name = pathinfo($file->getName(), PATHINFO_FILENAME) . " ($i)." . pathinfo($file->getName(), PATHINFO_EXTENSION);
+		$added = 0;
+		foreach ($files as $file) {
+			try {
+				$fh = $file->fopen('r');
+			} catch (\Throwable) {
+				$fh = false;
 			}
-			$names[$name] = true;
-			$zip->addResource($file->fopen('r'), $name, (int)$file->getSize(), $file->getMTime());
+			if (!is_resource($fh)) {
+				$failed[] = ['fileId' => $file->getId(), 'name' => $file->getName(), 'error' => $this->l->t('Could not be read')];
+				continue;
+			}
+			$zip->addResource($fh, self::uniqueName($names, $file->getName()), (int)$file->getSize(), $file->getMTime());
+			$added++;
+		}
+		if ($added === 0) {
+			return new JSONResponse(['error' => $this->l->t('None of the selected files can be downloaded'), 'failed' => $failed], Http::STATUS_BAD_REQUEST);
+		}
+		if ($failed !== []) {
+			// The download is the only answer the browser shows, so say inside it what is missing
+			$lines = array_map(static fn ($f) => ($f['name'] !== '' ? $f['name'] : '#' . $f['fileId']) . ': ' . $f['error'], $failed);
+			$note = fopen('php://temp', 'w+b');
+			fwrite($note, implode("\n", $lines) . "\n");
+			$size = ftell($note);
+			rewind($note);
+			$zip->addResource($note, self::uniqueName($names, $this->l->t('Not included') . '.txt'), $size, time());
 		}
 		return $zip;
+	}
+
+	/** Same name from different folders: keep both, as "name (2).jpg". */
+	private static function uniqueName(array &$names, string $name): string {
+		$out = $name;
+		for ($i = 2; isset($names[$out]); $i++) {
+			$ext = pathinfo($name, PATHINFO_EXTENSION);
+			$out = pathinfo($name, PATHINFO_FILENAME) . " ($i)" . ($ext !== '' ? ".$ext" : '');
+		}
+		$names[$out] = true;
+		return $out;
+	}
+
+	/** Each entry as FileTransfer reported it: {fileId: int, from: string, fromName?: string}. */
+	public static function validMoves(mixed $moves): bool {
+		if (!is_array($moves) || $moves === []) {
+			return false;
+		}
+		foreach ($moves as $m) {
+			if (!is_array($m) || !isset($m['fileId'], $m['from'])
+				|| !(is_int($m['fileId']) || (is_string($m['fileId']) && ctype_digit($m['fileId'])))
+				|| !is_string($m['from'])
+				|| (isset($m['fromName']) && !is_string($m['fromName']))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private function run(array $fileIds, callable $fn): JSONResponse {

@@ -17,6 +17,7 @@ use OCP\Dashboard\IAPIWidgetV2;
 use OCP\Dashboard\IIconWidget;
 use OCP\Dashboard\Model\WidgetItem;
 use OCP\Dashboard\Model\WidgetItems;
+use OCP\IConfig;
 use OCP\IURLGenerator;
 use OCP\L10N\IFactory;
 use Psr\Log\LoggerInterface;
@@ -30,6 +31,7 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 		private PrivateArea $privateArea,
 		private Config $config,
 		private IURLGenerator $url,
+		private IConfig $serverConfig,
 		IFactory $l10nFactory,
 		private LoggerInterface $logger,
 	) {
@@ -69,10 +71,12 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 		}
 		$items = [];
 		try {
-			foreach ($this->discover->onThisDay($userId, date('Y-m-d')) as $memory) {
+			// The user's today, not the server's: around midnight they differ by a day
+			$today = new \DateTimeImmutable('now', $this->timezone($userId));
+			foreach ($this->discover->onThisDay($userId, $today->format('Y-m-d')) as $memory) {
 				// Never private pictures on the dashboard
 				foreach ($this->privateArea->filter($userId, $memory['items'], false) as $a) {
-					$years = (int)date('Y') - $memory['year'];
+					$years = (int)$today->format('Y') - $memory['year'];
 					$items[] = new WidgetItem(
 						$a['name'],
 						$this->l->n('%n year ago', '%n years ago', $years),
@@ -89,5 +93,19 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 			$this->logger->info('Memories widget: ' . $e->getMessage(), ['app' => Application::APP_ID]);
 		}
 		return new WidgetItems($items, $this->l->t('No pictures from this day in earlier years'));
+	}
+
+	/** The time zone set in the user's personal settings, else the server's. */
+	private function timezone(string $userId): \DateTimeZone {
+		$fallback = (string)$this->serverConfig->getSystemValue('default_timezone', date_default_timezone_get());
+		foreach ([(string)$this->serverConfig->getUserValue($userId, 'core', 'timezone', ''), $fallback] as $tz) {
+			if ($tz !== '') {
+				try {
+					return new \DateTimeZone($tz);
+				} catch (\Throwable) {
+				}
+			}
+		}
+		return new \DateTimeZone('UTC');
 	}
 }

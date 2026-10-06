@@ -42,6 +42,7 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 	<background-jobs>
 		<job>OCA\Glimpse\BackgroundJob\BuildPeopleIndex</job>
 		<job>OCA\Glimpse\BackgroundJob\PruneSmallImages</job>
+		<job>OCA\Glimpse\BackgroundJob\PruneTileCache</job>
 	</background-jobs>
 	<commands>
 		<command>OCA\Glimpse\Command\Configure</command>
