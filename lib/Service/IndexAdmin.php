@@ -140,11 +140,15 @@ class IndexAdmin {
 		}
 		$me = $this->immich->json('GET', '/users/me');
 		$path = rtrim(str_replace(Config::USER_PLACEHOLDER, $uid, $this->config->getPathPattern()), '/');
+		// Only this user's pruned entries, packed for this library, like applyExclusions() does.
+		$patterns = $this->managedPatterns([$path]);
+		self::checkLimit(count($patterns));
+		$this->rememberManaged($patterns);
 		$lib = $this->immich->json('POST', '/libraries', [
 			'ownerId' => $me['id'],
 			'name' => 'Nextcloud ' . $uid,
 			'importPaths' => [$path],
-			'exclusionPatterns' => $this->managedPatterns(),
+			'exclusionPatterns' => $patterns,
 		]);
 		$this->immich->json('POST', '/libraries/' . $lib['id'] . '/scan');
 		return $lib;
@@ -153,31 +157,58 @@ class IndexAdmin {
 	/**
 	 * Write the configured exclusions into every library and rescan. Patterns the admin
 	 * added in Immich by hand are kept: only the ones this app wrote before are replaced.
+	 *
+	 * @param ?list<string> $prunedEntries entries of SmallImagePruner to write instead of the
+	 *                                     stored ones (it saves them only once they are written)
 	 */
-	public function applyExclusions(bool $scan = true): int {
+	public function applyExclusions(bool $scan = true, ?array $prunedEntries = null): int {
 		$old = $this->config->getState('managed_patterns');
+		// Check every library before writing any, so a pattern list that does not fit is not
+		// half applied.
+		$plan = [];
 		$all = [];
 		foreach ($this->immich->json('GET', '/libraries') as $lib) {
-			$new = $this->managedPatterns($lib['importPaths'] ?? []);
+			$new = $this->managedPatterns($lib['importPaths'] ?? [], $prunedEntries);
 			array_push($all, ...$new);
 			$own = array_values(array_diff($lib['exclusionPatterns'] ?? [], $old, $new));
-			if (count($own) + count($new) > self::MAX_PATTERNS) {
-				throw new \InvalidArgumentException(sprintf('Too many exclusion patterns for Immich (%d, at most %d per library)', count($own) + count($new), self::MAX_PATTERNS));
-			}
-			$this->immich->json('PUT', '/libraries/' . $lib['id'], ['exclusionPatterns' => array_values(array_unique([...$own, ...$new]))]);
+			self::checkLimit(count($own) + count($new));
+			$plan[$lib['id']] = array_values(array_unique([...$own, ...$new]));
+		}
+		$all = array_values(array_unique($all));
+		// Known as ours before anything is written: should a library fail halfway, the patterns
+		// already written elsewhere must not look like the admin's own on the next run.
+		$this->rememberManaged($all);
+		foreach ($plan as $id => $patterns) {
+			$this->immich->json('PUT', '/libraries/' . $id, ['exclusionPatterns' => $patterns]);
 			if ($scan) {
-				$this->immich->json('POST', '/libraries/' . $lib['id'] . '/scan');
+				$this->immich->json('POST', '/libraries/' . $id . '/scan');
 			}
 		}
-		$this->config->setState('managed_patterns', array_values(array_unique($all)));
-		return count(array_unique($all));
+		$this->config->setState('managed_patterns', $all);
+		return count($all);
+	}
+
+	/** Add patterns to those known as written by this app. */
+	private function rememberManaged(array $patterns): void {
+		$old = $this->config->getState('managed_patterns');
+		$union = array_values(array_unique([...$old, ...$patterns]));
+		if ($union !== $old) {
+			$this->config->setState('managed_patterns', $union);
+		}
+	}
+
+	private static function checkLimit(int $count): void {
+		if ($count > self::MAX_PATTERNS) {
+			throw new \InvalidArgumentException(sprintf('Too many exclusion patterns for Immich (%d, at most %d per library)', $count, self::MAX_PATTERNS));
+		}
 	}
 
 	/**
 	 * @param ?array $importPaths only pruned entries under these paths (per library); null = all
+	 * @param ?list<string> $prunedEntries instead of the stored ones
 	 * @return list<string> glob patterns from the excluded formats and folders
 	 */
-	public function managedPatterns(?array $importPaths = null): array {
+	public function managedPatterns(?array $importPaths = null, ?array $prunedEntries = null): array {
 		$patterns = [];
 		foreach ($this->config->get('excluded_formats') as $ext) {
 			$ext = ltrim(strtolower($ext), '.*');
@@ -187,12 +218,11 @@ class IndexAdmin {
 			}
 		}
 		foreach ($this->config->get('excluded_folders') as $folder) {
-			$folder = trim($folder);
-			$patterns[] = str_contains($folder, '*') ? $folder : '**/' . trim($folder, '/') . '/**';
+			$patterns[] = self::folderPattern($folder);
 		}
 		// Paths of tiny images taken out by SmallImagePruner, packed into a few brace patterns
 		// because Immich allows only 128 patterns per library.
-		$entries = $this->config->getState('pruned_entries');
+		$entries = $prunedEntries ?? $this->config->getState('pruned_entries');
 		if ($importPaths !== null) {
 			$entries = array_values(array_filter($entries, static function ($e) use ($importPaths) {
 				foreach ($importPaths as $p) {
@@ -205,6 +235,16 @@ class IndexAdmin {
 		}
 		array_push($patterns, ...SmallImagePruner::pack($entries));
 		return array_values(array_unique($patterns));
+	}
+
+	/**
+	 * Pattern for an entry of "excluded_folders": a glob (anything with "*", e.g. a stored
+	 * suggestion) as it is, a folder name or path made literal: "(1)" or "{…}" in it would
+	 * otherwise be read as glob syntax and, turned into a regex, can fail the library scan.
+	 */
+	public static function folderPattern(string $folder): string {
+		$folder = trim($folder);
+		return str_contains($folder, '*') ? $folder : '**/' . SmallImagePruner::escape(trim($folder, '/')) . '/**';
 	}
 
 	/**
@@ -248,7 +288,7 @@ class IndexAdmin {
 		[$before] = explode(Config::USER_PLACEHOLDER, $this->config->getPathPattern(), 2);
 		$out = [];
 		foreach ($outer as $r) {
-			$pattern = $r . '/**';
+			$pattern = SmallImagePruner::escape($r) . '/**';
 			if (in_array($pattern, $excluded, true)) {
 				continue;
 			}

@@ -13,6 +13,7 @@ use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\TimedJob;
+use OCP\Lock\LockedException;
 
 /** Every 15 minutes: take newly imported tiny images out of Immich (see SmallImagePruner). */
 class PruneSmallImages extends TimedJob {
@@ -28,7 +29,11 @@ class PruneSmallImages extends TimedJob {
 
 	protected function run($argument): void {
 		if ($this->config->isConfigured()) {
-			$this->pruner->run();
+			try {
+				$this->pruner->run();
+			} catch (LockedException) {
+				// A run from occ or the admin page is going on; the next one picks up the rest.
+			}
 		}
 	}
 }
