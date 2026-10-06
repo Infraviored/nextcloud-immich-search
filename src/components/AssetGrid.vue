@@ -12,8 +12,8 @@
 <template>
 	<div class="grid" :class="'grid--' + prefs.tileSize" role="list">
 		<div
-			v-for="(item, index) in items"
-			:key="item.id"
+			v-for="item in items"
+			:key="item.fileId"
 			class="tile"
 			:class="{ 'tile--selected': selected.has(item.fileId) }"
 			role="listitem">
@@ -23,11 +23,12 @@
 				:title="tooltip(item)"
 				:aria-label="t('Open {name}', { name: item.name })"
 				:aria-pressed="selecting ? selected.has(item.fileId) : undefined"
-				@click="onClick(item, index, $event)"
+				@click="onClick(item, $event)"
 				@contextmenu="onContextMenu($event)"
-				@touchstart.passive="onTouchStart(item, index)"
-				@touchmove.passive="cancelPress"
-				@touchend="onTouchEnd($event)">
+				@touchstart.passive="onTouchStart(item, $event)"
+				@touchmove.passive="onTouchMove($event)"
+				@touchend="onTouchEnd($event)"
+				@touchcancel="onTouchCancel">
 				<img
 					:src="thumb(item)"
 					alt=""
@@ -41,7 +42,7 @@
 				class="tile__check"
 				type="button"
 				:aria-label="selected.has(item.fileId) ? t('Deselect') : t('Select')"
-				@click.stop="toggle(item, index, $event.shiftKey)">
+				@click.stop="toggle(item, $event.shiftKey)">
 				<NcIconSvgWrapper :path="selected.has(item.fileId) ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
 			</button>
 			<a
@@ -72,17 +73,22 @@ import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import { fileUrl, previewUrl, thumbnailUrl } from '../api.js'
 import { t } from '../l10n.js'
 import { prefs } from '../prefs.js'
-import { toggleSelection } from '../selection.js'
 
 const props = defineProps({
 	items: { type: Array, required: true },
-	/** Set of selected file ids; the parent owns it. */
+	/** Set of selected file ids; the parent owns it (and the selection rules). */
 	selected: { type: Set, required: true },
 })
 
-const emit = defineEmits(['open', 'similar', 'update:selected'])
+/**
+ * toggle: (item, range) select/deselect, range = shift held; the parent resolves ranges
+ *         over all grids of the view
+ */
+const emit = defineEmits(['open', 'similar', 'toggle', 'update:selected'])
 
 const LONG_PRESS_MS = 450
+/** A finger that moves further than this is scrolling, not pressing. */
+const MOVE_TOLERANCE_PX = 10
 
 /**
  * Immich thumbnail when the picture is indexed, Nextcloud's own preview otherwise (folders).
@@ -92,55 +98,86 @@ const LONG_PRESS_MS = 450
 const thumb = (item) => (item.id ? thumbnailUrl(item.id) : previewUrl(item.fileId))
 
 const selecting = computed(() => props.selected.size > 0)
-let lastIndex = null
 let pressTimer = null
 let pressed = false
+/** A finger is down on a tile (the context menu must not open meanwhile). */
+let touching = false
+let startX = 0
+let startY = 0
 
 function tooltip(item) {
 	const date = item.date ? new Date(item.date).toLocaleDateString() : ''
 	return [date, item.path].filter(Boolean).join('\n')
 }
 
-function toggle(item, index, range) {
-	const next = toggleSelection(props.selected, props.items, index, lastIndex, range)
-	lastIndex = index
-	emit('update:selected', next)
+function toggle(item, range) {
+	emit('toggle', item, range)
 }
 
-function onClick(item, index, event) {
+function onClick(item, event) {
 	if (pressed) {
 		pressed = false // the long-press already selected it
 		return
 	}
 	if (selecting.value || event.shiftKey || event.ctrlKey || event.metaKey) {
-		toggle(item, index, event.shiftKey)
+		toggle(item, event.shiftKey)
 	} else {
-		emit('open', item, index)
+		emit('open', item)
 	}
 }
 
-function onTouchStart(item, index) {
+function onTouchStart(item, event) {
+	cancelPress() // a second finger must not leave the first timer running
 	pressed = false
+	touching = true
+	if (event.touches.length > 1) {
+		return // pinch or two-finger gesture, no long-press
+	}
+	startX = event.touches[0].clientX
+	startY = event.touches[0].clientY
 	pressTimer = window.setTimeout(() => {
+		pressTimer = null
 		pressed = true
-		toggle(item, index, false)
+		toggle(item, false)
 		window.navigator.vibrate?.(20)
 	}, LONG_PRESS_MS)
 }
 
+/**
+ * Fingers always wobble a little; only a real move (scrolling) cancels the long-press.
+ *
+ * @param event
+ */
+function onTouchMove(event) {
+	const touch = event.touches[0]
+	if (pressTimer && touch && Math.hypot(touch.clientX - startX, touch.clientY - startY) > MOVE_TOLERANCE_PX) {
+		cancelPress()
+	}
+}
+
 function cancelPress() {
 	window.clearTimeout(pressTimer)
+	pressTimer = null
 }
 
 function onTouchEnd(event) {
 	cancelPress()
+	if (event.touches.length === 0) {
+		touching = false
+	}
 	if (pressed) {
 		event.preventDefault() // no click, no context menu after a long-press
 	}
 }
 
+function onTouchCancel() {
+	cancelPress()
+	touching = false
+}
+
 function onContextMenu(event) {
-	if (pressed) {
+	// Android opens the context menu while the finger is still down, before the long-press fired.
+	if (pressed || touching) {
 		event.preventDefault()
 	}
 }
