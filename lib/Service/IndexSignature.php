@@ -16,17 +16,21 @@ use OCP\Share\IShare;
 
 /**
  * A fingerprint of everything the per-user indexes (people, map) depend on: Immich's
- * pictures, people and library scans, and who shares what with whom in Nextcloud.
+ * pictures, people and library scans, who shares what with whom in Nextcloud, and
+ * moves and removed shares as counted by MoveTracker and ShareChanges.
  * If it has not changed since the last run, the hourly rebuild can be skipped.
  */
 class IndexSignature {
 	/** Rebuild anyway after this long, to catch what the fingerprint does not see. */
 	public const MAX_AGE = 86400;
+	/** Every share type that makes a file resolve in the recipient's own tree. */
+	private const SHARE_TYPES = [IShare::TYPE_USER, IShare::TYPE_GROUP, IShare::TYPE_CIRCLE, IShare::TYPE_ROOM, IShare::TYPE_DECK];
 
 	public function __construct(
 		private ImmichClient $immich,
 		private IUserManager $users,
 		private IShareManager $shares,
+		private Config $config,
 	) {
 	}
 
@@ -39,10 +43,13 @@ class IndexSignature {
 		}
 		$people = $this->immich->json('GET', '/people?withHidden=true&size=1');
 		$parts[] = 'people:' . ($people['total'] ?? 0);
+		$parts[] = 'moves:' . ($this->config->getState('moves')['count'] ?? 0);
+		$parts[] = 'shares_changed:' . ($this->config->getState('shares_changed')['count'] ?? 0);
 		$this->users->callForSeenUsers(function (IUser $u) use (&$parts) {
-			foreach ([IShare::TYPE_USER, IShare::TYPE_GROUP] as $type) {
+			foreach (self::SHARE_TYPES as $type) {
+				// Types whose app is not installed give an empty list
 				foreach ($this->shares->getSharedWith($u->getUID(), $type, null, -1) as $share) {
-					$parts[] = $u->getUID() . ':' . $share->getId() . ':' . $share->getNodeId() . ':' . $share->getPermissions();
+					$parts[] = $u->getUID() . ':' . $type . ':' . $share->getId() . ':' . $share->getNodeId() . ':' . $share->getPermissions();
 				}
 			}
 		});

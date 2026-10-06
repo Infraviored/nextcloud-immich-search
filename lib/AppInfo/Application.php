@@ -11,6 +11,7 @@ namespace OCA\Glimpse\AppInfo;
 
 use OCA\Glimpse\Dashboard\MemoriesWidget;
 use OCA\Glimpse\Listener\LoadFilesScripts;
+use OCA\Glimpse\Listener\ShareRemoved;
 use OCA\Glimpse\Listener\TrackMoves;
 use OCA\Glimpse\Search\ImmichProvider;
 use OCA\Glimpse\Search\PeopleProvider;
@@ -20,6 +21,8 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\Files\Events\Node\BeforeNodeRenamedEvent;
 use OCP\Files\Events\Node\NodeRenamedEvent;
+use OCP\Share\Events\ShareDeletedEvent;
+use OCP\Share\Events\ShareDeletedFromSelfEvent;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'glimpse';
@@ -38,6 +41,9 @@ class Application extends App implements IBootstrap {
 		$context->registerEventListener(\OCA\Files\Event\LoadSidebar::class, LoadFilesScripts::class);
 		$context->registerEventListener(BeforeNodeRenamedEvent::class, TrackMoves::class);
 		$context->registerEventListener(NodeRenamedEvent::class, TrackMoves::class);
+		// People and map index: rebuilt soon after a share is taken back
+		$context->registerEventListener(ShareDeletedEvent::class, ShareRemoved::class);
+		$context->registerEventListener(ShareDeletedFromSelfEvent::class, ShareRemoved::class);
 	}
 
 	public function boot(IBootContext $context): void {
