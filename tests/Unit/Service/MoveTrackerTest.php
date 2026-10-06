@@ -9,8 +9,10 @@ declare(strict_types=1);
 
 namespace OCA\Glimpse\Tests\Unit\Service;
 
+use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\MoveTracker;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class MoveTrackerTest extends TestCase {
 	public function testFileMove(): void {
@@ -29,5 +31,25 @@ class MoveTrackerTest extends TestCase {
 	public function testChecksumMatchesImmich(): void {
 		// Immich: cryptoRepository.hashSha1(`path:${assetPath}`)
 		$this->assertSame(sha1('path:/m/u/a.jpg'), bin2hex(MoveTracker::pathChecksum('/m/u/a.jpg')));
+	}
+
+	public function testUnreachableDatabaseIsNotTriedAgainAndHidesThePassword(): void {
+		$config = $this->createMock(Config::class);
+		// Port 1 on loopback: refused at once (or no pgsql driver at all), both a PDOException.
+		$config->method('getDatabase')->willReturn(['host' => '127.0.0.1', 'port' => 1, 'name' => 'immich', 'user' => 'u', 'password' => 'secret-pw']);
+		$config->method('getPathPattern')->willReturn('/m/{user}/');
+		$tracker = new MoveTracker($config, $this->createMock(LoggerInterface::class));
+
+		$this->assertTrue($tracker->isEnabled());
+		try {
+			$tracker->move('/m/u/a.jpg', '/m/u/b.jpg');
+			$this->fail('expected an exception');
+		} catch (\RuntimeException $e) {
+			$this->assertNotInstanceOf(\PDOException::class, $e);
+			$this->assertNull($e->getPrevious());
+			$this->assertStringNotContainsString('secret-pw', $e->getMessage() . $e->getTraceAsString());
+		}
+		$this->assertFalse($tracker->isEnabled());
+		$this->assertSame(0, $tracker->move('/m/u/a.jpg', '/m/u/c.jpg'));
 	}
 }

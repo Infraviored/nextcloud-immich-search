@@ -19,6 +19,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\Lock\LockedException;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -43,7 +44,7 @@ class AdminController extends Controller {
 
 	/** Partial update; exclusions are pushed to Immich right away. */
 	public function saveSettings(array $settings = []): JSONResponse {
-		return $this->guard(function () use ($settings) {
+		$save = function () use ($settings) {
 			$before = $this->index->managedPatterns();
 			foreach ($settings as $key => $value) {
 				if (!isset(Config::SETTINGS[$key])) {
@@ -55,12 +56,21 @@ class AdminController extends Controller {
 					throw new \InvalidArgumentException($this->l->t('Invalid value for %s', [$key]));
 				}
 			}
+			// Switched off: the tiny images are no longer kept out, so their entries go (also
+			// when sent again after an earlier attempt failed).
+			if (array_key_exists('prune_small', $settings) && !$this->config->get('prune_small')) {
+				$this->pruner->clear();
+			}
 			$applied = null;
 			if ($this->index->managedPatterns() !== $before) {
 				$applied = $this->index->applyExclusions();
 			}
 			return ['settings' => $this->config->all(), 'exclusionsApplied' => $applied];
-		});
+		};
+		// What changes the exclusions runs under the prune lock: a run going on at the same
+		// time would write its own idea of them (and of the pruned entries) back over these.
+		$exclusions = array_intersect_key($settings, array_flip(['excluded_formats', 'excluded_folders', 'prune_small'])) !== [];
+		return $this->guard(fn () => $exclusions ? $this->pruner->exclusive($save) : $save());
 	}
 
 	public function status(): JSONResponse {
@@ -107,6 +117,8 @@ class AdminController extends Controller {
 			return new JSONResponse($fn());
 		} catch (\InvalidArgumentException $e) {
 			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		} catch (LockedException) {
+			return new JSONResponse(['error' => $this->l->t('Tiny images are being taken out of Immich right now. Try again in a minute.')], Http::STATUS_CONFLICT);
 		} catch (ImmichException $e) {
 			return new JSONResponse(['error' => $e->getMessage()], $e->getCode() ?: Http::STATUS_BAD_GATEWAY);
 		} catch (\Throwable $e) {

@@ -42,6 +42,11 @@ class Configure extends Command {
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
+		// stdin carries one secret; with both options the second one would silently be lost.
+		if ($input->getOption('key-stdin') && $input->getOption('db-password-stdin')) {
+			$output->writeln('<error>--key-stdin and --db-password-stdin cannot be used together, run the command once for each</error>');
+			return self::FAILURE;
+		}
 		try {
 			if (($url = $input->getOption('url')) !== null) {
 				$this->config->setUrl($url);

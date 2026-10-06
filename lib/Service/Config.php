@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Glimpse\Service;
 
 use OCA\Glimpse\AppInfo\Application;
+use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\Security\ICrypto;
 
@@ -37,6 +38,7 @@ class Config {
 	public function __construct(
 		private IConfig $config,
 		private ICrypto $crypto,
+		private ?IAppConfig $appConfig = null,
 	) {
 	}
 
@@ -164,13 +166,26 @@ class Config {
 		return $out;
 	}
 
-	/** Internal bookkeeping (JSON), not user-editable. */
+	/**
+	 * Internal bookkeeping (JSON), not user-editable.
+	 *
+	 * Stored lazily: some of it is large (every pruned path) and would otherwise be loaded
+	 * with the app config on every request. A value written before as a normal app value is
+	 * still found, and becomes lazy when it is next written.
+	 */
 	public function getState(string $key): array {
-		return json_decode($this->config->getAppValue(Application::APP_ID, 'state_' . $key, '[]'), true) ?: [];
+		$raw = $this->appConfig !== null
+			? $this->appConfig->getValueString(Application::APP_ID, 'state_' . $key, '[]', lazy: true)
+			: $this->config->getAppValue(Application::APP_ID, 'state_' . $key, '[]');
+		return json_decode($raw, true) ?: [];
 	}
 
 	public function setState(string $key, array $value): void {
-		$this->config->setAppValue(Application::APP_ID, 'state_' . $key, json_encode($value));
+		if ($this->appConfig !== null) {
+			$this->appConfig->setValueString(Application::APP_ID, 'state_' . $key, json_encode($value), lazy: true);
+		} else {
+			$this->config->setAppValue(Application::APP_ID, 'state_' . $key, json_encode($value));
+		}
 	}
 
 	public function isConfigured(): bool {

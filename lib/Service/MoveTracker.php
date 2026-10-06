@@ -25,6 +25,8 @@ use Psr\Log\LoggerInterface;
  */
 class MoveTracker {
 	private ?\PDO $pdo = null;
+	/** Why the database could not be reached; not tried again for the rest of the request. */
+	private ?string $failed = null;
 
 	public function __construct(
 		private Config $config,
@@ -32,8 +34,9 @@ class MoveTracker {
 	) {
 	}
 
+	/** Set up, and not found unreachable earlier in this request. */
 	public function isEnabled(): bool {
-		return $this->config->getDatabase() !== null;
+		return $this->failed === null && $this->config->getDatabase() !== null;
 	}
 
 	/**
@@ -106,6 +109,10 @@ class MoveTracker {
 			throw $e;
 		}
 		$this->logger->info(sprintf('Moved %d of %d Immich assets: %s -> %s', $done, count($plan), $from, $to), ['app' => Application::APP_ID]);
+		if ($done > 0) {
+			// Read by IndexSignature: Immich's paths changed without a scan.
+			$this->config->setState('moves', ['count' => (int)($this->config->getState('moves')['count'] ?? 0) + 1, 'at' => time()]);
+		}
 		return $done;
 	}
 
@@ -120,11 +127,25 @@ class MoveTracker {
 	}
 
 	private function pdo(): \PDO {
+		if ($this->failed !== null) {
+			throw new \RuntimeException($this->failed);
+		}
 		if ($this->pdo === null) {
 			$db = $this->config->getDatabase() ?? throw new \RuntimeException('Immich database not configured');
-			$this->pdo = new \PDO(sprintf('pgsql:host=%s;port=%d;dbname=%s;connect_timeout=5', $db['host'], $db['port'], $db['name']), $db['user'], $db['password'], [
-				\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-			]);
+			try {
+				$pdo = new \PDO(sprintf('pgsql:host=%s;port=%d;dbname=%s;connect_timeout=5', $db['host'], $db['port'], $db['name']), $db['user'], $db['password'], [
+					\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+				]);
+				// A move waits for this; never for long, and never behind a lock Immich holds.
+				$pdo->exec("SET statement_timeout = '5s'");
+				$pdo->exec("SET lock_timeout = '2s'");
+			} catch (\PDOException $e) {
+				// Remembered, so a bulk move does not wait 5 s per file. Not chained: the trace
+				// of the constructor call holds the password (PHP 8.1 shows arguments).
+				$this->failed = 'Immich database not reachable: ' . $e->getMessage();
+				throw new \RuntimeException($this->failed);
+			}
+			$this->pdo = $pdo;
 		}
 		return $this->pdo;
 	}

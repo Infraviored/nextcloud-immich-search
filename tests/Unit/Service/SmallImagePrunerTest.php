@@ -13,7 +13,10 @@ use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\IndexAdmin;
 use OCA\Glimpse\Service\SmallImagePruner;
+use OCP\Files\IRootFolder;
 use OCP\IConfig;
+use OCP\Lock\ILockingProvider;
+use OCP\Lock\LockedException;
 use OCP\Security\ICrypto;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -39,8 +42,8 @@ class SmallImagePrunerTest extends TestCase {
 		$this->assertSame([], SmallImagePruner::pack([]));
 	}
 
-	public function testTrashesTinyImagesAndExcludesThem(): void {
-		$app = [];
+	private function config(array $preset = []): Config {
+		$app = $preset;
 		$iconfig = $this->createMock(IConfig::class);
 		$iconfig->method('getAppValue')->willReturnCallback(function ($a, $k, $d) use (&$app) {
 			return $app[$k] ?? $d;
@@ -48,32 +51,140 @@ class SmallImagePrunerTest extends TestCase {
 		$iconfig->method('setAppValue')->willReturnCallback(function ($a, $k, $v) use (&$app) {
 			$app[$k] = $v;
 		});
-		$config = new Config($iconfig, $this->createMock(ICrypto::class));
+		return new Config($iconfig, $this->createMock(ICrypto::class));
+	}
 
-		$img = fn ($id, $path, $w) => ['id' => $id, 'originalPath' => $path, 'width' => $w, 'height' => $w];
-		$items = [
-			// icons/: three tiny, nothing else -> whole folder
-			$img('i1', '/m/u/icons/a.png', 16), $img('i2', '/m/u/icons/b.png', 24), $img('i3', '/m/u/icons/c.png', 32),
-			// Photos/: one tiny among normal ones -> just that file
-			$img('p1', '/m/u/Photos/big.jpg', 3000), $img('p2', '/m/u/Photos/tiny (1).jpg', 100),
-		];
+	private function pruner(Config $config, array $items, IndexAdmin $index, array &$deleted, ?ILockingProvider $locks = null): SmallImagePruner {
 		$immich = $this->createMock(ImmichClient::class);
-		$deleted = [];
 		$immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use ($items, &$deleted) {
 			if ($m === 'DELETE') {
-				$deleted = $b['ids'];
+				array_push($deleted, ...$b['ids']);
 				return [];
 			}
 			return ['assets' => ['items' => $items, 'nextPage' => null]];
 		});
+		return new SmallImagePruner($immich, $config, $index, $this->createMock(IRootFolder::class),
+			$locks ?? $this->createMock(ILockingProvider::class), $this->createMock(LoggerInterface::class));
+	}
+
+	private static function img(string $id, string $path, int $w, array $extra = []): array {
+		return $extra + ['id' => $id, 'originalPath' => $path, 'width' => $w, 'height' => $w, 'libraryId' => 'lib'];
+	}
+
+	public function testTrashesTinyImagesAndExcludesThem(): void {
+		$config = $this->config(['path_pattern' => '/m/{user}/']);
+		$items = [
+			// icons/: three tiny, nothing else -> whole folder, but only for their types
+			self::img('i1', '/m/u/icons/a.png', 16), self::img('i2', '/m/u/icons/b.gif', 24), self::img('i3', '/m/u/icons/c.png', 32),
+			// Photos/: one tiny among normal ones -> just that file
+			self::img('p1', '/m/u/Photos/big.jpg', 3000), self::img('p2', '/m/u/Photos/tiny (1).jpg', 100),
+			// already in Immich's trash: kept in the list, not trashed again
+			self::img('t1', '/m/u/Photos/old.png', 50, ['isTrashed' => true]),
+			// uploaded by the service account itself / outside the Nextcloud mounts: never touched
+			self::img('up', '/m/u/Photos/upload.png', 10, ['libraryId' => null]),
+			self::img('ot', '/elsewhere/x.png', 10),
+		];
 		$index = $this->createMock(IndexAdmin::class);
-		$index->expects($this->once())->method('applyExclusions')->with(false);
+		$written = null;
+		$index->expects($this->once())->method('applyExclusions')->willReturnCallback(function ($scan, $entries) use (&$written, $config) {
+			$this->assertFalse($scan);
+			// Not saved before Immich has them.
+			$this->assertSame([], $config->getState('pruned_entries'));
+			$written = $entries;
+			return 1;
+		});
+		$deleted = [];
 
-		$r = (new SmallImagePruner($immich, $config, $index, $this->createMock(LoggerInterface::class)))->run(true);
+		$r = $this->pruner($config, $items, $index, $deleted)->run(true);
 
-		$this->assertSame(5, $r['checked']);
+		$this->assertSame(6, $r['checked']);
 		$this->assertSame(4, $r['pruned']);
 		$this->assertEqualsCanonicalizing(['i1', 'i2', 'i3', 'p2'], $deleted);
-		$this->assertEqualsCanonicalizing(['/m/u/icons/*', '/m/u/Photos/tiny ?1?.jpg'], $config->getState('pruned_entries'));
+		$expected = ['/m/u/Photos/old.png', '/m/u/Photos/tiny ?1?.jpg', '/m/u/icons/*.{gif,png}'];
+		$this->assertSame($expected, $written);
+		$this->assertSame($expected, $config->getState('pruned_entries'));
+		$this->assertSame('/m/u/icons', $config->getState('pruned_paths')['/m/u/icons/*.{gif,png}']);
+	}
+
+	public function testNothingIsSavedWhenImmichRefusesThePatterns(): void {
+		$config = $this->config(['path_pattern' => '/m/{user}/']);
+		$config->setState('pruned_entries', ['/m/u/a.png']);
+		$index = $this->createMock(IndexAdmin::class);
+		$index->method('applyExclusions')->willThrowException(new \InvalidArgumentException('Too many'));
+		$deleted = [];
+		try {
+			$this->pruner($config, [self::img('x', '/m/u/b.png', 10)], $index, $deleted)->run();
+			$this->fail('expected the error to come through');
+		} catch (\InvalidArgumentException) {
+		}
+		$this->assertSame(['/m/u/a.png'], $config->getState('pruned_entries'));
+		$this->assertSame([], $deleted);
+	}
+
+	public function testFullRunDropsEntriesThatNoLongerMatter(): void {
+		$entries = [
+			'/m/u/gone.png',          // not in Immich, not in Nextcloud -> dropped
+			'/m/u/kept.png',          // not in Immich (trash emptied), still in Nextcloud -> kept
+			'/m/u/now-big.png',       // seen again and no longer tiny -> dropped
+			'/m/u/icons/*',           // old whole-folder entry, folder seen again -> replaced
+			'/m/u/odd ?1?.png',       // from an old version, real path unknown -> kept
+		];
+		$paths = ['/m/u/gone.png' => '/m/u/gone.png', '/m/u/kept.png' => '/m/u/kept.png', '/m/u/now-big.png' => '/m/u/now-big.png'];
+		$seen = ['/m/u/now-big.png' => true, '/m/u/icons/a.png' => true];
+		$folders = ['/m/u' => [0, 1, []], '/m/u/icons' => [3, 0, ['png' => true]]];
+		$kept = SmallImagePruner::keep($entries, $paths, $seen, $folders, fn ($p) => $p === '/m/u/kept.png');
+		$this->assertSame(['/m/u/kept.png' => '/m/u/kept.png', '/m/u/odd ?1?.png' => ''], $kept);
+	}
+
+	public function testFolderGlobIsLimitedToTheTinyTypes(): void {
+		$this->assertSame('/m/u/icons/*.png', SmallImagePruner::folderGlob('/m/u/icons', ['png', 'png']));
+		$this->assertSame('/m/u/Art ?1?/*.{GIF,png}', SmallImagePruner::folderGlob('/m/u/Art (1)', ['png', 'GIF']));
+		// A folder glob packs into a brace list like any other entry.
+		$this->assertSame(['{/m/a.png,/m/u/icons/*.{gif,png}}'], SmallImagePruner::pack(['/m/a.png', '/m/u/icons/*.{gif,png}']));
+		// Not as a whole when one tiny file has no extension: that would need "folder/*".
+		$entries = SmallImagePruner::entries(['a' => '/m/x/a', 'b' => '/m/x/b.png', 'c' => '/m/x/c.png'], ['/m/x' => [3, 0, ['' => true, 'png' => true]]], true);
+		$this->assertSame(['/m/x/a', '/m/x/b.png', '/m/x/c.png'], array_keys($entries));
+	}
+
+	public function testOnlyLibraryAssetsUnderThePathPattern(): void {
+		$this->assertTrue(SmallImagePruner::isLibraryAsset(['libraryId' => 'l', 'originalPath' => '/m/u/a.png'], '/m/'));
+		$this->assertFalse(SmallImagePruner::isLibraryAsset(['libraryId' => null, 'originalPath' => '/m/u/a.png'], '/m/'));
+		$this->assertFalse(SmallImagePruner::isLibraryAsset(['originalPath' => '/m/u/a.png'], '/m/'));
+		$this->assertFalse(SmallImagePruner::isLibraryAsset(['libraryId' => 'l', 'originalPath' => '/upload/a.png'], '/m/'));
+	}
+
+	public function testNextcloudPath(): void {
+		$this->assertSame(['alice', 'Photos/a.jpg'], SmallImagePruner::nextcloudPath('/mnt/nextcloud/{user}/', '/mnt/nextcloud/alice/Photos/a.jpg'));
+		$this->assertSame(['bob', 'x/y'], SmallImagePruner::nextcloudPath('/data/{user}/files/', '/data/bob/files/x/y'));
+		$this->assertSame(['bob', ''], SmallImagePruner::nextcloudPath('/data/{user}/files/', '/data/bob/files'));
+		$this->assertNull(SmallImagePruner::nextcloudPath('/data/{user}/files/', '/data/bob/other/x'));
+		$this->assertNull(SmallImagePruner::nextcloudPath('/mnt/nextcloud/{user}/', '/elsewhere/a.jpg'));
+	}
+
+	public function testResetWritesFirstThenForgets(): void {
+		$config = $this->config();
+		$config->setState('pruned_entries', ['/m/u/a.png']);
+		$config->setState('pruned_paths', ['/m/u/a.png' => '/m/u/a.png']);
+		$index = $this->createMock(IndexAdmin::class);
+		$index->expects($this->once())->method('applyExclusions')->with(false, [])->willReturnCallback(function () use ($config) {
+			$this->assertSame(['/m/u/a.png'], $config->getState('pruned_entries'));
+			return 3;
+		});
+		$deleted = [];
+		$this->assertSame(3, $this->pruner($config, [], $index, $deleted)->reset());
+		$this->assertSame([], $config->getState('pruned_entries'));
+		$this->assertSame([], $config->getState('pruned_paths'));
+	}
+
+	public function testSecondRunIsRefusedWhileOneIsGoingOn(): void {
+		$locks = $this->createMock(ILockingProvider::class);
+		$locks->method('acquireLock')->with(SmallImagePruner::LOCK, ILockingProvider::LOCK_EXCLUSIVE)
+			->willThrowException(new LockedException(SmallImagePruner::LOCK));
+		$locks->expects($this->never())->method('releaseLock');
+		$index = $this->createMock(IndexAdmin::class);
+		$index->expects($this->never())->method('applyExclusions');
+		$deleted = [];
+		$this->expectException(LockedException::class);
+		$this->pruner($this->config(), [], $index, $deleted, $locks)->run(true);
 	}
 }

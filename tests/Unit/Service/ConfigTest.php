@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Glimpse\Tests\Unit\Service;
 
 use OCA\Glimpse\Service\Config;
+use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\Security\ICrypto;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -61,5 +62,27 @@ class ConfigTest extends TestCase {
 		$this->assertSame(0, $c->getMinSize());
 		$c->setMinSize(99999);
 		$this->assertSame(4000, $c->getMinSize());
+	}
+
+	public function testStateIsStoredLazily(): void {
+		$store = [];
+		$app = $this->createMock(IAppConfig::class);
+		$app->expects($this->once())->method('setValueString')
+			->willReturnCallback(function ($a, $k, $v, $lazy) use (&$store) {
+				$this->assertTrue($lazy);
+				$store[$k] = $v;
+				return true;
+			});
+		$app->method('getValueString')->willReturnCallback(function ($a, $k, $d, $lazy) use (&$store) {
+			$this->assertTrue($lazy);
+			return $store[$k] ?? $d;
+		});
+		$iconfig = $this->createMock(IConfig::class);
+		$iconfig->expects($this->never())->method('setAppValue');
+		$c = new Config($iconfig, $this->createMock(ICrypto::class), $app);
+
+		$this->assertSame([], $c->getState('moves'));
+		$c->setState('moves', ['count' => 1]);
+		$this->assertSame(['count' => 1], $c->getState('moves'));
 	}
 }
