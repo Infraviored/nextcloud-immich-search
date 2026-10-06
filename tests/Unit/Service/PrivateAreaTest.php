@@ -92,4 +92,18 @@ class PrivateAreaTest extends TestCase {
 		$this->assertCount(0, $this->area->filter('alice', $items));
 		$this->assertCount(1, $this->area->filter('bob', $items));
 	}
+
+	public function testAddOnlyKeepsWhatIsThere(): void {
+		$p1 = '11111111-1111-4111-8111-111111111111';
+		$p2 = '22222222-2222-4222-8222-222222222222';
+		$this->area->setLists('u', ['/Private'], [$p1]);
+		// While locked the frontend knows no lists and sends only the new entry
+		$p = $this->area->setLists('u', ['/More'], [$p2, 'not-an-id'], true);
+		$this->assertSame(['/Private', '/More'], $p['folders']);
+		$this->assertSame([$p1, $p2], $p['people']);
+		$p = $this->area->setLists('u', [], [], true);
+		$this->assertSame(['/Private', '/More'], $p['folders'], 'nothing removed while locked');
+		$p = $this->area->setLists('u', [], []);
+		$this->assertSame([], $p['folders']);
+	}
 }
