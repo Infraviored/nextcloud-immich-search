@@ -45,13 +45,15 @@ class FolderBrowser {
 		foreach ($folder->getDirectoryListing() as $node) {
 			if ($node instanceof Folder) {
 				$folders[] = ['name' => $node->getName(), 'path' => $home->getRelativePath($node->getPath())];
-			} elseif ($node instanceof File && preg_match('#^(image|video)/#', $node->getMimetype()) && count($items) < self::MAX_ITEMS) {
+			} elseif ($node instanceof File && preg_match('#^(image|video)/#', $node->getMimetype()) && count($items) <= self::MAX_ITEMS) {
 				$items[] = self::item($home, $node);
 			}
 		}
 		usort($folders, static fn ($a, $b) => strnatcasecmp($a['name'], $b['name']));
 		usort($items, static fn ($a, $b) => strcmp((string)$b['date'], (string)$a['date']));
-		return ['path' => $home->getRelativePath($folder->getPath()), 'folders' => $folders, 'items' => $items, 'truncated' => count($items) >= self::MAX_ITEMS];
+		// One more than shown is collected, to tell "exactly the limit" from "more than that"
+		$truncated = count($items) > self::MAX_ITEMS;
+		return ['path' => $home->getRelativePath($folder->getPath()), 'folders' => $folders, 'items' => array_slice($items, 0, self::MAX_ITEMS), 'truncated' => $truncated];
 	}
 
 	/** Items for file ids (the map knows ids and coordinates, the grid needs names and paths). */

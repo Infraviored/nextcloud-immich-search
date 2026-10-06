@@ -69,6 +69,8 @@ class PeopleProvider implements IProvider {
 			$this->logger->info('People search: ' . $e->getMessage(), ['app' => Application::APP_ID]);
 			return SearchResult::complete($this->getName(), []);
 		}
+		$limit = max(1, $query->getLimit());
+		$offset = max(0, (int)$query->getCursor());
 		$entries = array_map(fn (array $p) => new SearchResultEntry(
 			$this->url->linkToRouteAbsolute('glimpse.people.face', ['id' => $p['id']]),
 			$p['name'],
@@ -76,7 +78,10 @@ class PeopleProvider implements IProvider {
 			$this->url->linkToRouteAbsolute('glimpse.page.indexperson', ['id' => $p['id']]),
 			'icon-user',
 			true,
-		), array_slice($hits, 0, max(1, $query->getLimit())));
-		return SearchResult::complete($this->getName(), $entries);
+		), array_slice($hits, $offset, $limit));
+		// More than fit: let the search UI load the rest
+		return count($hits) > $offset + $limit
+			? SearchResult::paginated($this->getName(), $entries, $offset + $limit)
+			: SearchResult::complete($this->getName(), $entries);
 	}
 }
