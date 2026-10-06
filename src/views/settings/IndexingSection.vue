@@ -139,16 +139,18 @@
 
 <script setup>
 import { mdiClose } from '@mdi/js'
+import { showSuccess } from '@nextcloud/dialogs'
 import { computed, onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
-import { loadAdminSettings, saveAdmin } from '../../adminSettings.js'
+import { adminSettings, loadAdminSettings, saveAdmin } from '../../adminSettings.js'
 import { createLibrary, getFolderSuggestions, getLibraries, pruneSmall } from '../../api.js'
 import { useAction } from '../../composables/useAction.js'
 import { n, t } from '../../l10n.js'
+import { serialSaver } from '../../serialSaver.js'
 
 const formatCatalog = [
 	{ ext: 'svg', label: t('SVG (vector graphics, icons)') },
@@ -189,12 +191,26 @@ function shorten(path) {
 	return path.length > 90 ? '…' + path.slice(-88) : path
 }
 
+/** One save at a time; clicks during a slow save go out together right after it. */
+const saver = serialSaver(saveAdmin)
+
+/**
+ * Applied to the page at once, so the next click builds on it and not on the state of the
+ * last server answer (rapid toggles used to undo each other).
+ *
+ * @param partial
+ */
 async function save(partial) {
-	const res = await act(() => saveAdmin(partial), (r) => (r.exclusionsApplied !== null
-		? n('Saved. {count} exclusion pattern applied to Immich, scan started.', 'Saved. {count} exclusion patterns applied to Immich, scan started.', r.exclusionsApplied, { count: r.exclusionsApplied })
-		: t('Saved')))
-	if (res) {
-		s.value = { ...res.settings }
+	s.value = { ...s.value, ...partial }
+	const res = await act(() => saver.save(partial))
+	if (saver.idle()) {
+		// Settled: show what the server has (after a failure: what it had before).
+		s.value = { ...(res ? res.settings : adminSettings.values) }
+		if (res) {
+			showSuccess(res.exclusionsApplied !== null
+				? n('Saved. {count} exclusion pattern applied to Immich, scan started.', 'Saved. {count} exclusion patterns applied to Immich, scan started.', res.exclusionsApplied, { count: res.exclusionsApplied })
+				: t('Saved'))
+		}
 	}
 	return res
 }

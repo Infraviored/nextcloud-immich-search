@@ -58,7 +58,7 @@
 
 <script setup>
 import { mdiImageMultipleOutline } from '@mdi/js'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
@@ -80,7 +80,8 @@ const nextPage = ref(1)
 const before = ref('')
 const loading = ref(false)
 const error = ref('')
-let busy = false
+/** The request in flight; a reload aborts it, so an old answer can never be appended. */
+let controller = null
 const sentinel = ref(null)
 const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value && load())
 
@@ -101,28 +102,38 @@ const groups = computed(() => {
 })
 
 async function load() {
-	if (busy || !nextPage.value) {
+	if (controller || !nextPage.value) {
 		return
 	}
-	busy = true
+	const ctrl = controller = new AbortController()
 	loading.value = true
 	try {
-		const res = await timeline({ page: nextPage.value, before: before.value })
+		const res = await timeline({ page: nextPage.value, before: before.value }, ctrl.signal)
+		if (ctrl !== controller) {
+			return
+		}
 		items.value.push(...res.items)
 		nextPage.value = res.nextPage
 		if (res.years) {
 			years.value = res.years
 		}
 	} catch (e) {
-		error.value = errorMessage(e)
+		if (ctrl === controller && e?.name !== 'CanceledError') {
+			error.value = errorMessage(e)
+		}
 	} finally {
-		busy = false
-		loading.value = false
-		more.check()
+		if (ctrl === controller) {
+			controller = null
+			loading.value = false
+			more.check()
+		}
 	}
 }
 
+/** Start over (year jump, undo); a request still running is dropped. */
 function reload() {
+	controller?.abort()
+	controller = null
 	items.value = []
 	nextPage.value = 1
 	error.value = ''
@@ -163,6 +174,7 @@ onMounted(async () => {
 		// memories are a bonus
 	}
 })
+onBeforeUnmount(() => controller?.abort())
 </script>
 
 <style scoped lang="scss">
