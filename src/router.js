@@ -16,10 +16,26 @@ import { reactive } from 'vue'
  */
 const base = generateUrl('/apps/glimpse')
 
+/**
+ * The part of the address after the app, e.g. "/people/12". generateUrl adds /index.php
+ * or not depending on the server config ("pretty URLs"), but both forms reach the app,
+ * so both are accepted, behind whatever web root Nextcloud lives in.
+ *
+ * @param {string} pathname  window.location.pathname
+ * @param {string} appBase   generateUrl('/apps/glimpse')
+ * @return {string} "/" when the address is the app itself (or not the app at all)
+ */
+export function appPath(pathname, appBase = base) {
+	const webroot = appBase.replace(/(\/index\.php)?\/apps\/glimpse\/?$/, '')
+	const escaped = webroot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	const match = new RegExp('^' + escaped + '(?:/index\\.php)?/apps/glimpse(?=/|$)').exec(pathname)
+	return (match ? pathname.slice(match[0].length) : '') || '/'
+}
+
 export const route = reactive(parse())
 
 function parse() {
-	const rest = window.location.pathname.slice(base.length).replace(/^\/+|\/+$/g, '')
+	const rest = appPath(window.location.pathname).replace(/^\/+|\/+$/g, '')
 	const [section, id] = rest.split('/')
 	const query = Object.fromEntries(new URLSearchParams(window.location.search))
 	if (section === 'people' && id) {
@@ -57,7 +73,7 @@ export function navigate(path, query = {}) {
  * @param query
  */
 export function replaceQuery(query) {
-	const path = window.location.pathname.slice(base.length) || '/'
+	const path = appPath(window.location.pathname)
 	window.history.replaceState(null, '', href(path, query))
 	route.query = { ...query }
 }
