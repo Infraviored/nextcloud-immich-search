@@ -9,14 +9,20 @@ declare(strict_types=1);
 
 namespace OCA\Glimpse\Service;
 
+use OCA\Files_Sharing\SharedStorage;
+use OCP\Constants;
+use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\Node;
 use OCP\IL10N;
 use OCP\ITagManager;
 use OCP\IUserManager;
+use OCP\SystemTag\ISystemTag;
 use OCP\SystemTag\ISystemTagManager;
 use OCP\SystemTag\ISystemTagObjectMapper;
+use OCP\SystemTag\TagAlreadyExistsException;
+use OCP\SystemTag\TagCreationForbiddenException;
 use OCP\SystemTag\TagNotFoundException;
 use Psr\Log\LoggerInterface;
 
@@ -72,62 +78,150 @@ class FileActions {
 	 */
 	public function tag(string $uid, array $fileIds, array $tagIds, array $newNames): array {
 		$user = $this->users->get($uid);
+		$visible = null;
 		foreach ($newNames as $name) {
 			$name = trim((string)$name);
 			if ($name === '') {
 				continue;
 			}
-			try {
-				$tag = $this->systemTags->getTag($name, true, true);
-			} catch (TagNotFoundException) {
+			// Nextcloud refuses a second tag that differs only in case, so reuse that one
+			$visible ??= array_values(array_filter($this->systemTags->getAllTags(true), fn (ISystemTag $t) => $this->systemTags->canUserSeeTag($t, $user)));
+			$tag = self::findTag($visible, $name);
+			if ($tag === null) {
 				if (method_exists($this->systemTags, 'canUserCreateTag') && !$this->systemTags->canUserCreateTag($user)) {
 					throw new \InvalidArgumentException($this->l->t('You are not allowed to create tags'));
 				}
-				$tag = $this->systemTags->createTag($name, true, true);
+				try {
+					$tag = $this->systemTags->createTag($name, true, true);
+				} catch (TagAlreadyExistsException) {
+					// exists, but hidden from this user
+					throw new \InvalidArgumentException($this->l->t('You are not allowed to assign the tag %s', [$name]));
+				} catch (TagCreationForbiddenException) {
+					throw new \InvalidArgumentException($this->l->t('You are not allowed to create tags'));
+				}
+				$visible[] = $tag;
 			}
 			$tagIds[] = $tag->getId();
 		}
-		$tags = $this->systemTags->getTagsByIds(array_values(array_unique(array_map('strval', $tagIds))));
+		$tagIds = array_values(array_unique(array_map('strval', $tagIds)));
+		if ($tagIds === []) {
+			throw new \InvalidArgumentException($this->l->t('Tag not found'));
+		}
+		foreach ($tagIds as $id) {
+			if (!ctype_digit($id)) {
+				throw new \InvalidArgumentException($this->l->t('Tag not found'));
+			}
+		}
+		try {
+			// with the user: tags they cannot see count as not found
+			$tags = $this->systemTags->getTagsByIds($tagIds, $user);
+		} catch (TagNotFoundException) {
+			throw new \InvalidArgumentException($this->l->t('Tag not found'));
+		}
 		foreach ($tags as $tag) {
-			if (!$this->systemTags->canUserAssignTag($tag, $user)) {
+			if (!$this->systemTags->canUserSeeTag($tag, $user) || !$this->systemTags->canUserAssignTag($tag, $user)) {
 				throw new \InvalidArgumentException($this->l->t('You are not allowed to assign the tag %s', [$tag->getName()]));
 			}
 		}
 		$ids = array_map(static fn ($t) => $t->getId(), array_values($tags));
-		return $this->each($uid, $fileIds, fn (Node $n) => $this->tagMapper->assignTags((string)$n->getId(), 'files', $ids));
+		return $this->each($uid, $fileIds, function (Node $n) use ($ids) {
+			// As in Files: tagging needs write access, so a read-only share cannot tag the owner's file
+			if (!($n->getPermissions() & Constants::PERMISSION_UPDATE)) {
+				throw new \RuntimeException('not updatable');
+			}
+			$this->tagMapper->assignTags((string)$n->getId(), 'files', $ids);
+		});
 	}
 
 	/**
-	 * Put moved files back where they came from.
+	 * The tag called $name, ignoring case and surrounding blanks, as Nextcloud does when
+	 * it refuses a duplicate.
 	 *
-	 * @param list<array{fileId: int, from: string}> $moves as returned by FileTransfer
+	 * @param list<ISystemTag> $tags
+	 */
+	public static function findTag(array $tags, string $name): ?ISystemTag {
+		$want = mb_strtolower(trim($name));
+		foreach ($tags as $tag) {
+			if (mb_strtolower(trim($tag->getName())) === $want) {
+				return $tag;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Put moved files back where they came from, under the name they had there (a move into a
+	 * folder with that name already taken renamed them to "name (2)").
+	 *
+	 * @param list<array{fileId: int, from: string, fromName?: string}> $moves as returned by FileTransfer
 	 */
 	public function undoMove(string $uid, array $moves): array {
 		$home = $this->rootFolder->getUserFolder($uid);
 		$from = [];
 		foreach ($moves as $m) {
-			$from[(int)$m['fileId']] = (string)$m['from'];
+			$from[(int)$m['fileId']] = [(string)$m['from'], isset($m['fromName']) ? (string)$m['fromName'] : null];
 		}
 		return $this->each($uid, array_keys($from), function (Node $n) use ($home, $from) {
-			$dest = $home->get($from[$n->getId()]);
+			[$folder, $fromName] = $from[$n->getId()];
+			$dest = $home->get($folder);
 			if (!$dest instanceof Folder || !$dest->isCreatable()) {
 				throw new \RuntimeException('target gone');
 			}
-			$n->move($dest->getPath() . '/' . $dest->getNonExistingName($n->getName()));
+			$name = self::undoName($fromName, $n->getName());
+			if ($n->getParent()->getId() === $dest->getId() && $n->getName() === $name) {
+				return; // already back
+			}
+			$n->move($dest->getPath() . '/' . $dest->getNonExistingName($name));
 		});
 	}
 
-	/** @return list<Node> files of $fileIds the user can read, for the ZIP download */
+	/** The name to restore: the old one if it is a plain file name, else the current one. */
+	public static function undoName(?string $fromName, string $current): string {
+		if ($fromName === null || $fromName === '' || $fromName === '.' || $fromName === '..'
+			|| str_contains($fromName, '/') || str_contains($fromName, '\\') || str_contains($fromName, "\0")) {
+			return $current;
+		}
+		return $fromName;
+	}
+
+	/**
+	 * Files of $fileIds the user may download, for the ZIP. Shares with download disabled
+	 * ("view only") are left out, as Files does.
+	 *
+	 * @return array{files: list<File>, failed: list<array{fileId: int, name: string, error: string}>}
+	 */
 	public function readable(string $uid, array $fileIds): array {
 		$home = $this->rootFolder->getUserFolder($uid);
-		$out = [];
+		$files = [];
+		$failed = [];
 		foreach (array_unique(array_map('intval', $fileIds)) as $id) {
 			$n = $home->getFirstNodeById($id);
-			if ($n !== null && $n->isReadable() && $n instanceof \OCP\Files\File) {
-				$out[] = $n;
+			if (!$n instanceof File || !$n->isReadable()) {
+				$failed[] = ['fileId' => $id, 'name' => $n?->getName() ?? '', 'error' => $this->l->t('Not found')];
+			} elseif (!$this->canDownload($n)) {
+				$failed[] = ['fileId' => $id, 'name' => $n->getName(), 'error' => $this->l->t('Download is disabled for this share')];
+			} else {
+				$files[] = $n;
 			}
 		}
-		return $out;
+		return ['files' => $files, 'failed' => $failed];
+	}
+
+	/** Same rule as apps/files_sharing ViewOnly: a share may deny the download attribute. */
+	private function canDownload(Node $n): bool {
+		try {
+			$storage = $n->getStorage();
+			if (!class_exists(SharedStorage::class) || !$storage->instanceOfStorage(SharedStorage::class)) {
+				return true;
+			}
+			// storage wrappers pass the call on to the shared storage
+			$share = $storage->getShare();
+			return $share->getAttributes()?->getAttribute('permissions', 'download') !== false;
+		} catch (\Throwable $e) {
+			// unsure: rather not hand it out
+			$this->logger->info('Download check failed: ' . $e->getMessage(), ['app' => 'glimpse']);
+			return false;
+		}
 	}
 
 	private function each(string $uid, array $fileIds, callable $fn): array {

@@ -48,7 +48,7 @@ return [
 		['name' => 'files#delete', 'url' => '/api/files/delete', 'verb' => 'POST'],
 		['name' => 'files#tags', 'url' => '/api/tags', 'verb' => 'GET'],
 		['name' => 'files#tag', 'url' => '/api/files/tag', 'verb' => 'POST'],
-		['name' => 'files#zip', 'url' => '/api/files/zip', 'verb' => 'GET'],
+		['name' => 'files#zip', 'url' => '/api/files/zip', 'verb' => 'POST'],
 
 		['name' => 'settings#save',       'url' => '/api/settings',              'verb' => 'PUT'],
 		['name' => 'settings#test',       'url' => '/api/settings/test',         'verb' => 'POST'],
