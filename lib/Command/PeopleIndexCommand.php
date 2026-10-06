@@ -11,6 +11,8 @@ namespace OCA\Glimpse\Command;
 
 use OCA\Glimpse\Service\MapIndex;
 use OCA\Glimpse\Service\PeopleIndex;
+use OCA\Glimpse\Service\PeopleIndexLock;
+use OCP\Lock\LockedException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -20,6 +22,7 @@ class PeopleIndexCommand extends Command {
 	public function __construct(
 		private PeopleIndex $index,
 		private MapIndex $map,
+		private PeopleIndexLock $lock,
 	) {
 		parent::__construct();
 	}
@@ -30,9 +33,16 @@ class PeopleIndexCommand extends Command {
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
-		[$people, $secs] = $this->index->rebuild(true);
-		$output->writeln("$people people checked in {$secs}s");
-		$output->writeln($this->map->rebuild(true) . ' geotagged pictures mapped');
-		return self::SUCCESS;
+		try {
+			return $this->lock->run(function () use ($output) {
+				[$people, $secs] = $this->index->rebuild(true);
+				$output->writeln("$people people checked in {$secs}s");
+				$output->writeln($this->map->rebuild(true) . ' geotagged pictures mapped');
+				return self::SUCCESS;
+			});
+		} catch (LockedException) {
+			$output->writeln('<error>A rebuild is already running (background job), try again later</error>');
+			return self::FAILURE;
+		}
 	}
 }
