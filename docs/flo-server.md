@@ -44,8 +44,9 @@ Mehr nicht: die App braucht keine Konfiguration pro Benutzer.
 Laufen über den Nextcloud-Cron der AIO. Von Hand: `occ glimpse:people-index`,
 `occ glimpse:prune --full`. Status: in der App unter Einstellungen → Status.
 
-PHP-Änderungen werden bis zu 60 s gecacht (`opcache.revalidate_freq`): nach `make deploy`
-kurz warten, bevor man testet.
+`deploy.sh` lädt php-fpm danach sanft neu (leert den PHP-Cache). Ohne das konnte Nextcloud
+die Routen der neuen Version aus der alten `routes.php` bauen und bis zur nächsten Version
+behalten (405 auf geänderte Routen, so passiert am 2026-10-06).
 
 ## GPU und Indexierung
 

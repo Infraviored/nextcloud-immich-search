@@ -37,6 +37,13 @@ docker exec "$CONTAINER" rm -rf "$TARGET.new"
 docker exec -i "$CONTAINER" sh -c "mkdir $TARGET.new && tar -xzf - -C $TARGET.new --strip-components=1" < "$tarball"
 docker exec "$CONTAINER" sh -c "chown -R www-data:www-data $TARGET.new && rm -rf $TARGET && mv $TARGET.new $TARGET"
 
+# PHP caches compiled files for up to a minute (opcache.revalidate_freq). Without a reload,
+# Nextcloud can rebuild its route cache for the new version from the old routes.php and
+# keep that stale table until the next version (405 on changed routes). A graceful reload
+# of php-fpm clears opcache; running requests finish first.
+docker exec "$CONTAINER" sh -c 'kill -USR2 $(ps -o pid,args | awk "/php-fpm: master/ && !/awk/ {print \$1}")' 2>/dev/null \
+    || echo "note: could not reload php-fpm, PHP changes may take a minute" >&2
+
 new=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
 old=$(occ config:app:get glimpse installed_version 2>/dev/null || true)
 enabled=$(occ config:app:get glimpse enabled 2>/dev/null || true)

@@ -3,6 +3,35 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.0.2] - 2026-10-06
+
+All 49 findings of the code review on #3.
+
+### Security
+- Private area: turning off the password prompt needs password confirmation; while locked,
+  lists are not shown and can only grow; private people (faces, samples, search, single
+  faces) are not found while locked.
+- Revoked shares: thumbnail grants are re-checked against the file; share deletions and
+  moves invalidate the people and map index; all share types count.
+- Tags need write permission on the file; ZIP respects shares without download.
+- Duplicate groups can only be dismissed by someone who sees the whole group (or an admin).
+- Ids are validated before they go into Immich URLs and encoded in the frontend.
+
+### Immich
+- Moves: database timeouts, a failed connection is not retried per file, no password in traces.
+- Pruning only touches library assets; folder exclusions only cover the tiny files' types;
+  patterns are written before they are recorded and escaped everywhere; entries are cleaned
+  up, `occ glimpse:prune --reset`; large state is stored lazily; locks against parallel runs.
+- Non-JSON answers from Immich are errors instead of empty results.
+
+### Files and UI
+- ZIP via POST with size limits and skipped unreadable files; undo restores the original
+  name; copies queue a scan of the owner's library only.
+- Map tiles: max zoom 18, 600/min, cache capped at 500 MB by a daily job, stale tile on errors.
+- "On this day" in the user's timezone; people search paginates.
+- Selection drops pictures that left the view; shift ranges across months; sturdier
+  long-press; no stuck spinner; stale responses ignored in timeline, folders, sidebar, people.
+
 ## [4.0.0] - 2026-10-05
 
 ### Changed

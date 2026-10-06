@@ -120,8 +120,7 @@ NC_URL=… NC_USER=… NC_PASS=<app password> npm run e2e   # live smoke test, p
 ```
 
 `deploy.sh` bumps the patch version whenever shipped files changed: Nextcloud caches routes
-and browsers cache scripts by version. PHP changes can take up to a minute to show
-(`opcache.revalidate_freq`). CI runs on every push; tagging `vX.Y.Z` builds a release
+and browsers cache scripts by version. It then reloads php-fpm gracefully, so PHP changes show at once. CI runs on every push; tagging `vX.Y.Z` builds a release
 ([docs/RELEASE.md](docs/RELEASE.md)).
 
 | Where | What |

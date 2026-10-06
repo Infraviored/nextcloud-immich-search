@@ -243,8 +243,16 @@ class PeopleController extends Controller {
 			throw new ImmichException($this->l->t('You are not allowed to change people'), Http::STATUS_FORBIDDEN);
 		}
 		$this->assetVisible($assetId);
-		$ids = array_column($this->immich->json('GET', '/faces?id=' . $assetId), 'id');
-		if (!in_array($faceId, $ids, true)) {
+		$face = null;
+		foreach ($this->immich->json('GET', '/faces?id=' . $assetId) as $f) {
+			if (($f['id'] ?? null) === $faceId) {
+				$face = $f;
+			}
+		}
+		// A face of a private person stays untouchable while the private area is locked,
+		// like the person itself (visible()).
+		$owner = $face['person']['id'] ?? null;
+		if ($face === null || ($owner !== null && in_array($owner, $this->privateArea->hiddenPeople($this->uid()), true))) {
 			throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
 		}
 	}
