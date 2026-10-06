@@ -48,13 +48,13 @@ class TrackMoves implements IEventListener {
 	}
 
 	public function handle(Event $event): void {
-		if (!($event instanceof BeforeNodeRenamedEvent || $event instanceof NodeRenamedEvent) || !$this->tracker->isEnabled()) {
+		if (!($event instanceof BeforeNodeRenamedEvent || $event instanceof NodeRenamedEvent)) {
 			return;
 		}
 		try {
 			$source = $event->getSource();
 			if ($event instanceof BeforeNodeRenamedEvent) {
-				if ($this->relevant($source)) {
+				if ($this->tracker->isEnabled() && $this->relevant($source)) {
 					$at = $this->locate($source);
 					if ($at !== null) {
 						self::$pending[$source->getPath()] = $at;
@@ -64,7 +64,12 @@ class TrackMoves implements IEventListener {
 			}
 			$before = self::$pending[$source->getPath()] ?? null;
 			unset(self::$pending[$source->getPath()]);
-			$after = $before !== null ? $this->locate($event->getTarget()) : null;
+			// Not enabled any more when the database was found unreachable during this request:
+			// the remaining files of a bulk move are skipped instead of waiting for it each time.
+			if ($before === null || !$this->tracker->isEnabled()) {
+				return;
+			}
+			$after = $this->locate($event->getTarget());
 			if ($after === null || $after[0] !== $before[0]) {
 				return;
 			}
