@@ -40,7 +40,25 @@ class ImmichClient {
 			$options['body'] = json_encode($body);
 			$options['headers']['Content-Type'] = 'application/json';
 		}
-		$decoded = json_decode((string)$this->send($url, $method, $endpoint, $options)->getBody(), true);
+		return $this->decode($this->send($url, $method, $endpoint, $options), $method, $endpoint);
+	}
+
+	/**
+	 * Body of a 2xx answer. Empty (204, or Immich answering a command with nothing) is an
+	 * empty result; anything else must be JSON. An HTML page from a proxy in front of
+	 * Immich would otherwise pass as "no hits" and, say, a search as "nothing there".
+	 */
+	private function decode(IResponse $resp, string $method, string $endpoint): array {
+		$body = trim((string)$resp->getBody());
+		if ($resp->getStatusCode() === 204 || $body === '') {
+			return [];
+		}
+		try {
+			$decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+		} catch (\JsonException) {
+			$this->logger->warning("Immich $method $endpoint: HTTP " . $resp->getStatusCode() . ' but no JSON: ' . json_encode(substr($body, 0, 200)), ['app' => 'glimpse']);
+			throw new ImmichException($this->l->t('Immich gave an answer that could not be read'), 502);
+		}
 		return is_array($decoded) ? $decoded : [];
 	}
 
