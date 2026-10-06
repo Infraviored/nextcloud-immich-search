@@ -53,12 +53,19 @@ class PrivateArea {
 		return $this->cache[$uid];
 	}
 
-	/** Folders and people as a whole; looks up the pictures of private people. */
-	public function setLists(string $uid, array $folders, array $people): array {
+	/**
+	 * Folders and people as a whole; looks up the pictures of private people.
+	 * $addOnly (while locked): the given entries are added, none are removed.
+	 */
+	public function setLists(string $uid, array $folders, array $people, bool $addOnly = false): array {
 		$data = $this->get($uid);
-		$data['folders'] = array_values(array_unique(array_filter(array_map(
-			static fn ($f) => '/' . trim((string)$f, '/'), $folders), static fn ($f) => $f !== '/')));
-		$data['people'] = array_values(array_unique(array_filter($people, static fn ($p) => preg_match(AssetSearch::UUID, (string)$p))));
+		$folders = array_map(static fn ($f) => '/' . trim(is_scalar($f) ? (string)$f : '', '/'), $folders);
+		$people = array_filter($people, static fn ($p) => is_string($p) && preg_match(AssetSearch::UUID, $p));
+		if ($addOnly) {
+			[$folders, $people] = [[...$data['folders'], ...$folders], [...$data['people'], ...$people]];
+		}
+		$data['folders'] = array_values(array_unique(array_filter($folders, static fn ($f) => $f !== '/')));
+		$data['people'] = array_values(array_unique($people));
 		$data['assets'] = $this->assetsOf($data['people']);
 		return $this->save($uid, $data);
 	}

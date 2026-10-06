@@ -16,6 +16,7 @@ use OCA\Glimpse\Service\Discover;
 use OCA\Glimpse\Service\FolderBrowser;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\MapIndex;
+use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
 use OCA\Glimpse\Service\TileProxy;
 use OCP\AppFramework\Controller;
@@ -45,6 +46,7 @@ class BrowseController extends Controller {
 		private MapIndex $map,
 		private TileProxy $tiles,
 		private PrivateArea $privateArea,
+		private Permissions $permissions,
 		private IL10N $l,
 		private LoggerInterface $logger,
 	) {
@@ -80,12 +82,13 @@ class BrowseController extends Controller {
 	#[UserRateLimit(limit: 120, period: 60)]
 	public function dismissDuplicate(string $id): Response {
 		return $this->guard(function () use ($id) {
-			// Only for groups the user actually sees two pictures of
-			$mine = array_column($this->discover->duplicates($this->uid()), 'id');
-			if (!in_array($id, $mine, true)) {
-				throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
+			// Gone for everyone afterwards: only if the user sees every picture of the group.
+			// Admins may anyway; they can clean up Immich directly too.
+			$uid = $this->uid();
+			if (!$this->permissions->isAdmin($uid) && !$this->discover->seesWholeGroup($uid, $id)) {
+				throw new ImmichException($this->l->t('Only possible if you can see all pictures of this group'), Http::STATUS_FORBIDDEN);
 			}
-			$this->discover->dismissDuplicate($this->uid(), $id);
+			$this->discover->dismissDuplicate($uid, $id);
 			return ['ok' => true];
 		});
 	}

@@ -99,6 +99,7 @@ class PeopleController extends Controller {
 	/**
 	 * The person's face, cut from a picture the user may see: the one the people index
 	 * picked, or $asset (one of samples()). No CSRF check: loaded by <img> tags. Read-only.
+	 * The index is up to an hour old, so its picture is checked again like any other.
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
@@ -107,9 +108,8 @@ class PeopleController extends Controller {
 			$default = $this->visible($id)['asset'];
 			if ($asset === '') {
 				$asset = $default;
-			} else {
-				$this->assetVisible($asset);
 			}
+			$this->assetVisible($asset);
 			$resp = new DataDisplayResponse($this->faces->face($id, $asset), Http::STATUS_OK, ['Content-Type' => 'image/jpeg']);
 			$resp->cacheFor(86400, false);
 			return $resp;
@@ -180,11 +180,15 @@ class PeopleController extends Controller {
 		return $this->guard(function () use ($assetId) {
 			$this->assetVisible($assetId);
 			$visible = $this->index->forUser($this->uid())['people'];
+			$hidden = $this->privateArea->hiddenPeople($this->uid());
 			$out = [];
 			foreach ($this->immich->json('GET', '/faces?id=' . $assetId) as $f) {
 				$w = max(1, (int)$f['imageWidth']);
 				$h = max(1, (int)$f['imageHeight']);
 				$pid = $f['person']['id'] ?? null;
+				if (in_array($pid, $hidden, true)) {
+					$pid = null; // a private person stays unnamed until unlocked
+				}
 				$out[] = [
 					'id' => $f['id'],
 					'x' => $f['boundingBoxX1'] / $w, 'y' => $f['boundingBoxY1'] / $h,
@@ -263,13 +267,17 @@ class PeopleController extends Controller {
 		});
 	}
 
-	/** @return array{count: int, asset: string} */
+	/**
+	 * A person the user may see: in the people index, and not private while locked.
+	 *
+	 * @return array{count: int, asset: string}
+	 */
 	private function visible(string $id): array {
 		if (!preg_match(AssetSearch::UUID, $id)) {
 			throw new ImmichException($this->l->t('Invalid ID'), Http::STATUS_BAD_REQUEST);
 		}
 		$v = $this->index->forUser($this->uid())['people'][$id] ?? null;
-		if ($v === null) {
+		if ($v === null || in_array($id, $this->privateArea->hiddenPeople($this->uid()), true)) {
 			throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
 		}
 		return $v;

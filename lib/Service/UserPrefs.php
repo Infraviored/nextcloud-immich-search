@@ -44,19 +44,38 @@ class UserPrefs {
 	}
 
 	public function set(string $uid, string $key, mixed $value): void {
+		$this->setAll($uid, [$key => $value]);
+	}
+
+	/**
+	 * Several at once: all are checked before the first is stored, so a bad one does not
+	 * leave the others half saved.
+	 *
+	 * @throws \InvalidArgumentException naming the first invalid key
+	 */
+	public function setAll(string $uid, array $prefs): void {
+		$raw = [];
+		foreach ($prefs as $key => $value) {
+			$raw[$key] = $this->raw((string)$key, $value);
+		}
+		foreach ($raw as $key => $value) {
+			$this->config->setUserValue($uid, Application::APP_ID, 'pref_' . $key, $value);
+		}
+	}
+
+	private function raw(string $key, mixed $value): string {
 		if (!isset(self::PREFS[$key])) {
 			throw new \InvalidArgumentException($key);
 		}
 		$type = self::PREFS[$key][0];
 		if ($type === 'bool') {
-			$raw = $value ? '1' : '0';
-		} else {
-			$raw = (string)$value;
-			if (!in_array($raw, explode(',', substr($type, 5)), true)) {
-				throw new \InvalidArgumentException($key);
-			}
+			return $value ? '1' : '0';
 		}
-		$this->config->setUserValue($uid, Application::APP_ID, 'pref_' . $key, $raw);
+		$raw = is_scalar($value) ? (string)$value : '';
+		if (!in_array($raw, explode(',', substr($type, 5)), true)) {
+			throw new \InvalidArgumentException($key);
+		}
+		return $raw;
 	}
 
 	/** @return array<string, mixed> */

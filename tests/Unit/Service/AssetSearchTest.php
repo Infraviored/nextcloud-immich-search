@@ -35,6 +35,8 @@ class AssetSearchTest extends TestCase {
 	private ImmichClient&MockObject $immich;
 	private array $app = [];
 	private array $grants = [];
+	/** File ids that no longer resolve for a user (share taken back): uid => list<int> */
+	private array $revoked = [];
 	private AssetSearch $search;
 
 	protected function setUp(): void {
@@ -124,11 +126,29 @@ class AssetSearchTest extends TestCase {
 		$this->assertSame(3, $res['nextPage'], 'stops once half a page is filled');
 	}
 
+	private const A1 = '11111111-1111-4111-8111-111111111111';
+	private const A2 = '22222222-2222-4222-8222-222222222222';
+
 	public function testThumbnailGrantFromSearch(): void {
-		$this->immich->expects($this->once())->method('json')->willReturn($this->asset('a2', '/mnt/nextcloud/alice/Private/secret.jpg'));
-		$this->search->visibleItem('bob', $this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg'));
-		$this->assertTrue($this->search->maySee('bob', 'a1'), 'granted by the search, no Immich call');
-		$this->assertFalse($this->search->maySee('bob', 'a2'), 'asks Immich, then refuses');
+		$this->immich->expects($this->once())->method('json')->willReturn($this->asset(self::A2, '/mnt/nextcloud/alice/Private/secret.jpg'));
+		$this->search->visibleItem('bob', $this->asset(self::A1, '/mnt/nextcloud/alice/Photos/beach.jpg'));
+		$this->assertTrue($this->search->maySee('bob', self::A1), 'granted by the search, no Immich call');
+		$this->assertFalse($this->search->maySee('bob', self::A2), 'asks Immich, then refuses');
+	}
+
+	public function testGrantEndsWhenShareIsTakenBack(): void {
+		$this->search->visibleItem('bob', $this->asset(self::A1, '/mnt/nextcloud/alice/Photos/beach.jpg'));
+		$this->assertTrue($this->search->maySee('bob', self::A1));
+		$this->revoked['bob'] = [10];
+		// Immich is asked again and the owner's file no longer resolves for bob
+		$this->immich->method('json')->willReturn($this->asset(self::A1, '/mnt/nextcloud/alice/Photos/beach.jpg'));
+		$this->assertFalse($this->search->maySee('bob', self::A1), 'the cached grant does not outlive the share');
+	}
+
+	public function testMaySeeRejectsMalformedIdsWithoutAskingImmich(): void {
+		$this->immich->expects($this->never())->method('json');
+		$this->assertFalse($this->search->maySee('bob', '../server/config'));
+		$this->assertFalse($this->search->maySee('bob', self::A1 . '/thumbnail'));
 	}
 
 	private function searchWithFreshConfig(): AssetSearch {
@@ -154,7 +174,7 @@ class AssetSearchTest extends TestCase {
 	private function folder(string $uid, array $byPath, array $byId): Folder&MockObject {
 		$f = $this->createMock(Folder::class);
 		$f->method('get')->willReturnCallback(fn ($p) => $byPath[$p] ?? throw new NotFoundException($p));
-		$f->method('getFirstNodeById')->willReturnCallback(fn ($id) => $byId[$id] ?? null);
+		$f->method('getFirstNodeById')->willReturnCallback(fn ($id) => in_array($id, $this->revoked[$uid] ?? [], true) ? null : ($byId[$id] ?? null));
 		$f->method('getRelativePath')->willReturnCallback(fn ($p) => substr($p, strlen("/$uid/files")));
 		return $f;
 	}

@@ -32,26 +32,27 @@ class PrivateController extends Controller {
 		parent::__construct(Application::APP_ID, $request);
 	}
 
+	/**
+	 * While locked, only how much is private: the folder names and people would give away
+	 * what the private area is meant to hide.
+	 */
 	#[NoAdminRequired]
 	public function get(): JSONResponse {
-		$p = $this->privateArea->get($this->uid());
-		return new JSONResponse([
-			'folders' => $p['folders'],
-			'people' => $p['people'],
-			'files' => count($p['files']),
-			'unlocked' => $this->privateArea->isUnlocked(),
-			'askPassword' => $this->prefs->get($this->uid(), 'private_password'),
-		]);
+		return new JSONResponse($this->describe($this->privateArea->get($this->uid())));
 	}
 
+	/** While locked, entries can only be added; taking something out needs unlocking. */
 	#[NoAdminRequired]
 	public function setLists(array $folders = [], array $people = []): JSONResponse {
-		$p = $this->privateArea->setLists($this->uid(), $folders, $people);
-		return new JSONResponse(['folders' => $p['folders'], 'people' => $p['people']]);
+		$locked = !$this->privateArea->isUnlocked();
+		return new JSONResponse($this->describe($this->privateArea->setLists($this->uid(), $folders, $people, $locked)));
 	}
 
 	#[NoAdminRequired]
 	public function setFiles(array $fileIds = [], bool $on = true): JSONResponse {
+		if (!$on && !$this->privateArea->isUnlocked()) {
+			return new JSONResponse(['error' => 'locked'], Http::STATUS_FORBIDDEN);
+		}
 		$p = $this->privateArea->setFiles($this->uid(), $fileIds, $on);
 		return new JSONResponse(['files' => count($p['files'])]);
 	}
@@ -80,6 +81,20 @@ class PrivateController extends Controller {
 	public function lock(): JSONResponse {
 		$this->privateArea->lock();
 		return new JSONResponse(['unlocked' => false]);
+	}
+
+	private function describe(array $p): array {
+		$unlocked = $this->privateArea->isUnlocked();
+		return [
+			'folders' => $unlocked ? $p['folders'] : [],
+			'people' => $unlocked ? $p['people'] : [],
+			'files' => count($p['files']),
+			'folderCount' => count($p['folders']),
+			'peopleCount' => count($p['people']),
+			'unlocked' => $unlocked,
+			'locked' => !$unlocked,
+			'askPassword' => $this->prefs->get($this->uid(), 'private_password'),
+		];
 	}
 
 	private function uid(): string {

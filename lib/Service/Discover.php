@@ -56,10 +56,31 @@ class Discover {
 				}
 			}
 			if (count($items) >= 2) {
-				$out[] = ['id' => $g['duplicateId'], 'keep' => $g['suggestedKeepAssetIds'] ?? [], 'items' => $items];
+				// Only suggestions among what the user sees: the others' ids are not theirs to know
+				$keep = array_values(array_intersect($g['suggestedKeepAssetIds'] ?? [], array_column($items, 'id')));
+				$out[] = ['id' => $g['duplicateId'], 'keep' => $keep, 'items' => $items];
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * May $uid dismiss this group? It is gone for everyone afterwards, so only if the user
+	 * sees every picture in it (admins may anyway, see BrowseController).
+	 */
+	public function seesWholeGroup(string $uid, string $groupId): bool {
+		foreach ($this->immich->json('GET', '/duplicates') as $g) {
+			if (($g['duplicateId'] ?? null) === $groupId) {
+				$assets = $g['assets'] ?? [];
+				foreach ($assets as $a) {
+					if ($this->assets->visibleItem($uid, $a) === null) {
+						return false;
+					}
+				}
+				return count($assets) >= 2;
+			}
+		}
+		return false;
 	}
 
 	/** "These are not duplicates": Immich forgets the group. */
