@@ -15,7 +15,12 @@
 					<NcIconSvgWrapper :path="mdiArrowLeft" />
 				</template>
 			</NcButton>
-			<img class="person-view__face" :src="faceUrl(id)" alt="">
+			<img
+				v-show="!faceFailed"
+				class="person-view__face"
+				:src="faceUrl(id)"
+				alt=""
+				@error="faceFailed = true">
 			<div class="person-view__title">
 				<!-- Name and birthday in one row, so the two fields line up -->
 				<div v-if="state.canManage" class="person-view__fields">
@@ -54,8 +59,9 @@
 					<NcIconSvgWrapper :path="person.favorite ? mdiStar : mdiStarOutline" />
 				</template>
 			</NcButton>
+			<!-- Locked, the server does not say which people are private: no toggle then. -->
 			<NcButton
-				v-if="person"
+				v-if="person && privateState.listsKnown"
 				variant="tertiary"
 				:aria-label="isPrivate ? t('No longer private') : t('Mark as private')"
 				:title="isPrivate ? t('No longer private') : t('Mark as private')"
@@ -74,7 +80,21 @@
 		<p v-if="error" class="person-view__error">
 			{{ error }}
 		</p>
-		<SearchView :person="id" />
+		<!-- Private people are not found while locked (face and pictures answer 404). -->
+		<NcEmptyContent
+			v-if="missing"
+			:name="t('Person not found')"
+			:description="privateState.unlocked ? '' : t('Unlock the private area to see it.')">
+			<template #icon>
+				<NcIconSvgWrapper :path="mdiLock" />
+			</template>
+			<template v-if="!privateState.unlocked" #action>
+				<NcButton variant="primary" @click="togglePrivate">
+					{{ t('Show private pictures') }}
+				</NcButton>
+			</template>
+		</NcEmptyContent>
+		<SearchView v-else :person="id" />
 	</div>
 </template>
 
@@ -82,13 +102,14 @@
 import { mdiArrowLeft, mdiEyeOffOutline, mdiEyeOutline, mdiLock, mdiLockOpenVariantOutline, mdiStar, mdiStarOutline } from '@mdi/js'
 import { computed, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import SearchView from './SearchView.vue'
-import { errorMessage, faceUrl, updatePerson } from '../api.js'
+import { errorMessage, faceUrl, localDate, updatePerson } from '../api.js'
 import { n, t } from '../l10n.js'
 import { patchPerson, peopleState as state } from '../people.js'
-import { privateState, setPrivateLists } from '../private.js'
+import { privateState, setPrivateLists, togglePrivate } from '../private.js'
 import { href, navigate } from '../router.js'
 
 const props = defineProps({
@@ -96,6 +117,12 @@ const props = defineProps({
 })
 
 const person = computed(() => state.people.find((p) => p.id === props.id))
+const faceFailed = ref(false)
+/**
+ * Not in the people list and no face (404): private while locked, or gone. Unnamed people
+ * with few pictures are not in the list either, but their face loads.
+ */
+const missing = computed(() => faceFailed.value && !person.value)
 const name = ref(person.value?.name ?? '')
 const saved = ref(false)
 const birthday = ref(person.value?.birthDate ?? '')
@@ -128,7 +155,7 @@ async function saveName() {
 	}
 }
 
-const today = new Date().toISOString().slice(0, 10)
+const today = localDate()
 const age = computed(() => {
 	const b = person.value?.birthDate
 	if (!b) {

@@ -109,6 +109,14 @@ OC.L10N.register(
             "{count} Bild",
             "{count} Bilder"
         ],
+        "_{count} private folder_::_{count} private folders_": [
+            "{count} privater Ordner",
+            "{count} private Ordner"
+        ],
+        "_{count} private person_::_{count} private people_": [
+            "{count} private Person",
+            "{count} private Personen"
+        ],
         "_{count} selected_::_{count} selected_": [
             "{count} ausgewählt",
             "{count} ausgewählt"
@@ -144,6 +152,7 @@ OC.L10N.register(
         "Ask an admin to connect it to Immich.": "Bitten Sie einen Admin, sie mit Immich zu verbinden.",
         "Ask for my password when unlocking": "Beim Entsperren nach meinem Passwort fragen",
         "Assign faces …": "Gesichter zuordnen …",
+        "At most {max} files can be downloaded as one ZIP.": "Höchstens {max} Dateien können als ein ZIP heruntergeladen werden.",
         "AVI (videos)": "AVI (Videos)",
         "Back to the search": "Zurück zur Suche",
         "Birthday": "Geburtstag",
@@ -153,6 +162,7 @@ OC.L10N.register(
         "Choose or type a new album": "Album wählen oder neues eingeben",
         "Choose or type a new tag": "Tag wählen oder neuen eingeben",
         "Clear selection": "Auswahl aufheben",
+        "Confirm your password to turn this off.": "Bestätigen Sie Ihr Passwort, um das auszuschalten.",
         "Connect it to Immich in the settings.": "Verbinden Sie sie in den Einstellungen mit Immich.",
         "Connected as {user}": "Verbunden als {user}",
         "Connection": "Verbindung",
@@ -169,6 +179,7 @@ OC.L10N.register(
         "Display": "Darstellung",
         "DNG (raw photos)": "DNG (Rohdaten)",
         "Download as ZIP": "Als ZIP herunterladen",
+        "Download failed: {error}": "Download fehlgeschlagen: {error}",
         "Duplicates": "Duplikate",
         "e.g. woman on the beach": "z. B. Frau am Strand",
         "Every 6 hours": "Alle 6 Stunden",
@@ -268,6 +279,7 @@ OC.L10N.register(
         "Once a day": "Einmal am Tag",
         "One connection for everybody. Immich indexes the files of all users; everyone only finds what they can open in Nextcloud themselves.": "Eine Verbindung für alle. Immich indexiert die Dateien aller Benutzer; jeder findet nur, was er in Nextcloud selbst öffnen darf.",
         "Only admins": "Nur Admins",
+        "Only possible if you can see all pictures of this group": "Nur möglich, wenn Sie alle Bilder dieser Gruppe sehen können",
         "only the first ones are shown": "nur die ersten werden gezeigt",
         "Open all results in Glimpse": "Alle Treffer in Glimpse öffnen",
         "Open settings": "Einstellungen öffnen",
@@ -288,6 +300,7 @@ OC.L10N.register(
         "Glimpse": "Glimpse",
         "Glimpse (Immich)": "Glimpse (Immich)",
         "Glimpse is not set up yet": "Glimpse ist noch nicht eingerichtet",
+        "Person not found": "Person nicht gefunden",
         "Photos": "Fotos",
         "Photos by content": "Fotos nach Inhalt",
         "Pictures of {name}": "Bilder von {name}",
@@ -355,6 +368,7 @@ OC.L10N.register(
         "Target folder not found": "Zielordner nicht gefunden",
         "Test connection": "Verbindung testen",
         "The address must start with http:// or https://": "Die Adresse muss mit http:// oder https:// beginnen",
+        "The map could not be loaded: {error}": "Die Karte konnte nicht geladen werden: {error}",
         "The map is built in the background; it will appear here within the hour.": "Die Karte wird im Hintergrund erstellt und erscheint hier innerhalb einer Stunde.",
         "The path must start with / and contain {user} exactly once": "Der Pfad muss mit / beginnen und {user} genau einmal enthalten",
         "The people list has not been built yet.": "Die Personenliste wurde noch nicht erstellt.",
@@ -363,11 +377,14 @@ OC.L10N.register(
         "Thumbnails": "Vorschaubilder",
         "Tile size": "Kachelgröße",
         "Timeline": "Zeitleiste",
+        "Try again": "Erneut versuchen",
         "Type": "Art",
         "Type a name or pick someone": "Namen eingeben oder jemanden wählen",
         "Unknown date": "Unbekanntes Datum",
         "Unknown setting: %s": "Unbekannte Einstellung: %s",
+        "Unlock first": "Entsperren Sie zuerst den privaten Bereich",
         "Unlock the private area to see it.": "Entsperren Sie den privaten Bereich, um ihn zu sehen.",
+        "Unlock to see and edit": "Entsperren Sie, um sie zu sehen und zu bearbeiten",
         "Unnamed": "Unbenannt",
         "Update people now": "Personen jetzt aktualisieren",
         "Update the list": "Liste aktualisieren",

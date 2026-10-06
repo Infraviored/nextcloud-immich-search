@@ -12,39 +12,70 @@
 			{{ t('Ask for my password when unlocking') }}
 		</NcCheckboxRadioSwitch>
 
-		<h3>{{ t('Private folders') }}</h3>
-		<ul v-if="privateState.folders.length" class="list">
-			<li v-for="f in privateState.folders" :key="f">
-				<code>{{ f }}</code>
-				<NcButton variant="tertiary" :aria-label="t('Remove')" @click="removeFolder(f)">
+		<!-- Locked: the server only tells how many, not which (that would give them away). -->
+		<template v-if="!privateState.listsKnown">
+			<h3>{{ t('Private folders') }}</h3>
+			<p class="hint">
+				{{ n('{count} private folder', '{count} private folders', privateState.folderCount, { count: privateState.folderCount }) }}
+			</p>
+			<h3>{{ t('Private people') }}</h3>
+			<p class="hint">
+				{{ n('{count} private person', '{count} private people', privateState.peopleCount, { count: privateState.peopleCount }) }}
+			</p>
+			<p class="hint">
+				{{ t('Unlock to see and edit') }}
+			</p>
+			<div class="buttons">
+				<NcButton @click="togglePrivate">
 					<template #icon>
-						<NcIconSvgWrapper :path="mdiClose" />
+						<NcIconSvgWrapper :path="mdiLockOpenVariantOutline" />
 					</template>
+					{{ t('Show private pictures') }}
 				</NcButton>
-			</li>
-		</ul>
-		<NcButton @click="addFolder">
-			<template #icon>
-				<NcIconSvgWrapper :path="mdiFolderLockOutline" />
-			</template>
-			{{ t('Add folder …') }}
-		</NcButton>
+				<!-- Adding works locked too; removing does not (the server only adds then). -->
+				<NcButton @click="addFolder">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiFolderLockOutline" />
+					</template>
+					{{ t('Add folder …') }}
+				</NcButton>
+			</div>
+		</template>
+		<template v-else>
+			<h3>{{ t('Private folders') }}</h3>
+			<ul v-if="privateState.folders.length" class="list">
+				<li v-for="f in privateState.folders" :key="f">
+					<code>{{ f }}</code>
+					<NcButton variant="tertiary" :aria-label="t('Remove')" @click="removeFolder(f)">
+						<template #icon>
+							<NcIconSvgWrapper :path="mdiClose" />
+						</template>
+					</NcButton>
+				</li>
+			</ul>
+			<NcButton @click="addFolder">
+				<template #icon>
+					<NcIconSvgWrapper :path="mdiFolderLockOutline" />
+				</template>
+				{{ t('Add folder …') }}
+			</NcButton>
 
-		<h3>{{ t('Private people') }}</h3>
-		<p v-if="!privateState.people.length" class="hint">
-			{{ t('Mark a person private on their page (lock button).') }}
-		</p>
-		<ul v-else class="list">
-			<li v-for="id in privateState.people" :key="id">
-				<img :src="faceUrl(id)" alt="" class="face">
-				{{ nameOf(id) }}
-				<NcButton variant="tertiary" :aria-label="t('Remove')" @click="removePerson(id)">
-					<template #icon>
-						<NcIconSvgWrapper :path="mdiClose" />
-					</template>
-				</NcButton>
-			</li>
-		</ul>
+			<h3>{{ t('Private people') }}</h3>
+			<p v-if="!privateState.people.length" class="hint">
+				{{ t('Mark a person private on their page (lock button).') }}
+			</p>
+			<ul v-else class="list">
+				<li v-for="id in privateState.people" :key="id">
+					<img :src="faceUrl(id)" alt="" class="face">
+					{{ nameOf(id) }}
+					<NcButton variant="tertiary" :aria-label="t('Remove')" @click="removePerson(id)">
+						<template #icon>
+							<NcIconSvgWrapper :path="mdiClose" />
+						</template>
+					</NcButton>
+				</li>
+			</ul>
+		</template>
 
 		<h3>{{ t('Single pictures') }}</h3>
 		<p class="hint">
@@ -54,8 +85,9 @@
 </template>
 
 <script setup>
-import { mdiClose, mdiFolderLockOutline } from '@mdi/js'
+import { mdiClose, mdiFolderLockOutline, mdiLockOpenVariantOutline } from '@mdi/js'
 import { getFilePickerBuilder } from '@nextcloud/dialogs'
+import { confirmPassword } from '@nextcloud/password-confirmation'
 import { onMounted } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
@@ -65,17 +97,32 @@ import { useAction } from '../../composables/useAction.js'
 import { n, t } from '../../l10n.js'
 import { peopleState } from '../../people.js'
 import { saveUserPrefs, userPrefs } from '../../prefs.js'
-import { loadPrivate, privateState, setPrivateLists } from '../../private.js'
+import { addPrivateFolder, loadPrivate, privateState, setPrivateLists, togglePrivate } from '../../private.js'
 
 const { act } = useAction()
 
 const nameOf = (id) => peopleState.people.find((p) => p.id === id)?.name || t('Unnamed')
 
-function savePref(on) {
-	return act(async () => {
-		await saveUserPrefs({ private_password: on })
+async function savePref(on) {
+	const res = await act(async () => {
+		if (!on) {
+			// Turning the password off needs a recent password confirmation (or unlocked).
+			await confirmPassword()
+		}
+		try {
+			await saveUserPrefs({ private_password: on })
+		} catch (e) {
+			if (e?.response?.status === 403 && e.response.data?.error === 'password') {
+				throw new Error(t('Confirm your password to turn this off.'), { cause: e })
+			}
+			throw e
+		}
 		await loadPrivate()
+		return true
 	}, t('Saved'))
+	if (!res) {
+		userPrefs.private_password = !on // not saved (or the dialog was cancelled)
+	}
 }
 
 async function addFolder() {
@@ -93,7 +140,7 @@ async function addFolder() {
 		.build()
 	await picker.pick().catch(() => null)
 	if (chosen && chosen !== '/') {
-		act(() => setPrivateLists([...privateState.folders, chosen], privateState.people), t('Saved'))
+		act(() => addPrivateFolder(chosen), t('Saved'))
 	}
 }
 
@@ -134,4 +181,10 @@ onMounted(loadPrivate)
 }
 
 .hint { color: var(--color-text-maxcontrast); }
+
+.buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
 </style>
