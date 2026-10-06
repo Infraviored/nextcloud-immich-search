@@ -68,28 +68,45 @@ const similar = ref([])
 
 const appUrl = (path) => generateUrl('/apps/glimpse' + path)
 
+/** Counts the loads; the sidebar switches files faster than Immich answers. */
+let loads = 0
+
 async function load() {
 	if (!props.node || !props.active) {
 		return
 	}
+	const mine = ++loads
+	const current = () => mine === loads
+	// Nothing of the previous file may stay visible while this one loads.
 	state.value = 'loading'
+	asset.value = null
+	people.value = []
+	faceCount.value = 0
+	similar.value = []
+	let found
 	try {
-		asset.value = await assetForFile(props.node.fileid)
+		found = await assetForFile(props.node.fileid)
 	} catch {
-		state.value = 'missing'
+		if (current()) {
+			state.value = 'missing'
+		}
 		return
 	}
-	state.value = 'ready'
-	const [faces, sim] = await Promise.allSettled([getFaces(asset.value.id), search({ similar: asset.value.id })])
+	const [faces, sim] = await Promise.allSettled([getFaces(found.id), search({ similar: found.id })])
+	if (!current()) {
+		return
+	}
 	const seen = new Map()
 	for (const f of faces.value?.faces ?? []) {
 		if (f.personId && f.known && !seen.has(f.personId)) {
 			seen.set(f.personId, { id: f.personId, name: f.personName })
 		}
 	}
+	asset.value = found
 	people.value = [...seen.values()]
 	faceCount.value = faces.value?.faces?.length ?? 0
 	similar.value = (sim.value?.items ?? []).slice(0, SIMILAR)
+	state.value = 'ready'
 }
 
 watch(() => [props.node?.fileid, props.active], load, { immediate: true })

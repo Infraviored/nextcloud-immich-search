@@ -20,8 +20,9 @@
 				</NcButton>
 			</template>
 			<span class="folders__spacer" />
+			<!-- Locked, the server does not say which folders are private: no toggle then. -->
 			<NcButton
-				v-if="data.path !== '/'"
+				v-if="data.path !== '/' && privateState.listsKnown"
 				variant="tertiary"
 				size="small"
 				@click="toggleFolderPrivate">
@@ -95,6 +96,8 @@ const path = ref(route.query.path || '/')
 const data = ref({ path: '/', folders: [], items: [], truncated: false })
 const loading = ref(true)
 const error = ref('')
+/** Counts the loads; only the answer to the latest one is shown. */
+let loads = 0
 
 const crumbs = computed(() => {
 	const parts = data.value.path.split('/').filter(Boolean)
@@ -102,15 +105,24 @@ const crumbs = computed(() => {
 })
 
 async function load() {
+	const mine = ++loads
+	const wanted = path.value
 	loading.value = true
 	error.value = ''
 	try {
-		data.value = await folder(path.value)
+		const res = await folder(wanted)
+		if (mine === loads) {
+			data.value = res
+		}
 	} catch (e) {
-		error.value = errorMessage(e)
-		data.value = { path: path.value, folders: [], items: [], truncated: false }
+		if (mine === loads) {
+			error.value = errorMessage(e)
+			data.value = { path: wanted, folders: [], items: [], truncated: false }
+		}
 	} finally {
-		loading.value = false
+		if (mine === loads) {
+			loading.value = false
+		}
 	}
 }
 

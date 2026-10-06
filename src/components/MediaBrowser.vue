@@ -56,6 +56,7 @@
 			<AssetGrid
 				v-model:selected="selected"
 				:items="group.items"
+				@toggle="toggle"
 				@open="open"
 				@similar="$emit('similar', $event)" />
 		</template>
@@ -65,7 +66,7 @@
 <script setup>
 import { showSuccess, showWarning } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import AlbumDialog from './AlbumDialog.vue'
 import AssetGrid from './AssetGrid.vue'
@@ -77,7 +78,8 @@ import { deleteFiles, favorite, tagFiles } from '../api.js'
 import { useAction } from '../composables/useAction.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
-import { setPrivateFiles } from '../private.js'
+import { privateState, setPrivateFiles } from '../private.js'
+import { pruneSelection, toggleSelection } from '../selection.js'
 import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
@@ -93,12 +95,25 @@ const emit = defineEmits(['removed', 'refresh', 'similar'])
 
 const page = loadState('glimpse', 'page', { photosEnabled: false })
 const selected = ref(new Set())
+/** File id clicked last, start of a shift range; shared by all groups of the view. */
+let anchor = null
 const dialog = ref(null)
 const { busy: transferBusy, run: runTransfer } = useTransfer(() => emit('refresh'))
 const { busy: actionBusy, act } = useAction()
 
 const allItems = computed(() => props.groups.flatMap((g) => g.items))
 const singleSelected = computed(() => (selected.value.size === 1 ? allItems.value.find((i) => selected.value.has(i.fileId)) ?? null : null))
+
+// New search, map pan, folder change, year jump: what is gone cannot stay selected,
+// or delete and move would act on pictures the user no longer sees.
+watch(allItems, (items) => {
+	selected.value = pruneSelection(selected.value, items)
+})
+
+function toggle(item, range) {
+	selected.value = toggleSelection(selected.value, allItems.value, item.fileId, anchor, range)
+	anchor = item.fileId
+}
 
 function open(item) {
 	openInViewer(item, allItems.value)
@@ -177,6 +192,11 @@ async function doPrivate(on) {
 			? n('{count} file is private now', '{count} files are private now', ids.length, { count: ids.length })
 			: n('{count} file is no longer private', '{count} files are no longer private', ids.length, { count: ids.length }))
 		selected.value = new Set()
+		// Unlocked, private pictures stay visible; locked (only possible if the session ran
+		// out meanwhile), they leave this view without reloading it.
+		if (on && !privateState.unlocked) {
+			emit('removed', ids)
+		}
 	}
 }
 

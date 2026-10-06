@@ -6,7 +6,15 @@
 import axios from '@nextcloud/axios'
 import { generateUrl } from '@nextcloud/router'
 
-const url = (path) => generateUrl('/apps/glimpse' + path)
+export const url = (path) => generateUrl('/apps/glimpse' + path)
+
+/**
+ * One path segment: ids can come from the address bar (?similar=, /people/<id>), so they
+ * must not be able to change the request path.
+ *
+ * @param {string|number} value
+ */
+export const seg = (value) => encodeURIComponent(String(value))
 
 /**
  * Error message from our JSON errors, or a generic one.
@@ -17,9 +25,9 @@ export function errorMessage(e) {
 	return e?.response?.data?.error || e?.message || String(e)
 }
 
-export const thumbnailUrl = (id, size = 'thumbnail') => url(`/api/assets/${id}/thumbnail`) + (size === 'preview' ? '?size=preview' : '')
-export const faceUrl = (id, asset = '') => url(`/api/people/${id}/face`) + (asset ? '?asset=' + asset : '')
-export const fileUrl = (fileId) => generateUrl('/f/' + fileId)
+export const thumbnailUrl = (id, size = 'thumbnail') => url(`/api/assets/${seg(id)}/thumbnail`) + (size === 'preview' ? '?size=preview' : '')
+export const faceUrl = (id, asset = '') => url(`/api/people/${seg(id)}/face`) + (asset ? '?asset=' + seg(asset) : '')
+export const fileUrl = (fileId) => generateUrl('/f/' + seg(fileId))
 export const previewUrl = (fileId) => generateUrl('/core/preview?fileId={fileId}&x=256&y=256&a=1&mimeFallback=true', { fileId })
 
 export async function search({ q = '', page = 1, person = '', type = '', literal = false, similar = '' }, signal) {
@@ -32,11 +40,11 @@ export async function listPeople() {
 }
 
 export async function updatePerson(id, changes) {
-	return (await axios.put(url(`/api/people/${id}`), changes)).data
+	return (await axios.put(url(`/api/people/${seg(id)}`), changes)).data
 }
 
 export async function mergePeople(target, ids) {
-	return (await axios.post(url(`/api/people/${target}/merge`), { ids })).data
+	return (await axios.post(url(`/api/people/${seg(target)}/merge`), { ids })).data
 }
 
 export async function transfer(fileIds, target, mode) {
@@ -119,14 +127,23 @@ export async function tagFiles(fileIds, tagIds, newTags) {
 	return (await axios.post(url('/api/files/tag'), { fileIds, tagIds, newTags })).data
 }
 
-export const zipUrl = (fileIds) => url('/api/files/zip') + '?ids=' + fileIds.join(',')
-
 export async function timeline({ page = 1, before = '', type = '' }, signal) {
 	return (await axios.get(url('/api/timeline'), { params: { page, before, type }, signal })).data
 }
 
+/**
+ * YYYY-MM-DD in the browser's time zone (toISOString would give UTC: shortly after
+ * midnight, "today" would still be yesterday east of Greenwich).
+ *
+ * @param {Date} date
+ */
+export function localDate(date = new Date()) {
+	const pad = (v) => String(v).padStart(2, '0')
+	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 export async function memories() {
-	return (await axios.get(url('/api/memories'), { params: { date: new Date().toISOString().slice(0, 10) } })).data
+	return (await axios.get(url('/api/memories'), { params: { date: localDate() } })).data
 }
 
 export async function duplicates() {
@@ -134,7 +151,7 @@ export async function duplicates() {
 }
 
 export async function dismissDuplicate(id) {
-	return (await axios.delete(url('/api/duplicates/' + id))).data
+	return (await axios.delete(url('/api/duplicates/' + seg(id)))).data
 }
 
 export async function folder(path) {
@@ -153,21 +170,21 @@ export async function mapMarkers() {
 export const tileUrl = () => url('/api/tiles') + '/{z}/{x}/{y}'
 
 export async function getFaces(assetId) {
-	return (await axios.get(url(`/api/assets/${assetId}/faces`))).data
+	return (await axios.get(url(`/api/assets/${seg(assetId)}/faces`))).data
 }
 
 export async function reassignFace(faceId, assetId, { personId = '', newName = '' }) {
-	return (await axios.put(url(`/api/faces/${faceId}`), { assetId, personId, newName })).data
+	return (await axios.put(url(`/api/faces/${seg(faceId)}`), { assetId, personId, newName })).data
 }
 
 export async function deleteFace(faceId, assetId) {
-	return (await axios.delete(url(`/api/faces/${faceId}`), { params: { assetId } })).data
+	return (await axios.delete(url(`/api/faces/${seg(faceId)}`), { params: { assetId } })).data
 }
 
 export async function assetForFile(fileId) {
-	return (await axios.get(url(`/api/files/${fileId}/asset`))).data
+	return (await axios.get(url(`/api/files/${seg(fileId)}/asset`))).data
 }
 
 export async function personSamples(id) {
-	return (await axios.get(url(`/api/people/${id}/samples`))).data
+	return (await axios.get(url(`/api/people/${seg(id)}/samples`))).data
 }

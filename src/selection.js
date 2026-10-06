@@ -6,27 +6,49 @@
 /**
  * Selection rules of the grid, kept free of Vue so they can be tested.
  *
+ * The anchor of a shift range is a file id, not an index: the view may consist of several
+ * grids (months in the timeline) and items come and go, so indexes would point elsewhere.
+ *
  * @param {Set} selected   current selection (file ids); not modified
- * @param {Array} items    items in grid order, each with a fileId
- * @param {number} index   clicked item
- * @param {number|null} anchor  last clicked index, for shift ranges
+ * @param {Array} items    all items of the view in display order, each with a fileId
+ * @param {number} fileId  clicked item
+ * @param {number|null} anchor  file id clicked before, for shift ranges
  * @param {boolean} range  shift held
  * @return {Set} the new selection
  */
-export function toggleSelection(selected, items, index, anchor, range) {
+export function toggleSelection(selected, items, fileId, anchor, range) {
 	const next = new Set(selected)
 	if (range && anchor !== null && anchor !== undefined) {
-		const [from, to] = [Math.min(anchor, index), Math.max(anchor, index)]
-		items.slice(from, to + 1).forEach((i) => next.add(i.fileId))
-		return next
+		const a = items.findIndex((i) => i.fileId === anchor)
+		const b = items.findIndex((i) => i.fileId === fileId)
+		if (a >= 0 && b >= 0) {
+			items.slice(Math.min(a, b), Math.max(a, b) + 1).forEach((i) => next.add(i.fileId))
+			return next
+		}
 	}
-	const id = items[index].fileId
-	if (next.has(id)) {
-		next.delete(id)
+	if (next.has(fileId)) {
+		next.delete(fileId)
 	} else {
-		next.add(id)
+		next.add(fileId)
 	}
 	return next
+}
+
+/**
+ * Only what is still shown stays selected: after a new search, a map pan or a folder change
+ * an action must not hit pictures the user cannot see any more.
+ *
+ * @param {Set} selected
+ * @param {Array} items  items now shown, each with a fileId
+ * @return {Set} the same Set if nothing was dropped, else a smaller one
+ */
+export function pruneSelection(selected, items) {
+	if (!selected.size) {
+		return selected
+	}
+	const shown = new Set(items.map((i) => i.fileId))
+	const kept = [...selected].filter((id) => shown.has(id))
+	return kept.length === selected.size ? selected : new Set(kept)
 }
 
 /**

@@ -74,9 +74,13 @@ function camel(key) {
 	return key.replace(/^[-_\s]+/, '').replace(/[-_\s]+(.)/g, (m, c) => c.toUpperCase())
 }
 
+/** The user changes the sorting in the Files app (same page), so it is only kept briefly. */
+const SORTING_TTL_MS = 10000
 let sorting = null
+let sortingAt = 0
 async function sortingConfig() {
-	if (!sorting) {
+	if (!sorting || Date.now() - sortingAt > SORTING_TTL_MS) {
+		sortingAt = Date.now()
 		sorting = axios.get(generateUrl('/apps/files/api/v1/views'))
 			.then(({ data }) => data?.data?.files ?? {})
 			.catch(() => ({}))

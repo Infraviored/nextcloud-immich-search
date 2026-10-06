@@ -190,8 +190,11 @@ async function run(reset, asText = false) {
 	if (reset) {
 		literal.value = asText
 		resolved.value = null
+		// The aborted request skips its cleanup (it is no longer the current one), so the
+		// spinner is reset here; otherwise it would stay if this search ends right below.
 		controller?.abort()
 		controller = null
+		loading.value = false
 		items.value = []
 		nextPage.value = 1
 		searched.value = false

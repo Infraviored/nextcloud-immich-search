@@ -92,12 +92,12 @@
 				</template>
 				{{ t('No longer private') }}
 			</NcActionButton>
-			<NcActionLink :href="zipHref" :closeAfterClick="true">
+			<NcActionButton :closeAfterClick="true" @click="downloadZip(fileIds)">
 				<template #icon>
 					<NcIconSvgWrapper :path="mdiDownload" />
 				</template>
 				{{ t('Download as ZIP') }}
-			</NcActionLink>
+			</NcActionButton>
 			<template v-if="single">
 				<NcActionSeparator />
 				<NcActionButton :closeAfterClick="true" @click="$emit('similar')">
@@ -164,9 +164,10 @@ import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import { fileUrl, zipUrl } from '../api.js'
+import { fileUrl } from '../api.js'
 import { recentTargets as recent } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
+import { downloadZip } from '../zip.js'
 
 const props = defineProps({
 	count: { type: Number, required: true },
@@ -179,7 +180,6 @@ const props = defineProps({
 })
 defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'delete'])
 
-const zipHref = computed(() => zipUrl(props.fileIds))
 const shareHref = computed(() => {
 	const dir = props.single.path.slice(0, props.single.path.lastIndexOf('/')) || '/'
 	return generateUrl('/apps/files/files/{id}?dir={dir}&opendetails=true', { id: props.single.fileId, dir })

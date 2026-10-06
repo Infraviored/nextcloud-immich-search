@@ -14,6 +14,12 @@
 			<template v-if="loadingMarkers">
 				{{ t('Loading map …') }}
 			</template>
+			<template v-else-if="markersError">
+				{{ t('The map could not be loaded: {error}', { error: markersError }) }}
+				<NcButton variant="tertiary" size="small" @click="loadMarkers">
+					{{ t('Try again') }}
+				</NcButton>
+			</template>
 			<template v-else-if="!markers.length">
 				{{ updated ? t('No geotagged pictures.') : t('The map is built in the background; it will appear here within the hour.') }}
 			</template>
@@ -24,6 +30,12 @@
 		<MediaBrowser :groups="[{ key: 'area', items }]" @removed="drop" @similar="similar" />
 		<div ref="sentinel" class="map__more">
 			<NcLoadingIcon v-if="loadingItems" :size="32" />
+			<template v-else-if="itemsError">
+				<span>{{ itemsError }}</span>
+				<NcButton variant="tertiary" size="small" @click="retryItems">
+					{{ t('Try again') }}
+				</NcButton>
+			</template>
 		</div>
 	</div>
 </template>
@@ -31,9 +43,10 @@
 <script setup>
 import L from 'leaflet'
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import MediaBrowser from '../components/MediaBrowser.vue'
-import { itemsFor, mapMarkers, thumbnailUrl, tileUrl } from '../api.js'
+import { errorMessage, itemsFor, mapMarkers, thumbnailUrl, tileUrl } from '../api.js'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { n, t } from '../l10n.js'
 import { navigate } from '../router.js'
@@ -53,10 +66,15 @@ const items = ref([])
 const updated = ref(null)
 const loadingMarkers = ref(true)
 const loadingItems = ref(false)
+const markersError = ref('')
+const itemsError = ref('')
 let map = null
 let shown = 0
 let generation = 0
-const more = useInfiniteScroll(sentinel, () => loadItems())
+/** The map is removed on unmount; answers arriving later must not touch it. */
+let unmounted = false
+// After a failed page, only "Try again" continues (no retry loop while scrolling).
+const more = useInfiniteScroll(sentinel, () => !itemsError.value && loadItems())
 
 /** Markers inside the visible area, newest first; the grid below follows the map. */
 function refreshArea() {
@@ -64,6 +82,7 @@ function refreshArea() {
 	inView.value = markers.value.filter((m) => b.contains([m[2], m[3]])).sort((a, b2) => b2[5] - a[5])
 	items.value = []
 	shown = 0
+	itemsError.value = ''
 	generation++
 	loadItems()
 }
@@ -79,13 +98,25 @@ async function loadItems() {
 	try {
 		// Names and paths come from Nextcloud; the map index only holds ids and coordinates.
 		const details = new Map((await itemsFor(page.map((m) => m[1]))).map((i) => [i.fileId, i]))
-		if (gen === generation) {
+		if (gen === generation && !unmounted) {
 			items.value.push(...page.filter((m) => details.has(m[1])).map((m) => ({ ...details.get(m[1]), id: m[0] })))
+		}
+	} catch (e) {
+		if (gen === generation && !unmounted) {
+			shown -= page.length // the page was not shown; "Try again" asks for it again
+			itemsError.value = errorMessage(e)
 		}
 	} finally {
 		loadingItems.value = false
-		more.check()
+		if (!unmounted) {
+			more.check()
+		}
 	}
+}
+
+function retryItems() {
+	itemsError.value = ''
+	loadItems()
 }
 
 /**
@@ -115,24 +146,40 @@ function similar(item) {
 	navigate('/', { similar: item.id, name: item.name })
 }
 
-onMounted(async () => {
+onMounted(() => {
 	// One world, no copies to the left and right, and no zooming out past it.
 	const world = L.latLngBounds([-85, -180], [85, 180])
 	map = L.map(mapEl.value, { maxBounds: world, maxBoundsViscosity: 1, minZoom: 2 }).setView([48.1, 11.5], 4)
 	L.tileLayer(tileUrl(), {
 		maxZoom: 19,
+		maxNativeZoom: 18, // the tile proxy stops at 18; Leaflet scales those up
 		noWrap: true,
 		bounds: world,
 		attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
 	}).addTo(map)
 
+	loadMarkers()
+})
+
+async function loadMarkers() {
+	loadingMarkers.value = true
+	markersError.value = ''
+	let data
 	try {
-		const data = await mapMarkers()
-		markers.value = data.markers
-		updated.value = data.updated
-	} finally {
-		loadingMarkers.value = false
+		data = await mapMarkers()
+	} catch (e) {
+		if (!unmounted) {
+			markersError.value = errorMessage(e)
+			loadingMarkers.value = false
+		}
+		return
 	}
+	if (unmounted) {
+		return
+	}
+	markers.value = data.markers
+	updated.value = data.updated
+	loadingMarkers.value = false
 	if (!markers.value.length) {
 		return
 	}
@@ -144,9 +191,12 @@ onMounted(async () => {
 	map.fitBounds(homeBounds(markers.value), { padding: [20, 20], maxZoom: 12 })
 	map.on('moveend', refreshArea)
 	refreshArea()
-})
+}
 
-onBeforeUnmount(() => map?.remove())
+onBeforeUnmount(() => {
+	unmounted = true
+	map?.remove()
+})
 </script>
 
 <style scoped lang="scss">
@@ -165,6 +215,8 @@ onBeforeUnmount(() => map?.remove())
 	&__more {
 		display: flex;
 		justify-content: center;
+		align-items: center;
+		gap: 8px;
 		min-height: 48px;
 	}
 
