@@ -132,7 +132,8 @@ class BrowseController extends Controller {
 
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[UserRateLimit(limit: 3000, period: 60)]
+	// A map view needs a few dozen tiles; this still allows brisk panning, not mirroring
+	#[UserRateLimit(limit: 600, period: 60)]
 	public function tile(int $z, int $x, int $y): Response {
 		try {
 			$resp = new DataDisplayResponse($this->tiles->tile($z, $x, $y), Http::STATUS_OK, ['Content-Type' => 'image/png']);
