@@ -58,8 +58,9 @@
 			</template>
 		</NcAppNavigation>
 
-		<NcAppContent :pageHeading="t('Glimpse')">
-			<div class="content">
+		<!-- pageTitle, not pageHeading: with a heading the tab title got "[object Object]" for the app name -->
+		<NcAppContent :pageTitle="t('Glimpse')">
+			<div class="glimpse-page">
 				<nav class="tabs" :aria-label="t('Glimpse')">
 					<NcButton
 						v-for="v in views"
@@ -87,6 +88,7 @@
 						</template>
 					</NcButton>
 					<NcButton
+						class="tabs__extra"
 						variant="tertiary"
 						:aria-label="t('Duplicates')"
 						:title="t('Duplicates')"
@@ -97,6 +99,7 @@
 						</template>
 					</NcButton>
 					<NcButton
+						class="tabs__extra"
 						variant="tertiary"
 						:aria-label="t('Settings')"
 						:title="t('Settings')"
@@ -214,18 +217,26 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.content {
+// Not ".content": that is also the class of Nextcloud's own app container (NcContent's root),
+// and a scoped rule reaches a child component's root – it padded the whole frame twice.
+.glimpse-page {
 	padding: 8px 16px 24px;
 }
 
 // Room for the navigation toggle button, which floats over the content's top left on wide screens.
 @media (min-width: 1025px) {
-	.content { padding-left: 56px; }
+	.glimpse-page { padding-left: 56px; }
 }
 
-// On narrow screens it sits above the content instead.
+// Narrower: the tabs sit beside the toggle instead of below it.
 @media (max-width: 1024px) {
-	.content { padding-top: 48px; }
+	.glimpse-page { padding-top: 6px; }
+	.tabs { margin-inline-start: 44px; }
+}
+
+// Phones: every pixel goes to the pictures.
+@media (max-width: 600px) {
+	.glimpse-page { padding-inline: 8px; }
 }
 
 .tabs {
@@ -238,9 +249,15 @@ onMounted(() => {
 	&__spacer { flex: 1; }
 }
 
-// Phones: icons only, except for the active tab.
+// Phones: icons only, all in one row; duplicates and settings stay in the side navigation.
 @media (max-width: 600px) {
-	.tabs__tab:not(.tabs__tab--active) .tabs__label {
+	.tabs {
+		flex-wrap: nowrap;
+		gap: 0;
+	}
+
+	.tabs__label,
+	.tabs__extra {
 		display: none;
 	}
 }
@@ -271,5 +288,22 @@ onMounted(() => {
 	height: 24px;
 	border-radius: 50%;
 	object-fit: cover;
+}
+</style>
+
+<style lang="scss">
+// Phones: Nextcloud means to drop the frame around apps below 1024px
+// (--body-container-margin: 0), but the theme sets the variable again on body. Drop it here.
+@media (max-width: 600px) {
+	#content-vue.app-glimpse {
+		width: 100%;
+	}
+
+	#content.app-glimpse {
+		width: 100%;
+		height: calc(100% - var(--header-height));
+		margin: var(--header-height) 0 0;
+		border-radius: 0;
+	}
 }
 </style>

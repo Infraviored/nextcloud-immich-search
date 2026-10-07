@@ -129,10 +129,6 @@ OC.L10N.register(
             "vor {count} Jahr",
             "vor {count} Jahren"
         ],
-        "_{count} year old_::_{count} years old_": [
-            "{count} Jahr alt",
-            "{count} Jahre alt"
-        ],
         "A folder name (excluded wherever it appears) or a full Immich path ending in /**.": "Ein Ordnername (überall ausgeschlossen, wo er vorkommt) oder ein vollständiger Immich-Pfad, der auf /** endet.",
         "Add": "Hinzufügen",
         "Add folder …": "Ordner hinzufügen …",
@@ -156,7 +152,6 @@ OC.L10N.register(
         "At most {max} files can be downloaded as one ZIP.": "Höchstens {max} Dateien können als ein ZIP heruntergeladen werden.",
         "AVI (videos)": "AVI (Videos)",
         "Back to the search": "Zurück zur Suche",
-        "Birthday": "Geburtstag",
         "Cancel": "Abbrechen",
         "Check all pictures now": "Jetzt alle Bilder prüfen",
         "Choose folder …": "Ordner wählen …",
@@ -224,7 +219,6 @@ OC.L10N.register(
         "Immich skips these entirely – no analysis, no results. Changes are applied to all libraries and start a scan.": "Immich überspringt sie ganz – keine Analyse, keine Treffer. Änderungen gelten für alle Bibliotheken und starten einen Scan.",
         "Include videos by default": "Videos standardmäßig einschließen",
         "Internal error": "Interner Fehler",
-        "Invalid date": "Ungültiges Datum",
         "Invalid ID": "Ungültige ID",
         "Invalid value for %s": "Ungültiger Wert für %s",
         "Jump to year": "Zu Jahr springen",

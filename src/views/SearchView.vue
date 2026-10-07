@@ -27,6 +27,7 @@
 				</template>
 			</NcTextField>
 			<div class="search__filters">
+				<slot name="filters" />
 				<NcSelect
 					v-if="!person"
 					v-model="personOption"

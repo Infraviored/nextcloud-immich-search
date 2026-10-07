@@ -73,7 +73,6 @@ class PeopleController extends Controller {
 						'hidden' => (bool)($p['isHidden'] ?? false),
 						'favorite' => (bool)($p['isFavorite'] ?? false),
 						'private' => in_array($p['id'], $private, true),
-						'birthDate' => $p['birthDate'] ?? null,
 						'count' => $v['count'],
 					];
 				}
@@ -116,21 +115,14 @@ class PeopleController extends Controller {
 		});
 	}
 
-	/** @param string|null $birthDate YYYY-MM-DD, '' to remove */
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: 300, period: 60)]
-	public function update(string $id, ?string $name = null, ?bool $hidden = null, ?bool $favorite = null, ?string $birthDate = null): JSONResponse {
-		return $this->guard(function () use ($id, $name, $hidden, $favorite, $birthDate) {
+	public function update(string $id, ?string $name = null, ?bool $hidden = null, ?bool $favorite = null): JSONResponse {
+		return $this->guard(function () use ($id, $name, $hidden, $favorite) {
 			$this->mayManage($id);
 			$body = [];
 			if ($favorite !== null) {
 				$body['isFavorite'] = $favorite;
-			}
-			if ($birthDate !== null) {
-				if ($birthDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $birthDate)) {
-					throw new ImmichException($this->l->t('Invalid date'), Http::STATUS_BAD_REQUEST);
-				}
-				$body['birthDate'] = $birthDate === '' ? null : $birthDate;
 			}
 			if ($name !== null) {
 				$body['name'] = mb_substr(trim($name), 0, self::MAX_NAME);
@@ -140,7 +132,7 @@ class PeopleController extends Controller {
 			}
 			$p = $this->immich->json('PUT', '/people/' . $id, $body);
 			return new JSONResponse(['id' => $id, 'name' => (string)($p['name'] ?? ''), 'hidden' => (bool)($p['isHidden'] ?? false),
-				'favorite' => (bool)($p['isFavorite'] ?? false), 'birthDate' => $p['birthDate'] ?? null]);
+				'favorite' => (bool)($p['isFavorite'] ?? false)]);
 		});
 	}
 

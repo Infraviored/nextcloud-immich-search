@@ -22,31 +22,19 @@
 				alt=""
 				@error="faceFailed = true">
 			<div class="person-view__title">
-				<!-- Name and birthday in one row, so the two fields line up -->
-				<div v-if="state.canManage" class="person-view__fields">
-					<form class="person-view__name" @submit.prevent="saveName">
-						<NcTextField
-							v-model="name"
-							:label="t('Name')"
-							:placeholder="t('Name')"
-							:success="saved"
-							@blur="saveName" />
-					</form>
+				<form v-if="state.canManage" class="person-view__name" @submit.prevent="saveName">
 					<NcTextField
-						v-if="person"
-						v-model="birthday"
-						class="person-view__birthday"
-						type="date"
-						:label="t('Birthday')"
-						:max="today"
-						@blur="saveBirthday(birthday)" />
-				</div>
+						v-model="name"
+						:label="t('Name')"
+						:placeholder="t('Name')"
+						:success="saved"
+						@blur="saveName" />
+				</form>
 				<h2 v-else>
 					{{ person?.name || t('Unnamed') }}
 				</h2>
 				<span v-if="person" class="person-view__count">
 					{{ n('{count} picture you can see', '{count} pictures you can see', person.count, { count: person.count }) }}
-					<template v-if="age !== null"> · {{ n('{count} year old', '{count} years old', age, { count: age }) }}</template>
 				</span>
 			</div>
 			<NcButton
@@ -70,12 +58,6 @@
 					<NcIconSvgWrapper :path="isPrivate ? mdiLock : mdiLockOpenVariantOutline" />
 				</template>
 			</NcButton>
-			<NcButton v-if="state.canManage && person" @click="toggleHidden">
-				<template #icon>
-					<NcIconSvgWrapper :path="person.hidden ? mdiEyeOutline : mdiEyeOffOutline" />
-				</template>
-				{{ person.hidden ? t('Show again') : t('Hide') }}
-			</NcButton>
 		</header>
 		<p v-if="error" class="person-view__error">
 			{{ error }}
@@ -94,7 +76,17 @@
 				</NcButton>
 			</template>
 		</NcEmptyContent>
-		<SearchView v-else :person="id" />
+		<SearchView v-else :person="id">
+			<!-- In the filter row next to photos/videos, not a row of its own -->
+			<template #filters>
+				<NcButton v-if="state.canManage && person" @click="toggleHidden">
+					<template #icon>
+						<NcIconSvgWrapper :path="person.hidden ? mdiEyeOutline : mdiEyeOffOutline" />
+					</template>
+					{{ person.hidden ? t('Show again') : t('Hide') }}
+				</NcButton>
+			</template>
+		</SearchView>
 	</div>
 </template>
 
@@ -106,7 +98,7 @@ import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import SearchView from './SearchView.vue'
-import { errorMessage, faceUrl, localDate, updatePerson } from '../api.js'
+import { errorMessage, faceUrl, updatePerson } from '../api.js'
 import { n, t } from '../l10n.js'
 import { patchPerson, peopleState as state } from '../people.js'
 import { privateState, setPrivateLists, togglePrivate } from '../private.js'
@@ -125,15 +117,11 @@ const faceFailed = ref(false)
 const missing = computed(() => faceFailed.value && !person.value)
 const name = ref(person.value?.name ?? '')
 const saved = ref(false)
-const birthday = ref(person.value?.birthDate ?? '')
 const error = ref('')
 
 watch(person, (p) => {
 	if (p && !saved.value) {
 		name.value = p.name
-	}
-	if (p) {
-		birthday.value = p.birthDate ?? ''
 	}
 })
 
@@ -154,17 +142,6 @@ async function saveName() {
 		error.value = errorMessage(e)
 	}
 }
-
-const today = localDate()
-const age = computed(() => {
-	const b = person.value?.birthDate
-	if (!b) {
-		return null
-	}
-	const d = new Date(b)
-	const now = new Date()
-	return now.getFullYear() - d.getFullYear() - (now < new Date(now.getFullYear(), d.getMonth(), d.getDate()) ? 1 : 0)
-})
 
 const isPrivate = computed(() => privateState.people.includes(props.id))
 
@@ -187,18 +164,6 @@ async function toggleFavorite() {
 	}
 }
 
-async function saveBirthday(value) {
-	if ((value || null) === (person.value?.birthDate ?? null)) {
-		return
-	}
-	try {
-		const res = await updatePerson(props.id, { birthDate: value })
-		patchPerson(props.id, { birthDate: res.birthDate })
-	} catch (e) {
-		error.value = errorMessage(e)
-	}
-}
-
 async function toggleHidden() {
 	try {
 		const res = await updatePerson(props.id, { hidden: !person.value.hidden })
@@ -211,16 +176,16 @@ async function toggleHidden() {
 
 <style scoped lang="scss">
 .person-view {
+	// One row: back, face, name, star, lock – the name field takes what is left.
 	&__header {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
 
 		// Fields of one height, side by side
 		:deep(.input-field) {
 			margin-block: 0;
 		}
-		gap: 12px;
+		gap: 8px;
 		margin-bottom: 12px;
 	}
 
@@ -232,32 +197,29 @@ async function toggleHidden() {
 		background: var(--color-background-dark);
 	}
 
-	&__fields {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		align-items: center;
+	&__name {
+		max-width: 400px;
 
 		:deep(.input-field) {
 			margin-block: 0;
 		}
 	}
 
-	&__name {
-		flex: 1 1 200px;
-	}
-
-	&__birthday {
-		flex: 0 0 170px;
-	}
-
 	&__title {
 		display: flex;
-		flex: 1 1 220px;
+		flex: 1 1 0;
+		min-width: 0;
 		flex-direction: column;
 		gap: 2px;
 
 		h2 { margin: 0; }
+	}
+
+	@media (max-width: 600px) {
+		&__face {
+			width: 48px;
+			height: 48px;
+		}
 	}
 
 	&__count { color: var(--color-text-maxcontrast); }
