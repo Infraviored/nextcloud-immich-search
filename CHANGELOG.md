@@ -3,6 +3,18 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.0.4] - 2026-10-07
+
+### Fixed
+- Phones: no double frame and padding around the app (our `.content` class also matched
+  Nextcloud's own app container), full width below 600 px, all tabs in one row (duplicates and
+  settings stay in the side navigation).
+- Browser tab title showed `[object Object]`.
+- Person page: "Hide" sits in the filter row next to photos/videos; header fits one row.
+
+### Removed
+- Birthdays of people (field, age and backend field).
+
 ## [4.0.2] - 2026-10-06
 
 All 49 findings of the code review on #3.
