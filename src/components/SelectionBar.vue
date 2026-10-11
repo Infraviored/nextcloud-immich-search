@@ -98,6 +98,15 @@
 				</template>
 				{{ t('Download as ZIP') }}
 			</NcActionButton>
+			<template v-if="person">
+				<NcActionSeparator />
+				<NcActionButton :closeAfterClick="true" @click="$emit('notPerson')">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiAccountRemoveOutline" />
+					</template>
+					{{ t('Not {name} …', { name: person.name || t('Unnamed') }) }}
+				</NcActionButton>
+			</template>
 			<template v-if="single">
 				<NcActionSeparator />
 				<NcActionButton :closeAfterClick="true" @click="$emit('similar')">
@@ -138,6 +147,7 @@
 
 <script setup>
 import {
+	mdiAccountRemoveOutline,
 	mdiChevronDown,
 	mdiClose,
 	mdiContentCopy,
@@ -177,8 +187,10 @@ const props = defineProps({
 	/** The selected item, if exactly one is selected. */
 	single: { type: Object, default: null },
 	photosEnabled: { type: Boolean, default: false },
+	/** {id, name}: the pictures are listed for this person, offer "Not {name}" */
+	person: { type: Object, default: null },
 })
-defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'delete'])
+defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'delete', 'notPerson'])
 
 const shareHref = computed(() => {
 	const dir = props.single.path.slice(0, props.single.path.lastIndexOf('/')) || '/'

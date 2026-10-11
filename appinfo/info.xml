@@ -16,8 +16,8 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
   searchable.
 - **Sort in bulk:** select many (long-press on touch), move or copy into folders with undo,
   tag, favorite, add to an album and share it, download as ZIP, delete.
-- **People:** name, merge, hide, favorites; assign single faces; "Label people"
-  naming in a row. Faces are cut only from pictures the viewer may open.
+- **People:** name, merge, hide, favorites; assign single faces or correct many at once;
+  "Label people" naming in a row. Faces are cut only from pictures the viewer may open.
 - **Private area:** folders, people and single pictures that only show after unlocking with
   your password – never in the global search.
 - **Nextcloud permissions decide:** one shared index, but every user only ever sees files they
@@ -26,7 +26,7 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 - In the Files app: a "Similar pictures" action and a sidebar tab with the people in a picture.
   A dashboard widget shows today's memories.
 	]]></description>
-	<version>4.1.2</version>
+	<version>4.2.1</version>
 	<licence>agpl</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>

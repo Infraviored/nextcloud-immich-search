@@ -3,6 +3,15 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.2.1] - 2026-10-11
+
+### Added
+- **"Not {person}" for many pictures at once:** on a person's page (or a search filtered by a
+  person), select the wrongly recognized pictures, then "⋯ → Not Tanja …". Her faces in them
+  go to another person, a new named one, one new unnamed person, or are dropped as "not a
+  face". Other faces in the same pictures stay. The people list and the person's face picture
+  update right away.
+
 ## [4.1.2] - 2026-10-11
 
 ### Added

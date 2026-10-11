@@ -78,6 +78,7 @@
 
 		<MediaBrowser
 			:groups="[{ key: 'all', items }]"
+			:person="listedPerson"
 			@removed="drop"
 			@refresh="run(true)"
 			@similar="showSimilar">
@@ -124,6 +125,7 @@ import MediaBrowser from '../components/MediaBrowser.vue'
 import { errorMessage, getTags, search, thumbnailUrl } from '../api.js'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { t } from '../l10n.js'
+import { peopleState } from '../people.js'
 import { userPrefs } from '../prefs.js'
 import { replaceQuery, route } from '../router.js'
 
@@ -175,6 +177,16 @@ const tagOption = computed({
 	set: (o) => {
 		tagId.value = o?.id ?? ''
 	},
+})
+
+/** The person whose pictures are listed (fixed, picked or recognized in the text), {id, name} */
+const listedPerson = computed(() => {
+	const id = similar.value ? '' : (personId.value || resolved.value?.id || '')
+	if (!id) {
+		return null
+	}
+	const p = peopleState.people.find((x) => x.id === id)
+	return { id, name: p?.name || resolved.value?.name || '' }
 })
 
 /** Without text or picture to rank by, results come by date. */

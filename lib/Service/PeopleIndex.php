@@ -131,6 +131,53 @@ class PeopleIndex {
 		$this->folder()->newFile($uid . '.json', json_encode(['updated' => $data['updated'], 'people' => $data['people']]));
 	}
 
+	/**
+	 * Record faces moved from one person to another (or away, $to null) right away.
+	 *
+	 * @param list<string> $assets pictures that lost $from's face, newest first is not needed
+	 */
+	public function applyMove(string $uid, string $from, ?string $to, array $assets): void {
+		if ($assets === []) {
+			return;
+		}
+		$data = $this->forUser($uid);
+		$moved = array_fill_keys($assets, true);
+		if (isset($data['people'][$from])) {
+			$src = &$data['people'][$from];
+			$src['count'] = max(0, $src['count'] - count($assets));
+			if ($src['count'] === 0) {
+				unset($data['people'][$from]);
+			} elseif (isset($moved[$src['asset']])) {
+				// Its face came from a moved picture: take the newest one that still shows the person
+				$cover = $this->newestVisible($uid, $from);
+				if ($cover === null) {
+					unset($data['people'][$from]);
+				} else {
+					$src['asset'] = $cover;
+				}
+			}
+			unset($src);
+		}
+		if ($to !== null) {
+			if (isset($data['people'][$to])) {
+				$data['people'][$to]['count'] += count($assets);
+			} else {
+				$data['people'][$to] = ['count' => count($assets), 'asset' => $assets[0]];
+			}
+		}
+		$this->folder()->newFile($uid . '.json', json_encode(['updated' => $data['updated'], 'people' => $data['people']]));
+	}
+
+	private function newestVisible(string $uid, string $person): ?string {
+		$res = $this->immich->json('POST', '/search/metadata', ['personIds' => [$person], 'page' => 1, 'size' => self::PAGE, 'order' => 'desc'])['assets'] ?? [];
+		foreach ($res['items'] ?? [] as $asset) {
+			if ($this->assets->visibleItem($uid, $asset, false) !== null) {
+				return $asset['id'];
+			}
+		}
+		return null;
+	}
+
 	/** @return list<array> all Immich people, hidden ones included */
 	public function allPeople(): array {
 		$all = [];

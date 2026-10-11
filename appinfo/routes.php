@@ -38,6 +38,7 @@ return [
 		['name' => 'people#samples', 'url' => '/api/people/{id}/samples', 'verb' => 'GET'],
 		['name' => 'people#update',       'url' => '/api/people/{id}',           'verb' => 'PUT'],
 		['name' => 'people#merge',        'url' => '/api/people/{id}/merge',     'verb' => 'POST'],
+		['name' => 'people#moveFaces', 'url' => '/api/people/{id}/move-faces', 'verb' => 'POST'],
 		['name' => 'people#faces', 'url' => '/api/assets/{assetId}/faces', 'verb' => 'GET'],
 		['name' => 'people#reassignFace', 'url' => '/api/faces/{faceId}', 'verb' => 'PUT'],
 		['name' => 'people#deleteFace', 'url' => '/api/faces/{faceId}', 'verb' => 'DELETE'],

@@ -37,6 +37,8 @@ use Psr\Log\LoggerInterface;
  */
 class PeopleController extends Controller {
 	private const MAX_NAME = 100;
+	/** Pictures per "not this person" request. */
+	private const MAX_MOVE = 500;
 
 	public function __construct(
 		IRequest $request,
@@ -221,6 +223,60 @@ class PeopleController extends Controller {
 			$this->faceInAsset($faceId, $assetId);
 			$this->immich->json('DELETE', '/faces/' . $faceId, ['force' => false]);
 			return new JSONResponse(['ok' => true]);
+		});
+	}
+
+	/**
+	 * "Not this person" for many pictures at once: in each of them, the faces of $id go to
+	 * another person ($personId), a new one ($newName), a new unnamed one ($unnamed: one
+	 * for all of them, to be named later) or are dropped as no face at all ($notAFace).
+	 * Other faces in the pictures stay as they are.
+	 *
+	 * @param list<string> $assetIds pictures the user may see
+	 */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
+	public function moveFaces(string $id, array $assetIds = [], string $personId = '', string $newName = '', bool $unnamed = false, bool $notAFace = false): JSONResponse {
+		return $this->guard(function () use ($id, $assetIds, $personId, $newName, $unnamed, $notAFace) {
+			$this->mayManage($id);
+			$assetIds = array_values(array_unique(array_filter($assetIds, 'is_string')));
+			if ($assetIds === [] || count($assetIds) > self::MAX_MOVE) {
+				throw new ImmichException($this->l->t('Choose between 1 and %d pictures', [self::MAX_MOVE]), Http::STATUS_BAD_REQUEST);
+			}
+			$newName = mb_substr(trim($newName), 0, self::MAX_NAME);
+			if (!$notAFace && !$unnamed && $newName === '') {
+				$this->mayManage($personId);
+				if ($personId === $id) {
+					throw new ImmichException($this->l->t('That is the same person'), Http::STATUS_BAD_REQUEST);
+				}
+			}
+			$target = $notAFace || $unnamed || $newName !== '' ? null : $personId;
+			$moved = [];
+			$faces = 0;
+			$failed = [];
+			foreach ($assetIds as $assetId) {
+				try {
+					$this->assetVisible($assetId);
+					$mine = array_filter($this->immich->json('GET', '/faces?id=' . $assetId), static fn ($f) => ($f['person']['id'] ?? null) === $id);
+					foreach ($mine as $f) {
+						if ($notAFace) {
+							$this->immich->json('DELETE', '/faces/' . $f['id'], ['force' => false]);
+						} else {
+							// The new person is made with the first face, so a selection without any makes none
+							$target ??= $this->immich->json('POST', '/people', ['name' => $newName])['id'];
+							$this->immich->json('PUT', '/faces/' . $target, ['id' => $f['id']]);
+						}
+						$faces++;
+					}
+					if ($mine !== []) {
+						$moved[] = $assetId;
+					}
+				} catch (ImmichException) {
+					$failed[] = $assetId;
+				}
+			}
+			$this->index->applyMove($this->uid(), $id, $notAFace ? null : $target, $moved);
+			return new JSONResponse(['moved' => $moved, 'faces' => $faces, 'failed' => $failed, 'personId' => $notAFace ? null : $target]);
 		});
 	}
 

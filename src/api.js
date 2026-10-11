@@ -180,6 +180,18 @@ export async function reassignFace(faceId, assetId, { personId = '', newName = '
 	return (await axios.put(url(`/api/faces/${seg(faceId)}`), { assetId, personId, newName })).data
 }
 
+/**
+ * "Not this person" for many pictures: their faces of `id` go elsewhere.
+ *
+ * @param {string} id the person the faces are taken from
+ * @param {string[]} assetIds
+ * @param {{personId?: string, newName?: string, unnamed?: boolean, notAFace?: boolean}} target
+ * @return {Promise<{moved: string[], faces: number, failed: string[], personId: ?string}>}
+ */
+export async function moveFaces(id, assetIds, { personId = '', newName = '', unnamed = false, notAFace = false }) {
+	return (await axios.post(url(`/api/people/${seg(id)}/move-faces`), { assetIds, personId, newName, unnamed, notAFace })).data
+}
+
 export async function deleteFace(faceId, assetId) {
 	return (await axios.delete(url(`/api/faces/${seg(faceId)}`), { params: { assetId } })).data
 }

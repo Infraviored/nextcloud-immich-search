@@ -425,7 +425,35 @@
         "Type a name": "Namen eingeben",
         "Already shared with {names}": "Schon geteilt mit {names}",
         "They will find the album in Photos under “Shared albums”. The files stay where they are.": "Das Album erscheint bei ihnen in der Fotos-App unter „Geteilte Alben“. Die Dateien bleiben, wo sie sind.",
-        "Add and share": "Hinzufügen und teilen"
+        "Add and share": "Hinzufügen und teilen",
+        "Not {name} …": "Nicht {name} …",
+        "Not {name}": "Nicht {name}",
+        "_In {count} picture, the face recognized as {name} is:_::_In {count} pictures, the face recognized as {name} is:_": [
+            "In {count} Bild ist das als {name} erkannte Gesicht:",
+            "In {count} Bildern ist das als {name} erkannte Gesicht:"
+        ],
+        "Someone else": "Jemand anderes",
+        "Who is it? Pick or type a new name": "Wer ist es? Auswählen oder neuen Namen eintippen",
+        "Someone I do not want to name now": "Jemand, den ich jetzt nicht benennen will",
+        "The faces go to one new person without a name. If they are different people, name them one by one later or pick “Someone else”.": "Die Gesichter kommen zu einer neuen Person ohne Namen. Sind es verschiedene Leute, benenne sie später einzeln oder wähle „Jemand anderes“.",
+        "Not a face at all": "Gar kein Gesicht",
+        "The faces are removed from the face recognition (a pattern, a poster, a statue).": "Die Gesichter werden aus der Gesichtserkennung entfernt (ein Muster, ein Plakat, eine Statue).",
+        "Correct": "Korrigieren",
+        "_Face removed from {count} picture_::_Face removed from {count} pictures_": [
+            "Gesicht aus {count} Bild entfernt",
+            "Gesicht aus {count} Bildern entfernt"
+        ],
+        "_{count} picture moved to {name}_::_{count} pictures moved to {name}_": [
+            "{count} Bild zu {name} verschoben",
+            "{count} Bilder zu {name} verschoben"
+        ],
+        "a new person without a name": "einer neuen Person ohne Namen",
+        "_{count} picture had no face of {name} or could not be changed_::_{count} pictures had no face of {name} or could not be changed_": [
+            "{count} Bild hatte kein Gesicht von {name} oder ließ sich nicht ändern",
+            "{count} Bilder hatten kein Gesicht von {name} oder ließen sich nicht ändern"
+        ],
+        "Choose between 1 and %d pictures": "Zwischen 1 und %d Bildern auswählen",
+        "That is the same person": "Das ist dieselbe Person"
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }

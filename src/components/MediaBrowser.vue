@@ -18,6 +18,7 @@
 			:busy="transferBusy || actionBusy"
 			:single="singleSelected"
 			:photosEnabled="page.photosEnabled"
+			:person="peopleState.canManage ? person : null"
 			@clear="selected = new Set()"
 			@selectAll="selected = new Set(allItems.map((i) => i.fileId))"
 			@move="doTransfer('move', $event)"
@@ -28,7 +29,8 @@
 			@similar="$emit('similar', singleSelected)"
 			@faces="dialog = 'faces'"
 			@private="doPrivate"
-			@delete="dialog = 'delete'" />
+			@delete="dialog = 'delete'"
+			@notPerson="dialog = 'notPerson'" />
 		<slot v-else name="status" />
 
 		<FacesDialog v-if="dialog === 'faces' && singleSelected" :item="singleSelected" @close="dialog = null" />
@@ -37,6 +39,12 @@
 			:count="selected.size"
 			@close="dialog = null"
 			@apply="doTag" />
+		<NotPersonDialog
+			v-if="dialog === 'notPerson' && person"
+			:person="person"
+			:count="selected.size"
+			@close="dialog = null"
+			@apply="doNotPerson" />
 		<AlbumDialog
 			v-if="dialog === 'album'"
 			:count="selected.size"
@@ -71,13 +79,15 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import AlbumDialog from './AlbumDialog.vue'
 import AssetGrid from './AssetGrid.vue'
 import FacesDialog from './FacesDialog.vue'
+import NotPersonDialog from './NotPersonDialog.vue'
 import SelectionBar from './SelectionBar.vue'
 import TagDialog from './TagDialog.vue'
 import { addToAlbum, createAlbum, shareAlbum } from '../albums.js'
-import { deleteFiles, favorite, tagFiles } from '../api.js'
+import { deleteFiles, favorite, moveFaces, tagFiles } from '../api.js'
 import { useAction } from '../composables/useAction.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
+import { peopleState, reloadPeople } from '../people.js'
 import { privateState, setPrivateFiles } from '../private.js'
 import { pruneSelection, toggleSelection } from '../selection.js'
 import { openInViewer } from '../viewer.js'
@@ -85,6 +95,8 @@ import { openInViewer } from '../viewer.js'
 const props = defineProps({
 	/** [{key, title?, items}] */
 	groups: { type: Array, required: true },
+	/** {id, name}: the pictures are this person's; offers correcting wrong faces */
+	person: { type: Object, default: null },
 })
 /**
  * removed: file ids that left this view (moved or deleted)
@@ -189,6 +201,45 @@ async function doAlbum(name, isNew, recipients = []) {
 		if (shared) {
 			showSuccess(n('{album}: shared with {count} more recipient', '{album}: shared with {count} more recipients', shared, { count: shared, album: name }))
 		}
+	}
+}
+
+/**
+ * "Not {person}": move that person's faces in the selected pictures elsewhere; the
+ * pictures then leave this person's view.
+ *
+ * @param target as moveFaces() takes it, plus the chosen person's name
+ */
+async function doNotPerson(target) {
+	dialog.value = null
+	const chosen = allItems.value.filter((i) => selected.value.has(i.fileId) && i.id)
+	const res = await act(() => moveFaces(props.person.id, chosen.map((i) => i.id), target))
+	if (!res) {
+		return
+	}
+	const moved = new Set(res.moved)
+	const gone = chosen.filter((i) => moved.has(i.id)).map((i) => i.fileId)
+	selected.value = new Set([...selected.value].filter((id) => !gone.includes(id)))
+	emit('removed', gone)
+	reloadPeople()
+	if (target.unnamed || target.newName) {
+		// Immich lists a new person only once it has made its face picture, a few seconds later
+		setTimeout(reloadPeople, 8000)
+	}
+	const count = gone.length
+	if (target.notAFace) {
+		showSuccess(n('Face removed from {count} picture', 'Face removed from {count} pictures', count, { count }))
+	} else {
+		const name = target.name || target.newName || t('a new person without a name')
+		showSuccess(n('{count} picture moved to {name}', '{count} pictures moved to {name}', count, { count, name }))
+	}
+	if (res.failed.length || count < chosen.length) {
+		showWarning(n(
+			'{count} picture had no face of {name} or could not be changed',
+			'{count} pictures had no face of {name} or could not be changed',
+			chosen.length - count,
+			{ count: chosen.length - count, name: props.person.name || t('Unnamed') },
+		))
 	}
 }
 
