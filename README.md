@@ -11,9 +11,9 @@ permission checks.
 
 | | |
 |---|---|
-| **Search** | By content, by person, both ("Tara beach"), photos or videos, "more like this" for any picture |
+| **Search** | By content, by person, both ("Tara beach"), by tag, photos or videos, "more like this" for any picture |
 | **Browse** | Timeline by month with year jumps and "on this day", map of geotagged pictures, folders as galleries |
-| **Sort** | Multi-select (hover checkbox, shift range, long-press on touch); move/copy into folders with recent targets and undo; tag; favorite; add to a Photos album; download as ZIP; delete |
+| **Sort** | Multi-select (hover checkbox, shift range, long-press on touch); move/copy into folders with recent targets and undo; tag; favorite; add to a Photos album and share it with users or groups; download as ZIP; delete |
 | **People** | Name, merge, hide, favorites; assign or remove single faces; "Label people" to name people in a row, three faces each |
 | **Duplicates** | Groups of identical or nearly identical pictures, Immich's choice of what to keep preselected |
 | **Private area** | Folders, people and single pictures that only show after unlocking (password, 30 minutes) – never in the global search or the dashboard |

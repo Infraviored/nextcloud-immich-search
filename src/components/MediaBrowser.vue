@@ -73,7 +73,7 @@ import AssetGrid from './AssetGrid.vue'
 import FacesDialog from './FacesDialog.vue'
 import SelectionBar from './SelectionBar.vue'
 import TagDialog from './TagDialog.vue'
-import { addToAlbum, createAlbum } from '../albums.js'
+import { addToAlbum, createAlbum, shareAlbum } from '../albums.js'
 import { deleteFiles, favorite, tagFiles } from '../api.js'
 import { useAction } from '../composables/useAction.js'
 import { useTransfer } from '../composables/useTransfer.js'
@@ -171,7 +171,7 @@ async function doTag(tagIds, newTags) {
 	report(res, n('{count} file tagged', '{count} files tagged', count, { count }))
 }
 
-async function doAlbum(name, isNew) {
+async function doAlbum(name, isNew, recipients = []) {
 	dialog.value = null
 	const chosen = allItems.value.filter((i) => selected.value.has(i.fileId))
 	const added = await act(async () => {
@@ -180,8 +180,15 @@ async function doAlbum(name, isNew) {
 		}
 		return addToAlbum(name, chosen)
 	})
-	if (added !== null) {
-		showSuccess(n('{count} picture added to {album}', '{count} pictures added to {album}', added, { count: added, album: name }))
+	if (added === null) {
+		return
+	}
+	showSuccess(n('{count} picture added to {album}', '{count} pictures added to {album}', added, { count: added, album: name }))
+	if (recipients.length) {
+		const shared = await act(() => shareAlbum(name, recipients))
+		if (shared) {
+			showSuccess(n('{album}: shared with {count} more recipient', '{album}: shared with {count} more recipients', shared, { count: shared, album: name }))
+		}
 	}
 }
 

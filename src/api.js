@@ -30,8 +30,8 @@ export const faceUrl = (id, asset = '') => url(`/api/people/${seg(id)}/face`) + 
 export const fileUrl = (fileId) => generateUrl('/f/' + seg(fileId))
 export const previewUrl = (fileId) => generateUrl('/core/preview?fileId={fileId}&x=256&y=256&a=1&mimeFallback=true', { fileId })
 
-export async function search({ q = '', page = 1, person = '', type = '', literal = false, similar = '' }, signal) {
-	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0, similar }, signal })
+export async function search({ q = '', page = 1, person = '', type = '', literal = false, similar = '', tag = '' }, signal) {
+	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0, similar, tag }, signal })
 	return data
 }
 
@@ -119,8 +119,11 @@ export async function deleteFiles(fileIds) {
 	return (await axios.post(url('/api/files/delete'), { fileIds })).data
 }
 
-export async function getTags() {
-	return (await axios.get(url('/api/tags'))).data
+/**
+ * @param {boolean} visible every tag the user can see (to filter by), not only those they may assign
+ */
+export async function getTags(visible = false) {
+	return (await axios.get(url('/api/tags'), { params: visible ? { visible: 1 } : {} })).data
 }
 
 export async function tagFiles(fileIds, tagIds, newTags) {

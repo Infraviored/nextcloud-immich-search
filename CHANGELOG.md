@@ -3,6 +3,16 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.1.2] - 2026-10-11
+
+### Added
+- **Tag filter in the search:** pick a collaborative tag next to the person filter. With text
+  or a person it narrows the results to tagged files; alone it lists every picture with the
+  tag, newest first (straight from Nextcloud, also files Immich has not indexed yet).
+- **Share an album right away:** "Add to an album" can share the album with users or groups.
+  They see it in Photos under the shared albums; the files are neither moved nor copied.
+  Existing shares of the album are kept and shown.
+
 ## [4.0.4] - 2026-10-07
 
 ### Fixed

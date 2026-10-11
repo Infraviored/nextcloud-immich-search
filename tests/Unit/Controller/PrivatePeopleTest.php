@@ -19,6 +19,7 @@ use OCA\Glimpse\Service\PeopleIndex;
 use OCA\Glimpse\Service\PeopleNames;
 use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\TagFilter;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUser;
@@ -101,7 +102,7 @@ class PrivatePeopleTest extends TestCase {
 		$names->method('split')->willReturnCallback(fn ($uid, $q) => str_starts_with($q, 'Secret ') ? [self::SECRET, substr($q, 7)] : [null, $q]);
 		$names->method('visible')->willReturn([self::SECRET => ['name' => 'Secret', 'count' => 3]]);
 		return new ApiController($this->createMock(IRequest::class), $this->userSession, $config, $this->assets, $names,
-			$this->area, $this->immich, $this->l, $this->createMock(LoggerInterface::class));
+			$this->area, $this->immich, $this->createMock(TagFilter::class), $this->l, $this->createMock(LoggerInterface::class));
 	}
 
 	public function testSearchIgnoresPrivatePersonWhileLocked(): void {

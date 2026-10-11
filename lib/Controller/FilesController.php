@@ -68,8 +68,9 @@ class FilesController extends Controller {
 	}
 
 	#[NoAdminRequired]
-	public function tags(): JSONResponse {
-		return new JSONResponse($this->actions->tags($this->uid()));
+	/** @param bool $visible every tag the user can see (search filter), not only assignable ones */
+	public function tags(bool $visible = false): JSONResponse {
+		return new JSONResponse($this->actions->tags($this->uid(), $visible));
 	}
 
 	#[NoAdminRequired]

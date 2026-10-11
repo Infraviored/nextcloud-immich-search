@@ -59,12 +59,15 @@ class FileActions {
 		});
 	}
 
-	/** @return list<array{id: string, name: string}> tags the user may assign */
-	public function tags(string $uid): array {
+	/**
+	 * @param bool $visible all tags the user can see (to filter by), not only those they may assign
+	 * @return list<array{id: string, name: string}>
+	 */
+	public function tags(string $uid, bool $visible = false): array {
 		$user = $this->users->get($uid);
 		$out = [];
 		foreach ($this->systemTags->getAllTags(true) as $tag) {
-			if ($this->systemTags->canUserAssignTag($tag, $user)) {
+			if ($visible ? $this->systemTags->canUserSeeTag($tag, $user) : $this->systemTags->canUserAssignTag($tag, $user)) {
 				$out[] = ['id' => $tag->getId(), 'name' => $tag->getName()];
 			}
 		}

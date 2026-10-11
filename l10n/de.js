@@ -45,6 +45,10 @@ OC.L10N.register(
             "{count} Datei taggen",
             "{count} Dateien taggen"
         ],
+        "_{album}: shared with {count} more recipient_::_{album}: shared with {count} more recipients_": [
+            "{album}: mit {count} weiteren Empfänger geteilt",
+            "{album}: mit {count} weiteren Empfängern geteilt"
+        ],
         "_{count} face found, not assigned to anyone yet._::_{count} faces found, not assigned to anyone yet._": [
             "{count} Gesicht gefunden, noch niemandem zugeordnet.",
             "{count} Gesichter gefunden, noch niemandem zugeordnet."
@@ -171,7 +175,6 @@ OC.L10N.register(
         "Create library": "Bibliothek anlegen",
         "CUR (cursors)": "CUR (Mauszeiger)",
         "Delete": "Löschen",
-        "Describe what should be in the picture, or pick a person.": "Beschreib, was auf dem Bild sein soll, oder wähle eine Person.",
         "Deselect": "Abwählen",
         "Display": "Darstellung",
         "DNG (raw photos)": "DNG (Rohdaten)",
@@ -364,6 +367,7 @@ OC.L10N.register(
         "Suggestions": "Vorschläge",
         "SVG (vector graphics, icons)": "SVG (Vektorgrafiken, Icons)",
         "Tag": "Taggen",
+        "Filter by tag": "Nach Tag filtern",
         "Tag not found": "Tag nicht gefunden",
         "Tags": "Tags",
         "Tag …": "Taggen …",
@@ -413,6 +417,15 @@ OC.L10N.register(
         "{label} ({folder})": "{label} ({folder})",
         "{photos} photos and {videos} videos in Immich": "{photos} Fotos und {videos} Videos in Immich",
         "{user} stands for the Nextcloud user ID. Mount each user's files folder (in the data directory: user ID, then files) read-only there and add it to Immich as an external library.": "{user} steht für die Nextcloud-Benutzer-ID. Dort den Dateiordner jedes Benutzers (im Datenverzeichnis: Benutzer-ID, dann files) schreibgeschützt einhängen und in Immich als externe Bibliothek anlegen.",
-        "…": "…"
+        "…": "…",
+        "All tags": "Alle Tags",
+        "Describe what should be in the picture, or pick a person or a tag.": "Beschreib, was auf dem Bild sein soll, oder wähle eine Person oder einen Tag.",
+        "Share with (optional)": "Teilen mit (optional)",
+        "Search users or groups": "Benutzer oder Gruppen suchen",
+        "Nobody found": "Niemand gefunden",
+        "Type a name": "Namen eingeben",
+        "Already shared with {names}": "Schon geteilt mit {names}",
+        "They will find the album in Photos under “Shared albums”. The files stay where they are.": "Das Album erscheint bei ihnen in der Fotos-App unter „Geteilte Alben“. Die Dateien bleiben, wo sie sind.",
+        "Add and share": "Hinzufügen und teilen"
     },
 "nplurals=2; plural=(n != 1);");

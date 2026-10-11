@@ -69,7 +69,7 @@ class FolderBrowser {
 		return $out;
 	}
 
-	private static function item(Folder $home, File $node): array {
+	public static function item(Folder $home, File $node): array {
 		return [
 			'id' => null,
 			'fileId' => $node->getId(),

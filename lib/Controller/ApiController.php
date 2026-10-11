@@ -16,6 +16,7 @@ use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\PeopleNames;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\TagFilter;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -41,6 +42,7 @@ class ApiController extends Controller {
 		private PeopleNames $names,
 		private PrivateArea $privateArea,
 		private ImmichClient $immich,
+		private TagFilter $tagFilter,
 		private IL10N $l,
 		private LoggerInterface $logger,
 	) {
@@ -51,25 +53,39 @@ class ApiController extends Controller {
 	/**
 	 * @param bool $literal take $q as it is; otherwise a person's name at its start or end
 	 *                      becomes the person filter ("Tara beach" = Tara + "beach")
+	 * @param string $tag id of a collaborative tag: only files with it. Alone, it lists them
+	 *                    all, newest first, straight from Nextcloud.
 	 */
 	#[UserRateLimit(limit: 300, period: 60)]
-	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false, string $similar = ''): JSONResponse {
+	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false, string $similar = '', string $tag = ''): JSONResponse {
 		$q = trim($q);
 		if ($similar !== '') {
-			return $this->guard(function () use ($page, $type, $similar) {
+			return $this->guard(function () use ($page, $type, $similar, $tag) {
 				$uid = $this->uid();
 				// Only from a picture the user may see: its embedding says something about it.
 				if (!$this->search->maySee($uid, $similar)) {
 					throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
 				}
-				return new JSONResponse($this->private($uid, $this->search->search($uid, '', $page, self::PAGE_SIZE, '', $type, $similar)) + ['person' => null]);
+				return new JSONResponse($this->private($uid, $this->search->search($uid, '', $page, self::PAGE_SIZE, '', $type, $similar, $this->tagged($uid, $tag, $type))) + ['person' => null]);
 			});
 		}
-		if ($q === '' && $person === '') {
+		if ($q === '' && $person === '' && $tag === '') {
 			return new JSONResponse(['items' => [], 'nextPage' => null]);
 		}
-		return $this->guard(function () use ($q, $page, $person, $type, $literal) {
+		if ($q === '' && $person === '') {
+			return $this->guard(function () use ($tag, $type) {
+				$uid = $this->uid();
+				try {
+					$res = $this->tagFilter->items($uid, $tag, $type);
+				} catch (\InvalidArgumentException) {
+					throw new ImmichException($this->l->t('Tag not found'), Http::STATUS_NOT_FOUND);
+				}
+				return new JSONResponse($this->private($uid, ['items' => $res['items'], 'nextPage' => null]) + ['person' => null, 'truncated' => $res['truncated']]);
+			});
+		}
+		return $this->guard(function () use ($q, $page, $person, $type, $literal, $tag) {
 			$uid = $this->uid();
+			$only = $this->tagged($uid, $tag, $type);
 			$resolved = null;
 			// Private people while locked: not recognised by name, and nothing to show by id
 			$hidden = $this->privateArea->hiddenPeople($uid);
@@ -83,8 +99,20 @@ class ApiController extends Controller {
 					[$person, $q] = [$found, $rest];
 				}
 			}
-			return new JSONResponse($this->private($uid, $this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type)) + ['person' => $resolved]);
+			return new JSONResponse($this->private($uid, $this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type, '', $only)) + ['person' => $resolved]);
 		});
+	}
+
+	/** @return ?array<int, true> file ids with the tag, null without a tag */
+	private function tagged(string $uid, string $tag, string $type): ?array {
+		if ($tag === '') {
+			return null;
+		}
+		try {
+			return $this->tagFilter->mediaIds($uid, $tag, in_array($type, ['IMAGE', 'VIDEO'], true) ? $type : '');
+		} catch (\InvalidArgumentException) {
+			throw new ImmichException($this->l->t('Tag not found'), Http::STATUS_NOT_FOUND);
+		}
 	}
 
 	/**

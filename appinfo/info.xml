@@ -11,11 +11,11 @@ understanding (CLIP), face recognition, memories and duplicate detection come fr
 self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-only.
 
 - **Search by content and people**, in the app and in Nextcloud's own search bar (also in the
-  mobile apps); "Tara beach" finds Tara's beach pictures. "More like this" for any picture.
+  mobile apps); "Tara beach" finds Tara's beach pictures. Narrow by tag. "More like this" for any picture.
 - **Timeline, map, folders, "on this day", duplicates** – like a gallery app, with all of it
   searchable.
 - **Sort in bulk:** select many (long-press on touch), move or copy into folders with undo,
-  tag, favorite, add to an album, download as ZIP, delete.
+  tag, favorite, add to an album and share it, download as ZIP, delete.
 - **People:** name, merge, hide, favorites; assign single faces; "Label people"
   naming in a row. Faces are cut only from pictures the viewer may open.
 - **Private area:** folders, people and single pictures that only show after unlocking with
@@ -26,7 +26,7 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 - In the Files app: a "Similar pictures" action and a sidebar tab with the people in a picture.
   A dashboard widget shows today's memories.
 	]]></description>
-	<version>4.0.4</version>
+	<version>4.1.2</version>
 	<licence>agpl</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>

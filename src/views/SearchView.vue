@@ -38,6 +38,16 @@
 					label="name"
 					:clearable="true"
 					@update:modelValue="run(true)" />
+				<NcSelect
+					v-if="tagOptions.length"
+					v-model="tagOption"
+					class="search__tag"
+					:options="tagOptions"
+					:ariaLabelCombobox="t('Filter by tag')"
+					:placeholder="t('All tags')"
+					label="name"
+					:clearable="true"
+					@update:modelValue="run(true)" />
 				<div class="search__types" role="group" :aria-label="t('Type')">
 					<NcCheckboxRadioSwitch
 						v-for="opt in typeOptions"
@@ -111,7 +121,7 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import MediaBrowser from '../components/MediaBrowser.vue'
-import { errorMessage, search, thumbnailUrl } from '../api.js'
+import { errorMessage, getTags, search, thumbnailUrl } from '../api.js'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { t } from '../l10n.js'
 import { userPrefs } from '../prefs.js'
@@ -133,6 +143,9 @@ const typeOptions = [
 const q = ref(route.query.q || '')
 const type = ref(route.query.type ?? (userPrefs.show_videos ? '' : 'IMAGE'))
 const personId = ref(props.person || route.query.person || '')
+/** Collaborative tag to narrow to; alone it lists all its pictures. */
+const tagId = ref(route.query.tag || '')
+const tagOptions = ref([])
 const items = ref([])
 const nextPage = ref(null)
 const loading = ref(false)
@@ -157,14 +170,24 @@ const personOption = computed({
 	},
 })
 
+const tagOption = computed({
+	get: () => tagOptions.value.find((o) => String(o.id) === String(tagId.value)) ?? null,
+	set: (o) => {
+		tagId.value = o?.id ?? ''
+	},
+})
+
+/** Without text or picture to rank by, results come by date. */
+const byDate = computed(() => !(q.value.trim() && !similar.value))
+
 const status = computed(() => {
 	if (!searched.value || !items.value.length) {
 		return ''
 	}
 	const count = items.value.length + (nextPage.value ? '+' : '')
-	return q.value && !similar.value
-		? t('{count} results, best first', { count })
-		: t('{count} results, newest first', { count })
+	return byDate.value
+		? t('{count} results, newest first', { count })
+		: t('{count} results, best first', { count })
 })
 
 const emptyState = computed(() => {
@@ -174,8 +197,8 @@ const emptyState = computed(() => {
 	if (error.value) {
 		return { name: t('Search failed'), description: error.value, icon: mdiAlertCircleOutline }
 	}
-	if (!q.value && !personId.value && !similar.value) {
-		return { name: t('Search photos by content'), description: t('Describe what should be in the picture, or pick a person.'), icon: mdiImageSearchOutline }
+	if (!q.value && !personId.value && !similar.value && !tagId.value) {
+		return { name: t('Search photos by content'), description: t('Describe what should be in the picture, or pick a person or a tag.'), icon: mdiImageSearchOutline }
 	}
 	if (searched.value && !items.value.length) {
 		return { name: t('Nothing found'), description: '', icon: mdiImageOffOutline }
@@ -202,16 +225,16 @@ async function run(reset, asText = false) {
 		error.value = ''
 		lastQ = similar.value ? null : q.value.trim()
 		if (similar.value) {
-			replaceQuery({ similar: similar.value.id, name: similar.value.name, type: type.value })
+			replaceQuery({ similar: similar.value.id, name: similar.value.name, type: type.value, tag: tagId.value })
 		} else if (!props.person) {
-			replaceQuery({ q: q.value.trim(), type: type.value, person: personId.value })
+			replaceQuery({ q: q.value.trim(), type: type.value, person: personId.value, tag: tagId.value })
 		} else {
-			replaceQuery({ q: q.value.trim(), type: type.value })
+			replaceQuery({ q: q.value.trim(), type: type.value, tag: tagId.value })
 		}
 	} else if (controller || !nextPage.value) {
 		return
 	}
-	if (!q.value.trim() && !personId.value && !similar.value) {
+	if (!q.value.trim() && !personId.value && !similar.value && !tagId.value) {
 		return
 	}
 
@@ -219,8 +242,8 @@ async function run(reset, asText = false) {
 	loading.value = true
 	try {
 		const res = await search(similar.value
-			? { similar: similar.value.id, page: nextPage.value, type: type.value }
-			: { q: q.value.trim(), page: nextPage.value, person: personId.value, type: type.value, literal: literal.value }, ctrl.signal)
+			? { similar: similar.value.id, page: nextPage.value, type: type.value, tag: tagId.value }
+			: { q: q.value.trim(), page: nextPage.value, person: personId.value, type: type.value, literal: literal.value, tag: tagId.value }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}
@@ -278,7 +301,14 @@ watch(() => props.person, (p) => {
 	run(true)
 })
 
-onMounted(() => run(true))
+onMounted(async () => {
+	run(true)
+	try {
+		tagOptions.value = await getTags(true)
+	} catch {
+		// no tag filter then; the search itself works without it
+	}
+})
 onBeforeUnmount(() => controller?.abort())
 </script>
 
@@ -309,7 +339,7 @@ onBeforeUnmount(() => controller?.abort())
 		align-items: center;
 	}
 
-	&__person {
+	&__person, &__tag {
 		min-width: 200px;
 	}
 

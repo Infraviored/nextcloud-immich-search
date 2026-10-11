@@ -37,6 +37,9 @@ class AssetSearch {
 	private const GRANT_TTL = 86400;
 	/** Immich pages fetched at most per call when the permission filter drops most hits. */
 	private const MAX_PAGES_PER_CALL = 5;
+	/** With a tag filter, which keeps only a few hits: Immich page size and pages per call. */
+	private const FILTERED_PAGE_SIZE = 500;
+	private const MAX_PAGES_PER_CALL_FILTERED = 10;
 	/** Owner lookups kept in memory, enough for one person's pictures in PeopleIndex. */
 	private const OWNER_MEMO = 5000;
 
@@ -60,12 +63,14 @@ class AssetSearch {
 
 	/**
 	 * @param string $q free text; empty means newest first (useful with $person)
+	 * @param ?array<int, true> $onlyFiles keep only these file ids (a tag filter), null for all.
+	 *                                     Best only those the user can open: once all are found, the search stops.
 	 * @return array{items: list<array>, nextPage: ?int} only items the user may see. Keeps
 	 *                                                   fetching Immich pages until half a page is filled, so a user who may see little
 	 *                                                   does not get a string of empty pages.
 	 */
-	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = ''): array {
-		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar);
+	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = '', ?array $onlyFiles = null): array {
+		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar, $onlyFiles);
 	}
 
 	/**
@@ -99,23 +104,38 @@ class AssetSearch {
 	 * Page through Immich results until half a page of visible items is filled.
 	 *
 	 * @param callable(int $page, int $size): array $fetch returns Immich's "assets" block
+	 * @param ?array<int, true> $onlyFiles keep only these file ids, null for all
 	 */
-	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = ''): array {
+	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = '', ?array $onlyFiles = null): array {
 		$size = max(1, min(200, $size));
 		$items = [];
 		$next = max(1, $page);
-		for ($i = 0; $i < self::MAX_PAGES_PER_CALL && $next !== null && count($items) < intdiv($size + 1, 2); $i++) {
-			$assets = $fetch($next, $size);
+		if ($onlyFiles === []) {
+			return ['items' => [], 'nextPage' => null];
+		}
+		$maxPages = $onlyFiles === null ? self::MAX_PAGES_PER_CALL : self::MAX_PAGES_PER_CALL_FILTERED;
+		// The cursor is an Immich page, so a filtered search keeps its page size on every call
+		$fetchSize = $onlyFiles === null ? $size : self::FILTERED_PAGE_SIZE;
+		$want = $onlyFiles === null ? intdiv($size + 1, 2) : $size;
+		for ($i = 0; $i < $maxPages && $next !== null && count($items) < $want; $i++) {
+			if ($onlyFiles !== null && $page <= 1 && count($items) >= count($onlyFiles)) {
+				break;
+			}
+			$assets = $fetch($next, $fetchSize);
 			foreach ($assets['items'] ?? [] as $a) {
 				if ($a['id'] === $skipId) {
 					continue; // "more like this": the picture itself is its best match
 				}
 				$item = $this->visibleItem($uid, $a);
-				if ($item !== null) {
+				if ($item !== null && ($onlyFiles === null || isset($onlyFiles[$item['fileId']]))) {
 					$items[] = $item;
 				}
 			}
 			$next = isset($assets['nextPage']) ? (int)$assets['nextPage'] : null;
+		}
+		// A search from the start that found every tagged file has nothing more to look for
+		if ($onlyFiles !== null && $page <= 1 && count(array_unique(array_column($items, 'fileId'))) >= count($onlyFiles)) {
+			$next = null;
 		}
 		return ['items' => $items, 'nextPage' => $next];
 	}

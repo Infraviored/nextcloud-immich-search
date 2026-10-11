@@ -126,6 +126,32 @@ class AssetSearchTest extends TestCase {
 		$this->assertSame(3, $res['nextPage'], 'stops once half a page is filled');
 	}
 
+	public function testTagFilterKeepsOnlyTaggedFiles(): void {
+		$this->immich->method('json')->willReturn(['assets' => ['items' => [
+			$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg'),
+			$this->asset('a2', '/mnt/nextcloud/alice/Private/secret.jpg'),
+		], 'nextPage' => null]]);
+
+		$res = $this->search->search('alice', 'beach', 1, 4, '', '', '', [11 => true]);
+		$this->assertSame(['a2'], array_column($res['items'], 'id'));
+	}
+
+	public function testTagFilterStopsOnceEveryTaggedFileIsFound(): void {
+		$this->immich->expects($this->once())->method('json')->willReturn(['assets' => ['items' => [
+			$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg'),
+		], 'nextPage' => '2']]);
+
+		$res = $this->search->search('alice', 'beach', 1, 4, '', '', '', [10 => true]);
+		$this->assertSame(['a1'], array_column($res['items'], 'id'));
+		$this->assertNull($res['nextPage'], 'the only tagged file is found, no second page');
+	}
+
+	public function testEmptyTagAsksImmichNothing(): void {
+		$this->immich->expects($this->never())->method('json');
+		$res = $this->search->search('alice', 'beach', 1, 4, '', '', '', []);
+		$this->assertSame(['items' => [], 'nextPage' => null], $res);
+	}
+
 	private const A1 = '11111111-1111-4111-8111-111111111111';
 	private const A2 = '22222222-2222-4222-8222-222222222222';
 
