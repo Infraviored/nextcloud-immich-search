@@ -352,6 +352,8 @@ OC.L10N.register(
         "Show all similar pictures": "Alle ähnlichen Bilder zeigen",
         "Show hidden": "Ausgeblendete zeigen",
         "Show in folder": "Im Ordner zeigen",
+        "Show in timeline": "In der Zeitleiste zeigen",
+        "Open in Memories": "In Memories öffnen",
         "Show more": "Mehr zeigen",
         "Show photos by content in my Nextcloud search": "Fotos nach Inhalt in meiner Nextcloud-Suche zeigen",
         "Show private pictures": "Private Bilder zeigen",

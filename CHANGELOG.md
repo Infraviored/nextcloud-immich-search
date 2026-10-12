@@ -3,6 +3,14 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.2.3] - 2026-10-13
+
+### Added
+- **"Show in timeline"** for one selected picture: the timeline opens at its day, with the
+  pictures before it below and the year buttons to move on.
+- **"Open in Memories"**, if the Memories app is installed and the picture lies in one of its
+  timeline folders: Memories opens the picture; closing it leaves its timeline at that day.
+
 ## [4.2.1] - 2026-10-11
 
 ### Added

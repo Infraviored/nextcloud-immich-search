@@ -145,6 +145,48 @@ export function localDate(date = new Date()) {
 	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
+/**
+ * The picture's day as Memories numbers it: days since 1970 of the local capture time.
+ * Immich's localDateTime and Memories both store that time as if it were UTC.
+ *
+ * @param {string} date the item's date (Immich localDateTime)
+ */
+export const memoriesDay = (date) => Math.floor(Date.parse(date) / 86400000)
+
+/**
+ * Memories' timeline with this picture open; closing it leaves the timeline at that day.
+ *
+ * @param {{date: string, fileId: number}} item
+ */
+export const memoriesUrl = (item) => generateUrl('/apps/memories/') + `#v/${memoriesDay(item.date)}/${seg(item.fileId)}`
+
+/**
+ * Whether Memories' timeline has the picture: it shows only its own folders.
+ *
+ * @param {string} path the picture, relative to the user's files ("/Photos/a.jpg")
+ * @param {string[]} roots Memories' timeline folders ("/Photos", "/" for all)
+ */
+export function inMemories(path, roots) {
+	const file = '/' + String(path || '').replace(/^\/+/, '')
+	return (roots || []).some((root) => {
+		const dir = '/' + root.replace(/^\/+|\/+$/g, '')
+		return dir === '/' || file.startsWith(dir + '/')
+	})
+}
+
+/**
+ * Where our timeline starts for "show in timeline": after the picture's day.
+ * Immich filters by the UTC time, the day is local time; 14 hours more cover every time
+ * zone, so the day is complete at the cost of a few pictures of the next one on top.
+ *
+ * @param {string} day YYYY-MM-DD
+ * @return {string} ISO time, '' for an invalid day
+ */
+export function timelineStart(day) {
+	const t = /^\d{4}-\d{2}-\d{2}$/.test(day || '') ? Date.parse(day + 'T00:00:00Z') : NaN
+	return Number.isNaN(t) ? '' : new Date(t + (24 + 14) * 3600000).toISOString()
+}
+
 export async function memories() {
 	return (await axios.get(url('/api/memories'), { params: { date: localDate() } })).data
 }

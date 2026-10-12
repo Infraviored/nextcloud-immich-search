@@ -18,6 +18,7 @@
 			:busy="transferBusy || actionBusy"
 			:single="singleSelected"
 			:photosEnabled="page.photosEnabled"
+			:memoriesPaths="page.memoriesPaths"
 			:person="peopleState.canManage ? person : null"
 			@clear="selected = new Set()"
 			@selectAll="selected = new Set(allItems.map((i) => i.fileId))"
@@ -30,7 +31,8 @@
 			@faces="dialog = 'faces'"
 			@private="doPrivate"
 			@delete="dialog = 'delete'"
-			@notPerson="dialog = 'notPerson'" />
+			@notPerson="dialog = 'notPerson'"
+			@timeline="navigate('/timeline', { at: singleSelected.date.slice(0, 10) })" />
 		<slot v-else name="status" />
 
 		<FacesDialog v-if="dialog === 'faces' && singleSelected" :item="singleSelected" @close="dialog = null" />
@@ -89,6 +91,7 @@ import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
 import { peopleState, reloadPeople } from '../people.js'
 import { privateState, setPrivateFiles } from '../private.js'
+import { navigate } from '../router.js'
 import { pruneSelection, toggleSelection } from '../selection.js'
 import { openInViewer } from '../viewer.js'
 
@@ -105,7 +108,7 @@ const props = defineProps({
  */
 const emit = defineEmits(['removed', 'refresh', 'similar'])
 
-const page = loadState('glimpse', 'page', { photosEnabled: false })
+const page = loadState('glimpse', 'page', { photosEnabled: false, memoriesPaths: [] })
 const selected = ref(new Set())
 /** File id clicked last, start of a shift range; shared by all groups of the view. */
 let anchor = null

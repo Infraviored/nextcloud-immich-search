@@ -12,7 +12,7 @@ permission checks.
 | | |
 |---|---|
 | **Search** | By content, by person, both ("Tara beach"), by tag, photos or videos, "more like this" for any picture |
-| **Browse** | Timeline by month with year jumps and "on this day", map of geotagged pictures, folders as galleries |
+| **Browse** | Timeline by month with year jumps and "on this day", map of geotagged pictures, folders as galleries; "show in timeline" and "open in Memories" for a picture |
 | **Sort** | Multi-select (hover checkbox, shift range, long-press on touch); move/copy into folders with recent targets and undo; tag; favorite; add to a Photos album and share it with users or groups; download as ZIP; delete |
 | **People** | Name, merge, hide, favorites; assign or remove single faces; "Not Tanja" moves her faces out of many selected pictures at once; "Label people" to name people in a row, three faces each |
 | **Duplicates** | Groups of identical or nearly identical pictures, Immich's choice of what to keep preselected |

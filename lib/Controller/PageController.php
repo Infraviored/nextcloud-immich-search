@@ -20,6 +20,7 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\EventDispatcher\IEventDispatcher;
+use OCP\IConfig;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OCP\Util;
@@ -34,6 +35,7 @@ class PageController extends Controller {
 		private IInitialState $initialState,
 		private IEventDispatcher $events,
 		private IAppManager $appManager,
+		private IConfig $ncConfig,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -52,6 +54,8 @@ class PageController extends Controller {
 			'canManagePeople' => $this->permissions->canManagePeople($this->uid()),
 			// Albums live in the Photos app; the action is offered only if it is there.
 			'photosEnabled' => $this->appManager->isEnabledForUser('photos'),
+			// "Open in Memories" links into its timeline, for pictures inside its folders.
+			'memoriesPaths' => $this->memoriesPaths(),
 		]);
 		$this->initialState->provideInitialState('prefs', $this->prefs->all($this->uid()));
 		if ($isAdmin) {
@@ -59,6 +63,24 @@ class PageController extends Controller {
 		}
 		Util::addScript(Application::APP_ID, Application::APP_ID . '-main');
 		return new TemplateResponse(Application::APP_ID, 'main');
+	}
+
+	/**
+	 * The folders Memories' timeline shows for the user (its "timelinePath", several
+	 * separated by ";"); none if Memories is off or not set up yet.
+	 *
+	 * @return string[]
+	 */
+	private function memoriesPaths(): array {
+		if (!$this->appManager->isEnabledForUser('memories')) {
+			return [];
+		}
+		$paths = $this->ncConfig->getUserValue($this->uid(), 'memories', 'timelinePath', '')
+			?: $this->ncConfig->getSystemValueString('memories.timeline.default_path', '_empty_');
+		if ($paths === '_empty_') {
+			return [];
+		}
+		return array_values(array_filter(array_map(trim(...), explode(';', $paths)), static fn ($p) => $p !== ''));
 	}
 
 	/** Same data the admin settings section gets, for the in-app settings dialog. */

@@ -64,10 +64,10 @@ import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import MediaBrowser from '../components/MediaBrowser.vue'
-import { errorMessage, memories as getMemories, thumbnailUrl, timeline } from '../api.js'
+import { errorMessage, memories as getMemories, thumbnailUrl, timeline, timelineStart } from '../api.js'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { n, t } from '../l10n.js'
-import { navigate } from '../router.js'
+import { navigate, route } from '../router.js'
 
 const thisYear = new Date().getFullYear()
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
@@ -77,7 +77,8 @@ const years = ref([])
 const memories = ref([])
 const openMemory = ref(null)
 const nextPage = ref(1)
-const before = ref('')
+/** ?at=YYYY-MM-DD ("show in timeline"): start at that day instead of today. */
+const before = ref(timelineStart(route.query.at))
 const loading = ref(false)
 const error = ref('')
 /** The request in flight; a reload aborts it, so an old answer can never be appended. */

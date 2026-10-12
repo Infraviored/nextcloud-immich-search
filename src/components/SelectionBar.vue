@@ -121,6 +121,18 @@
 					</template>
 					{{ t('Faces …') }}
 				</NcActionButton>
+				<NcActionButton v-if="single.date" :closeAfterClick="true" @click="$emit('timeline')">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiCalendarMonthOutline" />
+					</template>
+					{{ t('Show in timeline') }}
+				</NcActionButton>
+				<NcActionLink v-if="single.date && inMemories(single.path, memoriesPaths)" :href="memoriesUrl(single)">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiImageFilterHdr" />
+					</template>
+					{{ t('Open in Memories') }}
+				</NcActionLink>
 				<NcActionLink :href="fileUrl(single.fileId)">
 					<template #icon>
 						<NcIconSvgWrapper :path="mdiFolderOutline" />
@@ -148,6 +160,7 @@
 <script setup>
 import {
 	mdiAccountRemoveOutline,
+	mdiCalendarMonthOutline,
 	mdiChevronDown,
 	mdiClose,
 	mdiContentCopy,
@@ -156,6 +169,7 @@ import {
 	mdiFolderMove,
 	mdiFolderOutline,
 	mdiImageAlbum,
+	mdiImageFilterHdr,
 	mdiImageMultipleOutline,
 	mdiLockOpenVariantOutline,
 	mdiLockOutline,
@@ -174,7 +188,7 @@ import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import { fileUrl } from '../api.js'
+import { fileUrl, inMemories, memoriesUrl } from '../api.js'
 import { recentTargets as recent } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
 import { downloadZip } from '../zip.js'
@@ -187,10 +201,12 @@ const props = defineProps({
 	/** The selected item, if exactly one is selected. */
 	single: { type: Object, default: null },
 	photosEnabled: { type: Boolean, default: false },
+	/** Memories' timeline folders, for "Open in Memories" */
+	memoriesPaths: { type: Array, default: () => [] },
 	/** {id, name}: the pictures are listed for this person, offer "Not {name}" */
 	person: { type: Object, default: null },
 })
-defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'delete', 'notPerson'])
+defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'delete', 'notPerson', 'timeline'])
 
 const shareHref = computed(() => {
 	const dir = props.single.path.slice(0, props.single.path.lastIndexOf('/')) || '/'

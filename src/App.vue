@@ -125,7 +125,7 @@
 					</template>
 				</NcEmptyContent>
 				<SearchView v-else-if="route.name === 'search'" :key="searchKey + privateState.version" :people="peopleState.people" />
-				<TimelineView v-else-if="route.name === 'timeline'" :key="'t' + privateState.version" />
+				<TimelineView v-else-if="route.name === 'timeline'" :key="'t' + (route.query.at || '') + privateState.version" />
 				<MapView v-else-if="route.name === 'map'" :key="'m' + privateState.version" />
 				<FolderView v-else-if="route.name === 'folders'" :key="'f' + privateState.version" />
 				<PeopleView v-else-if="route.name === 'people'" :key="'p' + privateState.version" />
