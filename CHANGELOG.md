@@ -3,6 +3,19 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.5.1] - 2026-10-13
+
+### Changed
+- Search inside videos works in a night window (default 2:00–7:00, settable next to the
+  switch); `occ glimpse:video-scenes` ignores it.
+
+### Fixed
+- Review findings: a run stops when Immich is unreachable instead of giving up on videos, and
+  failed videos are retried daily; an interrupted run never uploads a still twice; only local
+  storage is read (no temporary copies of remote files); ffmpeg's error output can no longer
+  block it; deleted videos' stills are found with a few listings instead of one call per video;
+  "more like this" from a video hides the video itself.
+
 ## [4.5.0] - 2026-10-13
 
 ### Added
