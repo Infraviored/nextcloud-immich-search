@@ -270,6 +270,7 @@ class VideoScenes {
 			$byVideo = [];
 			$page = 1;
 			while ($page !== null) {
+				// Immich /search/metadata originalFileName performs a prefix/partial match, returning all glimpse-frame_* assets
 				$res = $this->immich->json('POST', '/search/metadata', [
 					'originalFileName' => self::PREFIX, 'visibility' => 'archive', 'page' => $page, 'size' => 1000,
 				])['assets'] ?? [];
@@ -281,9 +282,29 @@ class VideoScenes {
 				$page = isset($res['nextPage']) ? (int)$res['nextPage'] : null;
 			}
 			$done = $this->config->getState(self::STATE);
+			$liveVideos = [];
+			if ($orphansOnly) {
+				// Batch existence check: list live timeline videos in 1000-item pages instead of N+1 requests
+				$vPage = 1;
+				while ($vPage !== null) {
+					$res = $this->immich->json('POST', '/search/metadata', [
+						'type' => 'VIDEO', 'visibility' => 'timeline', 'page' => $vPage, 'size' => 1000,
+					])['assets'] ?? [];
+					foreach ($res['items'] ?? [] as $v) {
+						$liveVideos[$v['id']] = true;
+					}
+					$vPage = isset($res['nextPage']) ? (int)$res['nextPage'] : null;
+				}
+				// Retry failed videos once a day and clean up done state for deleted videos
+				foreach ($done as $videoId => $count) {
+					if ($count === self::FAILED || !isset($liveVideos[$videoId])) {
+						unset($done[$videoId]);
+					}
+				}
+			}
 			$gone = [];
 			foreach ($byVideo as $videoId => $ids) {
-				if ($orphansOnly && $this->exists($videoId)) {
+				if ($orphansOnly && isset($liveVideos[$videoId])) {
 					continue;
 				}
 				array_push($gone, ...$ids);
@@ -296,15 +317,6 @@ class VideoScenes {
 			return count($gone);
 		} finally {
 			$this->locks->releaseLock(self::LOCK, ILockingProvider::LOCK_EXCLUSIVE);
-		}
-	}
-
-	private function exists(string $videoId): bool {
-		try {
-			$a = $this->immich->json('GET', '/assets/' . $videoId);
-			return !($a['isTrashed'] ?? false);
-		} catch (ImmichException $e) {
-			return $e->getCode() !== 404;
 		}
 	}
 }
