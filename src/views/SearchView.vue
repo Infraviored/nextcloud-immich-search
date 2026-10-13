@@ -10,60 +10,70 @@
 -->
 <template>
 	<div class="search">
-		<form class="search__bar" role="search" @submit.prevent="submit">
-			<NcTextField
-				v-model="q"
-				class="search__input"
-				:label="person ? t('Search in these pictures') : t('What is in the picture?')"
-				:placeholder="t('e.g. woman on the beach')"
-				trailingButtonIcon="close"
-				:showTrailingButton="q !== ''"
-				enterkeyhint="search"
-				@keydown.enter.prevent="submit"
-				@blur="submitIfChanged"
-				@trailingButtonClick="q = ''; run(true)">
-				<template #icon>
-					<NcIconSvgWrapper :path="mdiMagnify" :size="20" />
-				</template>
-			</NcTextField>
-			<div class="search__filters">
-				<slot name="filters" />
-				<NcSelect
-					v-if="!person"
-					v-model="personOption"
-					class="search__person"
-					:options="peopleOptions"
-					:ariaLabelCombobox="t('Person')"
-					:placeholder="t('All people')"
-					label="name"
-					:clearable="true"
-					@update:modelValue="run(true)" />
-				<NcSelect
-					v-if="tagOptions.length"
-					v-model="tagOption"
-					class="search__tag"
-					:options="tagOptions"
-					:ariaLabelCombobox="t('Filter by tag')"
-					:placeholder="t('All tags')"
-					label="name"
-					:clearable="true"
-					@update:modelValue="run(true)" />
-				<div class="search__types" role="group" :aria-label="t('Type')">
-					<NcCheckboxRadioSwitch
-						v-for="opt in typeOptions"
-						:key="opt.value"
-						v-model="type"
-						type="radio"
-						buttonVariant
-						buttonVariantGrouped="horizontal"
-						:value="opt.value"
-						name="type"
-						@update:modelValue="run(true)">
-						{{ opt.label }}
-					</NcCheckboxRadioSwitch>
-				</div>
+		<!-- The search itself is the pill in the app's bar; a person's page has its own field -->
+		<LensSearch
+			v-if="person"
+			v-model="q"
+			class="search__person-field"
+			:placeholder="t('Search in these pictures')"
+			@submit="submit"
+			@blur="submitIfChanged"
+			@clear="run(true)" />
+		<h2 v-else-if="q.trim() && !similar" class="search__query g-display">
+			{{ q.trim() }}
+		</h2>
+		<div class="search__filters">
+			<slot name="filters" />
+			<NcSelect
+				v-if="!person"
+				v-model="personOption"
+				class="search__person"
+				:options="peopleOptions"
+				:ariaLabelCombobox="t('Person')"
+				:placeholder="t('All people')"
+				label="name"
+				:clearable="true"
+				@update:modelValue="run(true)" />
+			<NcSelect
+				v-if="tagOptions.length"
+				v-model="tagOption"
+				class="search__tag"
+				:options="tagOptions"
+				:ariaLabelCombobox="t('Filter by tag')"
+				:placeholder="t('All tags')"
+				label="name"
+				:clearable="true"
+				@update:modelValue="run(true)" />
+			<div class="search__types" role="group" :aria-label="t('Type')">
+				<button
+					v-for="opt in typeOptions"
+					:key="opt.value"
+					type="button"
+					class="chip"
+					:class="{ 'chip--on': type === opt.value }"
+					:aria-pressed="type === opt.value"
+					@click="type = opt.value; run(true)">
+					{{ opt.label }}
+				</button>
 			</div>
-		</form>
+		</div>
+		<!-- Nothing asked yet: the people to start from, as in the app -->
+		<section v-if="idle && faces.length" class="search__people">
+			<h3 class="g-heading">
+				{{ t('People') }}
+			</h3>
+			<div class="faces">
+				<a
+					v-for="p in faces"
+					:key="p.id"
+					class="faces__person"
+					:href="href('/people/' + p.id)"
+					@click.prevent="navigate('/people/' + p.id)">
+					<img :src="faceUrl(p.id)" alt="" loading="lazy">
+					<span>{{ p.name }}</span>
+				</a>
+			</div>
+		</section>
 
 		<div v-if="similar" class="search__similar">
 			<img :src="thumbnailUrl(similar.id)" alt="">
@@ -112,22 +122,21 @@
 </template>
 
 <script setup>
-import { mdiAlertCircleOutline, mdiClose, mdiImageOffOutline, mdiImageSearchOutline, mdiMagnify } from '@mdi/js'
+import { mdiAlertCircleOutline, mdiClose, mdiImageOffOutline, mdiImageSearchOutline } from '@mdi/js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
-import NcTextField from '@nextcloud/vue/components/NcTextField'
+import LensSearch from '../components/LensSearch.vue'
 import MediaBrowser from '../components/MediaBrowser.vue'
-import { errorMessage, getTags, search, thumbnailUrl } from '../api.js'
+import { errorMessage, faceUrl, getTags, search, thumbnailUrl } from '../api.js'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { t } from '../l10n.js'
 import { peopleState } from '../people.js'
 import { userPrefs } from '../prefs.js'
-import { replaceQuery, route } from '../router.js'
+import { href, navigate, replaceQuery, route } from '../router.js'
 
 const props = defineProps({
 	/** Fixed person (PersonView); hides the person filter. */
@@ -165,6 +174,11 @@ const sentinel = ref(null)
 const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value && run(false))
 
 const peopleOptions = computed(() => props.people.filter((p) => p.name))
+
+/** Nothing to search for yet */
+const idle = computed(() => !q.value.trim() && !personId.value && !similar.value && !tagId.value)
+/** Named people, the most pictured first */
+const faces = computed(() => peopleOptions.value.filter((p) => !p.hidden).toSorted((a, b) => (b.count ?? 0) - (a.count ?? 0)).slice(0, 24))
 const personOption = computed({
 	get: () => peopleOptions.value.find((p) => p.id === personId.value) ?? null,
 	set: (p) => {
@@ -209,8 +223,8 @@ const emptyState = computed(() => {
 	if (error.value) {
 		return { name: t('Search failed'), description: error.value, icon: mdiAlertCircleOutline }
 	}
-	if (!q.value && !personId.value && !similar.value && !tagId.value) {
-		return { name: t('Search photos by content'), description: t('Describe what should be in the picture, or pick a person or a tag.'), icon: mdiImageSearchOutline }
+	if (idle.value) {
+		return faces.value.length ? null : { name: t('Search photos by content'), description: t('Describe what should be in the picture, or pick a person or a tag.'), icon: mdiImageSearchOutline }
 	}
 	if (searched.value && !items.value.length) {
 		return { name: t('Nothing found'), description: '', icon: mdiImageOffOutline }
@@ -326,29 +340,27 @@ onBeforeUnmount(() => controller?.abort())
 
 <style scoped lang="scss">
 .search {
-	&__bar {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px 12px;
-		align-items: center;
-		margin-bottom: 8px;
-
-		// One height and no stray margins, so text field, select and switches line up
-		:deep(.input-field), :deep(.v-select) {
-			margin-block: 0;
-		}
+	&__person-field {
+		max-width: 560px;
+		margin-bottom: 12px;
 	}
 
-	&__input {
-		flex: 1 1 320px;
-		min-width: 0;
+	&__query {
+		margin: 8px 0 14px;
+		font-size: clamp(40px, 6vw, 64px);
+		overflow-wrap: anywhere;
 	}
 
 	&__filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px 12px;
+		gap: 8px 10px;
 		align-items: center;
+		margin-bottom: 10px;
+
+		:deep(.v-select) {
+			margin-block: 0;
+		}
 	}
 
 	&__person, &__tag {
@@ -357,12 +369,22 @@ onBeforeUnmount(() => controller?.abort())
 
 	&__types {
 		display: flex;
+		gap: 6px;
+	}
+
+	&__people {
+		margin-top: 20px;
+
+		h3 {
+			margin: 0 0 14px;
+			font-size: 24px;
+		}
 	}
 
 	&__status {
 		min-height: 1.4em;
 		margin: 4px 0 8px;
-		color: var(--color-text-maxcontrast);
+		color: var(--g-muted);
 	}
 
 	&__similar {
@@ -375,7 +397,7 @@ onBeforeUnmount(() => controller?.abort())
 		img {
 			width: 48px;
 			height: 48px;
-			border-radius: var(--border-radius);
+			border-radius: 10px;
 			object-fit: cover;
 		}
 	}
@@ -385,6 +407,83 @@ onBeforeUnmount(() => controller?.abort())
 		justify-content: center;
 		min-height: 48px;
 		padding: 16px 0;
+	}
+}
+
+.chip {
+	height: 36px;
+	min-height: 0;
+	margin: 0;
+	padding: 0 16px;
+	border: 1px solid var(--g-line);
+	border-radius: 18px;
+	background: transparent;
+	color: var(--g-muted);
+	font-weight: 600;
+	cursor: pointer;
+
+	&:hover, &:focus-visible {
+		color: var(--g-text);
+	}
+
+	&--on {
+		border-color: var(--g-accent);
+		background: var(--g-accent);
+		color: var(--g-on-accent);
+
+		&:hover, &:focus-visible {
+			color: var(--g-on-accent);
+		}
+	}
+}
+
+.faces {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+	gap: 18px 10px;
+
+	&__person {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding: 4px;
+		border-radius: 16px;
+		color: var(--g-text);
+		font-weight: 600;
+		text-decoration: none;
+
+		img {
+			width: 86%;
+			aspect-ratio: 1;
+			border-radius: 50%;
+			object-fit: cover;
+			background: var(--g-raised);
+			transition: transform 0.15s ease;
+		}
+
+		span {
+			max-width: 100%;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		&:hover img, &:focus-visible img {
+			transform: scale(1.04);
+		}
+	}
+}
+
+@media (max-width: 600px) {
+	.search {
+		&__query, &__filters, &__people, &__status, &__similar, &__person-field {
+			margin-inline: 16px;
+		}
+	}
+
+	.faces {
+		grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
 	}
 }
 </style>

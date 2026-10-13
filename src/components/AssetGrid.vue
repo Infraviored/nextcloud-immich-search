@@ -35,7 +35,7 @@
 					loading="lazy"
 					decoding="async">
 				<span v-if="item.type === 'VIDEO'" class="tile__play" aria-hidden="true">
-					<NcIconSvgWrapper :path="mdiPlay" :size="28" />
+					<NcIconSvgWrapper :path="mdiPlay" :size="18" />
 				</span>
 			</button>
 			<button
@@ -197,24 +197,24 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 	--tile: 170px;
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr));
-	gap: 4px;
+	gap: 3px;
 
 	&--small { --tile: 110px; }
 	&--large { --tile: 260px; }
 }
 
+// Phones: edge to edge, as in the app
 @media (max-width: 600px) {
-	.grid { --tile: 96px; gap: 2px; }
-	.grid--small { --tile: 80px; }
-	.grid--large { --tile: 160px; }
+	.grid { --tile: 96px; gap: 3px; }
+	.grid--small { --tile: 76px; }
+	.grid--large { --tile: 150px; }
 }
 
 .tile {
 	position: relative;
 	aspect-ratio: 1;
-	border-radius: var(--border-radius-small, 4px);
 	overflow: hidden;
-	background: var(--color-background-dark);
+	background: var(--g-raised);
 	-webkit-touch-callout: none;
 	user-select: none;
 
@@ -234,20 +234,30 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 			width: 100%;
 			height: 100%;
 			object-fit: cover;
-			transition: transform 0.12s ease;
+			transition: transform 0.14s ease, border-radius 0.14s ease;
+		}
+
+		&:focus-visible {
+			outline: 3px solid var(--g-lens-blue);
+			outline-offset: -3px;
 		}
 	}
 
 	&__play {
 		position: absolute;
-		inset: 50% auto auto 50%;
-		transform: translate(-50%, -50%);
+		top: 8px;
+		right: 8px;
 		display: flex;
-		padding: 6px;
+		padding: 3px;
 		border-radius: 50%;
-		background: rgba(0, 0, 0, 0.5);
+		background: rgba(20, 22, 43, 0.6);
 		color: #fff;
 		pointer-events: none;
+
+		:deep(svg) {
+			width: 18px;
+			height: 18px;
+		}
 	}
 
 	&__check, &__folder, &__similar {
@@ -280,12 +290,22 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 		right: 6px;
 		width: 30px;
 		height: 30px;
-		background: rgba(255, 255, 255, 0.85);
-		color: #222;
+		min-height: 0;
+		background: rgba(20, 22, 43, 0.72);
+		color: #fff;
+
+		&:hover, &:focus-visible {
+			background: rgba(20, 22, 43, 0.92);
+		}
 	}
 
 	&__similar {
 		right: 42px;
+	}
+
+	// The tools take the corner the video mark sits in
+	&:hover .tile__play, &:focus-within .tile__play {
+		opacity: 0;
 	}
 
 	&:hover, &:focus-within {
@@ -293,8 +313,18 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 	}
 
 	&--selected {
-		.tile__open img { transform: scale(0.88); border-radius: 6px; }
-		.tile__check { opacity: 1; color: var(--color-primary-element); filter: drop-shadow(0 0 1px #fff); }
+		background: var(--g-bg);
+
+		.tile__open img {
+			transform: scale(0.86);
+			border-radius: 10px;
+		}
+
+		.tile__check, .tile__check:hover {
+			opacity: 1;
+			color: var(--g-accent);
+			filter: drop-shadow(0 0 1px rgba(20, 22, 43, 0.9));
+		}
 	}
 }
 
@@ -302,6 +332,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 // moves to the selection bar (one picture selected) instead of cluttering every tile.
 @media (hover: none) {
 	.tile__folder, .tile__similar { display: none; }
+	.tile:hover .tile__play { opacity: 1; }
 	.grid:has(.tile--selected) .tile__check { opacity: 1; }
 }
 </style>

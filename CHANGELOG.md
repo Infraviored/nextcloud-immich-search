@@ -3,6 +3,22 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.4.0] - 2026-10-13
+
+### Changed
+- **New look, the same as the Android app.** Night blue around the pictures, the lens's
+  blue-to-violet for actions, apricot for what is chosen, years and names in Bricolage
+  Grotesque. Nextcloud's light theme gets a light version of it.
+- **One navigation instead of two.** The side panel and the row of tabs are gone; the views
+  sit as words next to the app's name, the search is a pill that is always there. On phones
+  the search and the views sit at the bottom, in reach of the thumb, as in the app.
+- **Timeline in year bands.** Each year opens with its number in big type; all years run down
+  the right edge, the one in view in apricot, and a click jumps there. "Back to today" floats
+  in the corner after a jump.
+- An empty search shows the people to start from. Photo/video filters are chips; selected
+  pictures get a floating bar at the bottom. A person's name is the page's heading and is
+  edited in place.
+
 ## [4.3.4] - 2026-10-13
 
 ### Changed

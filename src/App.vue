@@ -5,111 +5,61 @@
 
 <template>
 	<NcContent appName="glimpse">
-		<NcAppNavigation :aria-label="t('Glimpse')">
-			<template #list>
-				<NcAppNavigationItem
-					v-for="v in views"
-					:key="v.name"
-					:name="v.label"
-					:href="href(v.path)"
-					:active="isActive(v)"
-					:allowCollapse="v.name === 'people' && named.length > 0"
-					:open="v.name === 'people'"
-					@click.prevent="navigate(v.path)">
-					<template #icon>
-						<NcIconSvgWrapper :path="v.icon" />
-					</template>
-					<template v-if="v.name === 'people'">
-						<NcAppNavigationItem
-							v-for="p in named"
-							:key="p.id"
-							:name="p.name"
-							:href="href('/people/' + p.id)"
-							:active="route.name === 'person' && route.id === p.id"
-							@click.prevent="navigate('/people/' + p.id)">
-							<template #icon>
-								<img class="nav-face" :src="faceUrl(p.id)" alt="">
-							</template>
-						</NcAppNavigationItem>
-					</template>
-				</NcAppNavigationItem>
-			</template>
-			<template #footer>
-				<ul class="app-navigation-entry__settings">
-					<NcAppNavigationItem
-						:name="t('Duplicates')"
-						:href="href('/duplicates')"
-						:active="route.name === 'duplicates'"
-						@click.prevent="navigate('/duplicates')">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiContentDuplicate" />
-						</template>
-					</NcAppNavigationItem>
-					<NcAppNavigationItem
-						:name="t('Settings')"
-						:href="href('/settings')"
-						:active="route.name === 'settings'"
-						@click.prevent="navigate('/settings')">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiCogOutline" />
-						</template>
-					</NcAppNavigationItem>
-				</ul>
-			</template>
-		</NcAppNavigation>
-
 		<!-- pageTitle, not pageHeading: with a heading the tab title got "[object Object]" for the app name -->
 		<NcAppContent :pageTitle="t('Glimpse')">
-			<div class="glimpse-page">
-				<nav class="tabs" :aria-label="t('Glimpse')">
-					<NcButton
-						v-for="v in views"
-						:key="v.name"
-						:variant="isActive(v) ? 'primary' : 'tertiary'"
-						:href="href(v.path)"
-						:aria-label="v.label"
-						:class="{ 'tabs__tab--active': isActive(v) }"
-						class="tabs__tab"
-						@click.prevent="navigate(v.path)">
-						<template #icon>
-							<NcIconSvgWrapper :path="v.icon" />
-						</template>
-						<span class="tabs__label">{{ v.label }}</span>
-					</NcButton>
-					<span class="tabs__spacer" />
-					<NcButton
-						variant="tertiary"
-						:aria-label="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
-						:title="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
-						:pressed="privateState.unlocked"
-						@click="togglePrivate">
-						<template #icon>
-							<NcIconSvgWrapper :path="privateState.unlocked ? mdiLockOpenVariantOutline : mdiLockOutline" />
-						</template>
-					</NcButton>
-					<NcButton
-						class="tabs__extra"
-						variant="tertiary"
-						:aria-label="t('Duplicates')"
-						:title="t('Duplicates')"
-						:pressed="route.name === 'duplicates'"
-						@click="navigate('/duplicates')">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiContentDuplicate" />
-						</template>
-					</NcButton>
-					<NcButton
-						class="tabs__extra"
-						variant="tertiary"
-						:aria-label="t('Settings')"
-						:title="t('Settings')"
-						:pressed="route.name === 'settings'"
-						@click="navigate('/settings')">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiCogOutline" />
-						</template>
-					</NcButton>
-				</nav>
+			<div class="glimpse" :class="{ 'glimpse--narrow': narrow }">
+				<header class="bar">
+					<a class="bar__brand g-display" :href="href(views[0].path)" @click.prevent="navigate(views[0].path)">Glimpse</a>
+					<nav v-if="!narrow" class="tabs" :aria-label="t('Glimpse')">
+						<a
+							v-for="v in views"
+							:key="v.name"
+							class="tabs__tab"
+							:class="{ 'tabs__tab--active': isActive(v) }"
+							:href="href(v.path)"
+							:aria-current="isActive(v) ? 'page' : undefined"
+							@click.prevent="navigate(v.path)">{{ v.label }}</a>
+					</nav>
+					<LensSearch
+						v-if="!narrow && page.configured"
+						v-model="searchText"
+						class="bar__search"
+						:placeholder="t('Search your photos')"
+						@submit="search"
+						@clear="route.name === 'search' && search()" />
+					<div class="bar__tools">
+						<NcButton
+							variant="tertiary"
+							:aria-label="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
+							:title="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
+							:pressed="privateState.unlocked"
+							@click="togglePrivate">
+							<template #icon>
+								<NcIconSvgWrapper :path="privateState.unlocked ? mdiLockOpenVariantOutline : mdiLockOutline" />
+							</template>
+						</NcButton>
+						<NcButton
+							variant="tertiary"
+							:aria-label="t('Duplicates')"
+							:title="t('Duplicates')"
+							:pressed="route.name === 'duplicates'"
+							@click="navigate('/duplicates')">
+							<template #icon>
+								<NcIconSvgWrapper :path="mdiContentDuplicate" />
+							</template>
+						</NcButton>
+						<NcButton
+							variant="tertiary"
+							:aria-label="t('Settings')"
+							:title="t('Settings')"
+							:pressed="route.name === 'settings'"
+							@click="navigate('/settings')">
+							<template #icon>
+								<NcIconSvgWrapper :path="mdiCogOutline" />
+							</template>
+						</NcButton>
+					</div>
+				</header>
 
 				<NcEmptyContent
 					v-if="!page.configured && route.name !== 'settings'"
@@ -140,6 +90,30 @@
 			</div>
 		</NcAppContent>
 
+		<!-- Phones: search and the views at the bottom, in thumb's reach, as in the app -->
+		<!-- At the end of the page: Nextcloud's content frame stacks above anything inside it -->
+		<Teleport to="body">
+			<div v-if="narrow" class="dock">
+				<LensSearch
+					v-if="page.configured"
+					v-model="searchText"
+					class="dock__search"
+					:placeholder="t('Search your photos')"
+					@submit="search"
+					@clear="route.name === 'search' && search()" />
+				<nav class="tabs tabs--dock" :aria-label="t('Glimpse')">
+					<a
+						v-for="v in views"
+						:key="v.name"
+						class="tabs__tab"
+						:class="{ 'tabs__tab--active': isActive(v) }"
+						:href="href(v.path)"
+						:aria-current="isActive(v) ? 'page' : undefined"
+						@click.prevent="navigate(v.path)">{{ v.label }}</a>
+				</nav>
+			</div>
+		</Teleport>
+
 		<!-- Over the Nextcloud viewer: jump to the picture in its folder -->
 		<Teleport to="body">
 			<a
@@ -154,17 +128,16 @@
 </template>
 
 <script setup>
-import { mdiAccountMultipleOutline, mdiCogOutline, mdiContentDuplicate, mdiFolderMultipleImage, mdiFolderOpenOutline, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiMapMarkerOutline, mdiTimelineClockOutline } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiFolderOpenOutline, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
-import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
-import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import FacesDialog from './components/FacesDialog.vue'
+import LensSearch from './components/LensSearch.vue'
 import DuplicatesView from './views/DuplicatesView.vue'
 import FolderView from './views/FolderView.vue'
 import MapView from './views/MapView.vue'
@@ -173,7 +146,6 @@ import PersonView from './views/PersonView.vue'
 import SearchView from './views/SearchView.vue'
 import SettingsView from './views/SettingsView.vue'
 import TimelineView from './views/TimelineView.vue'
-import { faceUrl } from './api.js'
 import { t } from './l10n.js'
 import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
@@ -183,83 +155,178 @@ import { folderUrl, viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
 
+// Searching has no tab: the search pill is always there.
 const views = [
-	{ name: 'search', path: '/', label: t('Search'), icon: mdiImageSearchOutline },
-	{ name: 'timeline', path: '/timeline', label: t('Timeline'), icon: mdiTimelineClockOutline },
-	{ name: 'people', path: '/people', label: t('People'), icon: mdiAccountMultipleOutline, also: ['person'] },
-	{ name: 'map', path: '/map', label: t('Map'), icon: mdiMapMarkerOutline },
-	{ name: 'folders', path: '/folders', label: t('Folders'), icon: mdiFolderMultipleImage },
+	{ name: 'timeline', path: '/timeline', label: t('Timeline') },
+	{ name: 'people', path: '/people', label: t('People'), also: ['person'] },
+	{ name: 'map', path: '/map', label: t('Map') },
+	{ name: 'folders', path: '/folders', label: t('Folders') },
 ]
 
 const isActive = (v) => route.name === v.name || (v.also ?? []).includes(route.name)
 
-/** Named, visible people for quick access in the navigation. */
-const named = computed(() => peopleState.people.filter((p) => p.name && !p.hidden))
-
 // Private people come and go with the lock
 watch(() => privateState.version, () => reloadPeople())
 
-// A new "similar" or query from elsewhere (timeline, map) starts a fresh search view.
-const searchKey = computed(() => (route.name === 'search' ? (route.query.similar ?? '') : ''))
+/** The text in the search pill; it shows the current search while one is open. */
+const searchText = ref(route.name === 'search' ? (route.query.q || '') : '')
+watch(() => (route.name === 'search' ? (route.query.q ?? '') : null), (q) => {
+	if (q !== null && !route.query.similar) {
+		searchText.value = q
+	}
+})
+/** Every search from the pill starts a fresh search view. */
+const searchRun = ref(0)
+const searchKey = computed(() => (route.name === 'search' ? (route.query.similar ?? '') + '/' + searchRun.value : ''))
+
+/** Search for the pill's text; type, person and tag filters stay as they were. */
+function search() {
+	const q = searchText.value.trim()
+	const keep = route.name === 'search' ? { type: route.query.type, person: route.query.person, tag: route.query.tag } : {}
+	navigate('/', { ...keep, q })
+	searchRun.value++
+}
+
+/** Phones: navigation goes to a dock at the bottom. */
+const phone = window.matchMedia('(max-width: 600px)')
+const narrow = ref(phone.matches)
+function onWidth() {
+	narrow.value = phone.matches
+}
 
 onMounted(() => {
+	phone.addEventListener('change', onWidth)
 	if (page.configured) {
 		reloadPeople()
 		loadPrivate()
 	}
 	// Plain app URL: open the view the user chose as start view.
 	const start = views.find((v) => v.name === userPrefs.start_view)
-	if (route.name === 'search' && !Object.keys(route.query).length && start && start.name !== 'search') {
+	if (route.name === 'search' && !Object.keys(route.query).length && start) {
 		window.history.replaceState(null, '', href(start.path))
 		route.name = start.name
 	}
 })
+onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 </script>
 
 <style scoped lang="scss">
 // Not ".content": that is also the class of Nextcloud's own app container (NcContent's root),
 // and a scoped rule reaches a child component's root – it padded the whole frame twice.
-.glimpse-page {
-	padding: 8px 16px 24px;
+.glimpse {
+	min-height: 100%;
+	padding: 0 28px 48px;
+	background: var(--g-bg);
+	color: var(--g-text);
+
+	&--narrow {
+		padding: 0 0 calc(132px + env(safe-area-inset-bottom));
+	}
 }
 
-// Room for the navigation toggle button, which floats over the content's top left on wide screens.
-@media (min-width: 1025px) {
-	.glimpse-page { padding-left: 56px; }
+.bar {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	gap: 8px 28px;
+	margin: 0 -28px 12px;
+	padding: 14px 28px;
+	background: var(--g-scrim);
+	backdrop-filter: blur(12px);
+
+	&__brand {
+		flex: 0 0 auto;
+		color: var(--g-text);
+		font-size: 34px;
+		text-decoration: none;
+	}
+
+	&__search {
+		flex: 0 1 420px;
+		margin-inline-start: auto;
+	}
+
+	&__tools {
+		display: flex;
+		flex: 0 0 auto;
+		gap: 2px;
+
+		// The open page or the unlocked area: apricot, like everything chosen
+		:deep(.button-vue[aria-pressed='true']) {
+			background: var(--g-raised);
+			color: var(--g-accent-text);
+		}
+	}
 }
 
-// Narrower: the tabs sit beside the toggle instead of below it.
-@media (max-width: 1024px) {
-	.glimpse-page { padding-top: 6px; }
-	.tabs { margin-inline-start: 44px; }
+.glimpse--narrow .bar {
+	position: static;
+	margin: 0 0 4px;
+	padding: 14px 12px 6px 16px;
+	background: none;
+	backdrop-filter: none;
+
+	.bar__tools {
+		margin-inline-start: auto;
+	}
 }
 
-// Phones: every pixel goes to the pictures.
-@media (max-width: 600px) {
-	.glimpse-page { padding-inline: 8px; }
-}
-
+// The views as words, the chosen one marked by the apricot sun beneath it
 .tabs {
 	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
 	gap: 4px;
-	margin-bottom: 14px;
 
-	&__spacer { flex: 1; }
+	&__tab {
+		position: relative;
+		padding: 8px 12px 12px;
+		border-radius: 12px;
+		color: var(--g-muted);
+		font-size: 16px;
+		font-weight: 600;
+		text-decoration: none;
+		transition: color 0.15s ease;
+
+		&:hover, &:focus-visible {
+			color: var(--g-text);
+		}
+
+		&--active {
+			color: var(--g-text);
+
+			&::after {
+				content: '';
+				position: absolute;
+				inset-inline-start: 50%;
+				bottom: 2px;
+				width: 6px;
+				height: 6px;
+				margin-inline-start: -3px;
+				border-radius: 50%;
+				background: var(--g-accent);
+			}
+		}
+	}
+
+	&--dock {
+		justify-content: space-around;
+
+		.tabs__tab {
+			font-size: 17px;
+		}
+	}
 }
 
-// Phones: icons only, all in one row; duplicates and settings stay in the side navigation.
-@media (max-width: 600px) {
-	.tabs {
-		flex-wrap: nowrap;
-		gap: 0;
-	}
-
-	.tabs__label,
-	.tabs__extra {
-		display: none;
-	}
+.dock {
+	position: fixed;
+	z-index: 1000;
+	inset: auto 0 0 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 24px 16px max(6px, env(safe-area-inset-bottom));
+	background: linear-gradient(transparent, var(--g-bg) 28px);
 }
 
 .viewer-folder {
@@ -281,13 +348,6 @@ onMounted(() => {
 	&:hover, &:focus-visible {
 		background: rgba(0, 0, 0, 0.8);
 	}
-}
-
-.nav-face {
-	width: 24px;
-	height: 24px;
-	border-radius: 50%;
-	object-fit: cover;
 }
 </style>
 

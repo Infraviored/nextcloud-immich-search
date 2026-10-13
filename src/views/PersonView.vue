@@ -22,19 +22,21 @@
 				alt=""
 				@error="faceFailed = true">
 			<div class="person-view__title">
-				<form v-if="state.canManage" class="person-view__name" @submit.prevent="saveName">
-					<NcTextField
+				<!-- The name is the heading; who may manage people edits it in place -->
+				<form v-if="state.canManage" class="person-view__name" @submit.prevent="$event.target.querySelector('input').blur()">
+					<input
 						v-model="name"
-						:label="t('Name')"
-						:placeholder="t('Name')"
-						:success="saved"
-						@blur="saveName" />
+						class="g-display"
+						:aria-label="t('Name')"
+						:placeholder="t('Unnamed')"
+						@blur="saveName">
 				</form>
-				<h2 v-else>
+				<h2 v-else class="g-display">
 					{{ person?.name || t('Unnamed') }}
 				</h2>
 				<span v-if="person" class="person-view__count">
 					{{ n('{count} picture you can see', '{count} pictures you can see', person.count, { count: person.count }) }}
+					<span v-if="saved" class="person-view__saved">{{ t('Saved') }}</span>
 				</span>
 			</div>
 			<NcButton
@@ -96,7 +98,6 @@ import { computed, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
-import NcTextField from '@nextcloud/vue/components/NcTextField'
 import SearchView from './SearchView.vue'
 import { errorMessage, faceUrl, updatePerson } from '../api.js'
 import { n, t } from '../l10n.js'
@@ -176,33 +177,20 @@ async function toggleHidden() {
 
 <style scoped lang="scss">
 .person-view {
-	// One row: back, face, name, star, lock – the name field takes what is left.
+	// One row: back, face, name, star, lock – the name takes what is left.
 	&__header {
 		display: flex;
 		align-items: center;
-
-		// Fields of one height, side by side
-		:deep(.input-field) {
-			margin-block: 0;
-		}
-		gap: 8px;
-		margin-bottom: 12px;
+		gap: 8px 16px;
+		margin: 4px 0 18px;
 	}
 
 	&__face {
-		width: 72px;
-		height: 72px;
+		width: 112px;
+		height: 112px;
 		border-radius: 50%;
 		object-fit: cover;
-		background: var(--color-background-dark);
-	}
-
-	&__name {
-		max-width: 400px;
-
-		:deep(.input-field) {
-			margin-block: 0;
-		}
+		background: var(--g-raised);
 	}
 
 	&__title {
@@ -210,20 +198,57 @@ async function toggleHidden() {
 		flex: 1 1 0;
 		min-width: 0;
 		flex-direction: column;
-		gap: 2px;
+		gap: 6px;
 
-		h2 { margin: 0; }
-	}
-
-	@media (max-width: 600px) {
-		&__face {
-			width: 48px;
-			height: 48px;
+		h2 {
+			margin: 0;
+			font-size: clamp(40px, 5vw, 60px);
 		}
 	}
 
-	&__count { color: var(--color-text-maxcontrast); }
+	&__name input {
+		width: 100%;
+		max-width: 640px;
+		height: auto;
+		margin: 0;
+		padding: 2px 6px;
+		margin-inline-start: -6px;
+		border: 1px solid transparent !important;
+		border-radius: 10px;
+		background: transparent !important;
+		box-shadow: none !important;
+		color: var(--g-text);
+		font-size: clamp(40px, 5vw, 60px);
+		caret-color: var(--g-accent);
+
+		&::placeholder { color: var(--g-muted); }
+
+		&:hover { border-color: var(--g-line) !important; }
+
+		&:focus {
+			border-color: var(--g-lens-blue) !important;
+			outline: none;
+		}
+	}
+
+	&__count { color: var(--g-muted); }
+	&__saved { margin-inline-start: 8px; color: var(--g-accent-text); font-weight: 600; }
 	&__error { color: var(--color-error-text); }
 
+	@media (max-width: 600px) {
+		&__header {
+			flex-wrap: wrap;
+			margin-inline: 12px;
+		}
+
+		&__face {
+			width: 72px;
+			height: 72px;
+		}
+
+		&__title h2, &__name input {
+			font-size: 36px;
+		}
+	}
 }
 </style>

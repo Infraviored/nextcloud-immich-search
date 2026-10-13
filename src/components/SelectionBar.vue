@@ -16,7 +16,7 @@
 		</NcButton>
 		<span class="selection-bar__spacer" />
 
-		<NcButton :disabled="busy" @click="$emit('copy', null)">
+		<NcButton variant="tertiary" :disabled="busy" @click="$emit('copy', null)">
 			<template #icon>
 				<NcIconSvgWrapper :path="mdiContentCopy" />
 			</template>
@@ -215,25 +215,47 @@ const shareHref = computed(() => {
 </script>
 
 <style scoped lang="scss">
+// Floats over the pictures at the bottom, like the app's dock while pictures are chosen
 .selection-bar {
-	position: sticky;
-	top: 0;
-	z-index: 10;
+	position: fixed;
+	z-index: 1001;
+	inset-inline-start: 50%;
+	bottom: max(20px, env(safe-area-inset-bottom));
+	transform: translateX(-50%);
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
-	margin: 0 0 8px;
-	padding: 6px 8px;
-	border-radius: var(--border-radius-large);
-	background: var(--color-primary-element-light);
+	gap: 6px;
+	width: max-content;
+	max-width: calc(100vw - 24px);
+	padding: 8px 10px;
+	border: 1px solid var(--g-line);
+	border-radius: 30px;
+	background: var(--g-raised);
+	box-shadow: 0 12px 40px rgba(8, 9, 20, 0.45);
 
-	&__count { font-weight: bold; }
-	&__spacer { flex: 1; }
+	&__count {
+		padding: 4px 12px;
+		border-radius: 14px;
+		background: var(--g-accent);
+		color: var(--g-on-accent);
+		font-weight: 700;
+		white-space: nowrap;
+	}
+
+	&__spacer { flex: 1; min-width: 8px; }
 
 	&__split {
 		display: flex;
 		gap: 2px;
+	}
+}
+
+@media (max-width: 600px) {
+	.selection-bar {
+		bottom: max(10px, env(safe-area-inset-bottom));
+		justify-content: center;
+		padding: 6px;
 	}
 }
 </style>

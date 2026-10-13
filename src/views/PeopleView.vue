@@ -4,7 +4,10 @@
 -->
 
 <template>
-	<div class="people">
+	<div class="people" :class="{ 'people--choosing': selected.length }">
+		<h2 class="people__title g-display">
+			{{ t('People') }}
+		</h2>
 		<div class="people__bar">
 			<NcTextField
 				v-model="filter"
@@ -58,7 +61,7 @@
 		</NcEmptyContent>
 
 		<template v-for="group in groups" :key="group.key">
-			<h3 v-if="group.items.length" class="people__heading">
+			<h3 v-if="group.items.length" class="people__heading g-heading">
 				{{ group.title }}
 			</h3>
 			<div class="people__grid">
@@ -134,6 +137,11 @@ async function onMerged() {
 
 <style scoped lang="scss">
 .people {
+	&__title {
+		margin: 8px 0 16px;
+		font-size: clamp(44px, 6vw, 72px);
+	}
+
 	&__bar {
 		display: flex;
 		flex-wrap: wrap;
@@ -153,8 +161,9 @@ async function onMerged() {
 		gap: 8px;
 		margin-bottom: 8px;
 		padding: 6px 8px;
-		border-radius: var(--border-radius-large);
-		background: var(--color-primary-element-light);
+		border: 1px solid var(--g-line);
+		border-radius: 28px;
+		background: var(--g-raised);
 	}
 
 	&__spacer { flex: 1; }
@@ -165,14 +174,14 @@ async function onMerged() {
 	}
 
 	&__heading {
-		margin: 16px 0 4px;
-		font-size: 1.1em;
+		margin: 28px 0 10px;
+		font-size: 22px;
 	}
 
 	&__grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-		gap: 4px;
+		grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+		gap: 14px 6px;
 	}
 
 	&__more {
@@ -183,6 +192,7 @@ async function onMerged() {
 }
 
 @media (max-width: 600px) {
+	.people { padding-inline: 12px; }
 	.people__grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 }
 </style>
