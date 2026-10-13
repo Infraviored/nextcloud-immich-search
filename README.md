@@ -240,14 +240,15 @@ enabled:
 1. Glimpse cuts stills from each video (roughly every 15 s, up to 40 per video) using `ffmpeg`
    on the Nextcloud server.
 2. Stills are uploaded to Immich via its API with `visibility: archive` and named
-   `glimpse-frame_<video>_<ms>.jpg`. They never show up in Immich timelines or albums.
+   `glimpse-frame_<video>_<ms>.jpg`. They stay in Immich's archive, out of its timeline,
+   and never show up in Glimpse's timeline, people or map.
 3. Immich's CLIP model analyses the stills like any other photo.
 4. Searches in Glimpse match these stills and resolve them back to the source video, opening it
    at that exact timestamp.
 
 Configuration:
 - **Toggle:** Enable under *Settings → What gets indexed → Search inside videos* (setting `video_scenes`).
-- **Night window:** Setting `video_scenes_hours` (default `2-7`, 2:00 to 7:00 AM) restricts heavy background extraction to off-peak hours so server performance is preserved. Options include `2-7`, `0-6`, `1-6`, `23-6`, `22-6`, `0-7`, `0-24`, or disabled.
+- **Night window:** Setting `video_scenes_hours` (default `2-7`, 2:00 to 7:00 AM) keeps the extraction at night, in the server's local time (the container's `TZ`, else `default_timezone`). Options include `2-7`, `0-6`, `1-6`, `23-6`, `22-6`, `0-7`, `0-24`, or disabled.
 - **Background indexing:** The `IndexVideoScenes` job runs every 5 minutes (for up to 2 minutes) during the night window, and purges orphaned stills once a day.
 - **Command line:**
   ```bash
