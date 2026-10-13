@@ -8,7 +8,7 @@
 <template>
 	<div class="timeline" :class="{ 'timeline--rail': years.length > 1 }">
 		<div class="timeline__main">
-			<section v-if="memories.length" class="timeline__memories" :aria-label="t('On this day')">
+			<section v-if="memories.length && !person" class="timeline__memories" :aria-label="t('On this day')">
 				<button
 					v-for="m in memories"
 					:key="m.year"
@@ -43,6 +43,7 @@
 			<MediaBrowser
 				ref="grid"
 				class="timeline__grid"
+				:person="person"
 				:groups="groups"
 				@removed="drop"
 				@refresh="reload"
@@ -81,7 +82,7 @@
 
 <script setup>
 import { mdiImageMultipleOutline } from '@mdi/js'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
@@ -90,6 +91,14 @@ import { errorMessage, memories as getMemories, thumbnailUrl, timeline, timeline
 import { scrollParent, useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { n, t } from '../l10n.js'
 import { navigate, route } from '../router.js'
+
+const props = defineProps({
+	/** {id, name}: one person's timeline (their page); null for everyone's */
+	person: { type: Object, default: null },
+	/** '', 'IMAGE' or 'VIDEO' */
+	type: { type: String, default: '' },
+})
+const emit = defineEmits(['similar'])
 
 const thisYear = new Date().getFullYear()
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' })
@@ -160,6 +169,11 @@ function trackYear() {
 		}
 		year = Number(band.dataset.year)
 	}
+	// At the very end the last year cannot scroll up to the line: it is the one in view then
+	const el = scroller === document.scrollingElement ? document.documentElement : scroller
+	if (bands.length && !nextPage.value && el.scrollTop + el.clientHeight >= el.scrollHeight - 4) {
+		year = Number(bands[bands.length - 1].dataset.year)
+	}
 	activeYear.value = year
 }
 
@@ -183,7 +197,7 @@ async function load() {
 	const ctrl = controller = new AbortController()
 	loading.value = true
 	try {
-		const res = await timeline({ page: nextPage.value, before: before.value }, ctrl.signal)
+		const res = await timeline({ page: nextPage.value, before: before.value, type: props.type, person: props.person?.id ?? '' }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}
@@ -227,7 +241,7 @@ async function loadNewer() {
 	const ctrl = newerController = new AbortController()
 	loadingNewer.value = true
 	try {
-		const res = await timeline({ page: newerPage.value, after: before.value }, ctrl.signal)
+		const res = await timeline({ page: newerPage.value, after: before.value, type: props.type, person: props.person?.id ?? '' }, ctrl.signal)
 		if (ctrl !== newerController) {
 			return
 		}
@@ -284,6 +298,9 @@ function reload() {
 	load()
 }
 
+watch(() => props.type, () => reload())
+watch(() => props.person?.id, () => reload())
+
 /**
  * Start the list at the end of that year.
  *
@@ -321,7 +338,11 @@ function dropMemory(fileIds) {
 }
 
 function similar(item) {
-	navigate('/', { similar: item.id, name: item.name })
+	if (props.person) {
+		emit('similar', item)
+	} else {
+		navigate('/', { similar: item.id, name: item.name })
+	}
 }
 
 onMounted(async () => {
@@ -330,6 +351,9 @@ onMounted(async () => {
 	scrollTarget.addEventListener('scroll', onScroll, { passive: true })
 	newerPage.value = before.value ? 1 : null
 	load()
+	if (props.person) {
+		return
+	}
 	try {
 		memories.value = await getMemories()
 	} catch {
