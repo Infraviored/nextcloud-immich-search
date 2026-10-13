@@ -78,8 +78,11 @@ class VideoScenes {
 		return $out;
 	}
 
-	/** Immich's "H:MM:SS.mmm" in seconds; 0 when missing. */
-	public static function seconds(?string $duration): float {
+	/** Immich's duration in seconds: milliseconds since Immich 3, "H:MM:SS.mmm" before; 0 when missing. */
+	public static function seconds(int|string|null $duration): float {
+		if (is_int($duration)) {
+			return $duration / 1000;
+		}
 		if ($duration === null || !preg_match('/^(\d+):(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/', $duration, $m)) {
 			return 0.0;
 		}
@@ -173,10 +176,19 @@ class VideoScenes {
 		return $moments !== [] && $count === 0 ? self::FAILED : $count;
 	}
 
-	/** One still as JPEG, '' if ffmpeg could not make it. */
+	/**
+	 * One still as JPEG, '' if ffmpeg could not make it. First the nearest key frame only
+	 * (a 4K HEVC frame decodes in 0.3 s instead of 2 s), exactly at $t if that gives nothing.
+	 */
 	private function still(string $file, float $t): string {
-		$cmd = ['nice', '-n', '15', 'timeout', '60', self::ffmpeg(), '-v', 'error', '-nostdin', '-ss', (string)$t, '-i', $file,
-			'-frames:v', '1', '-an', '-vf', 'scale=w=' . self::WIDTH . ':h=' . self::WIDTH . ':force_original_aspect_ratio=decrease', '-q:v', '4', '-f', 'image2', '-c:v', 'mjpeg', 'pipe:1'];
+		return $this->ffmpegStill($file, $t, true) ?: $this->ffmpegStill($file, $t, false);
+	}
+
+	private function ffmpegStill(string $file, float $t, bool $keyFrame): string {
+		$cmd = ['nice', '-n', '15', 'timeout', '60', self::ffmpeg(), '-v', 'error', '-nostdin',
+			...($keyFrame ? ['-skip_frame', 'nokey'] : []), '-ss', (string)$t, '-i', $file,
+			'-frames:v', '1', '-an', '-vf', 'scale=w=' . self::WIDTH . ':h=' . self::WIDTH . ':force_original_aspect_ratio=decrease',
+			'-q:v', '4', '-f', 'image2', '-c:v', 'mjpeg', 'pipe:1'];
 		$proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
 		if (!is_resource($proc)) {
 			return '';

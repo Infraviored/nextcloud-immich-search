@@ -31,6 +31,7 @@ class VideoScenesTest extends TestCase {
 	public function testImmichDuration(): void {
 		$this->assertSame(58.123, VideoScenes::seconds('0:00:58.123'));
 		$this->assertSame(3725.0, VideoScenes::seconds('1:02:05'));
+		$this->assertSame(8.383, VideoScenes::seconds(8383), 'Immich 3: milliseconds');
 		$this->assertSame(0.0, VideoScenes::seconds(null));
 		$this->assertSame(0.0, VideoScenes::seconds('garbage'));
 	}
