@@ -79,7 +79,7 @@
 <script setup>
 import { showSuccess, showWarning } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import AlbumDialog from './AlbumDialog.vue'
 import AssetGrid from './AssetGrid.vue'
@@ -95,7 +95,7 @@ import { n, t } from '../l10n.js'
 import { peopleState, reloadPeople } from '../people.js'
 import { privateState, setPrivateFiles } from '../private.js'
 import { navigate } from '../router.js'
-import { pruneSelection, toggleSelection } from '../selection.js'
+import { pruneSelection, selectionActive, toggleSelection } from '../selection.js'
 import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
@@ -126,6 +126,12 @@ const singleSelected = computed(() => (selected.value.size === 1 ? allItems.valu
 // or delete and move would act on pictures the user no longer sees.
 watch(allItems, (items) => {
 	selected.value = pruneSelection(selected.value, items)
+})
+watch(selected, (s) => {
+	selectionActive.value = s.size > 0
+}, { immediate: true })
+onBeforeUnmount(() => {
+	selectionActive.value = false
 })
 
 function toggle(item, range) {

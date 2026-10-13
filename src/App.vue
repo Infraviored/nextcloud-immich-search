@@ -9,7 +9,7 @@
 		<NcAppContent :pageTitle="t('Glimpse')">
 			<div class="glimpse" :class="{ 'glimpse--narrow': narrow }">
 				<header class="bar">
-					<a class="bar__brand g-display" :href="href(views[0].path)" @click.prevent="navigate(views[0].path)">Glimpse</a>
+					<a class="bar__brand g-display" :href="href(startPath)" @click.prevent="navigate(startPath)">Glimpse</a>
 					<nav v-if="!narrow" class="tabs" :aria-label="t('Glimpse')">
 						<a
 							v-for="v in views"
@@ -93,7 +93,7 @@
 		<!-- Phones: search and the views at the bottom, in thumb's reach, as in the app -->
 		<!-- At the end of the page: Nextcloud's content frame stacks above anything inside it -->
 		<Teleport to="body">
-			<div v-if="narrow" class="dock">
+			<div v-if="narrow && !selectionActive" class="dock">
 				<LensSearch
 					v-if="page.configured"
 					v-model="searchText"
@@ -151,6 +151,7 @@ import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
+import { selectionActive } from './selection.js'
 import { folderUrl, viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
@@ -163,6 +164,12 @@ const views = [
 	{ name: 'folders', path: '/folders', label: t('Folders') },
 ]
 
+/** The view chosen by the user to start with; clicking the brand goes here. */
+const startPath = computed(() => {
+	const start = views.find((v) => v.name === userPrefs.start_view)
+	return start ? start.path : '/'
+})
+
 const isActive = (v) => route.name === v.name || (v.also ?? []).includes(route.name)
 
 // Private people come and go with the lock
@@ -173,6 +180,8 @@ const searchText = ref(route.name === 'search' ? (route.query.q || '') : '')
 watch(() => (route.name === 'search' ? (route.query.q ?? '') : null), (q) => {
 	if (q !== null && !route.query.similar) {
 		searchText.value = q
+	} else if (q === null) {
+		searchText.value = ''
 	}
 })
 /** Every search from the pill starts a fresh search view. */
@@ -304,7 +313,7 @@ onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 				height: 6px;
 				margin-inline-start: -3px;
 				border-radius: 50%;
-				background: var(--g-accent);
+				background: var(--g-accent-text);
 			}
 		}
 	}

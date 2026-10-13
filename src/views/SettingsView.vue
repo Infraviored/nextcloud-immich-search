@@ -94,4 +94,10 @@ const currentSection = computed(() => sections.find((s) => s.id === current.valu
 		flex-wrap: wrap;
 	}
 }
+
+@media (max-width: 600px) {
+	.settings {
+		padding-inline: 16px;
+	}
+}
 </style>

@@ -239,7 +239,12 @@ async function loadNewer() {
 		newerPage.value = res.nextPage
 		await nextTick()
 		if (anchor?.isConnected) {
-			scroller.scrollTop += anchor.getBoundingClientRect().top - anchorTop
+			const delta = anchor.getBoundingClientRect().top - anchorTop
+			if (scroller === document.scrollingElement) {
+				window.scrollBy({ top: delta })
+			} else {
+				scroller.scrollTop += delta
+			}
 		}
 	} catch (e) {
 		if (ctrl === newerController && e?.name !== 'CanceledError') {
@@ -277,7 +282,9 @@ function reload() {
 function jump(year) {
 	before.value = year >= thisYear ? '' : `${year + 1}-01-01T00:00:00.000Z`
 	activeYear.value = year
-	if (scroller) {
+	if (scroller === document.scrollingElement) {
+		window.scrollTo({ top: 0 })
+	} else if (scroller) {
 		scroller.scrollTop = 0
 	}
 	reload()
@@ -309,7 +316,8 @@ function similar(item) {
 
 onMounted(async () => {
 	scroller = scrollParent(sentinel.value)
-	scroller.addEventListener('scroll', onScroll, { passive: true })
+	const scrollTarget = scroller === document.scrollingElement ? window : scroller
+	scrollTarget.addEventListener('scroll', onScroll, { passive: true })
 	newerPage.value = before.value ? 1 : null
 	load()
 	try {
@@ -319,7 +327,8 @@ onMounted(async () => {
 	}
 })
 onBeforeUnmount(() => {
-	scroller?.removeEventListener('scroll', onScroll)
+	const scrollTarget = scroller === document.scrollingElement ? window : scroller
+	scrollTarget?.removeEventListener('scroll', onScroll)
 	window.cancelAnimationFrame(frame)
 	window.clearTimeout(sleepTimer)
 	controller?.abort()
@@ -470,7 +479,7 @@ onBeforeUnmount(() => {
 	}
 
 	&--open {
-		outline: 3px solid var(--g-accent);
+		outline: 3px solid var(--g-accent-text);
 		outline-offset: -3px;
 	}
 }
@@ -497,12 +506,18 @@ onBeforeUnmount(() => {
 		right: 2px;
 		height: auto;
 		max-height: calc(100vh - var(--header-height, 50px) - 220px);
+		overflow-y: auto;
+		scrollbar-width: none;
 		padding: 6px 2px;
 		border-radius: 14px;
 		background: var(--g-scrim);
 		opacity: 0;
 		pointer-events: none;
 		transition: opacity 0.25s ease;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
 
 		&--awake, &:focus-within {
 			opacity: 1;

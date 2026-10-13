@@ -15,13 +15,17 @@ export function loadFont() {
 	if (!window.FontFace || !document.fonts) {
 		return
 	}
-	const face = new FontFace('Glimpse Bricolage', `url(${generateFilePath('glimpse', 'img', 'bricolage.woff2')}) format('woff2')`, {
-		weight: '200 800',
-		stretch: '75% 100%',
-		display: 'swap',
-	})
-	document.fonts.add(face)
-	face.load().catch(() => {
+	try {
+		const face = new FontFace('Glimpse Bricolage', `url(${generateFilePath('glimpse', 'img', 'bricolage.woff2')}) format('woff2')`, {
+			weight: '200 800',
+			stretch: '75% 100%',
+			display: 'swap',
+		})
+		document.fonts.add(face)
+		face.load().catch(() => {
+			// headings fall back to Nextcloud's font
+		})
+	} catch {
 		// headings fall back to Nextcloud's font
-	})
+	}
 }

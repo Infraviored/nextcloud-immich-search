@@ -24,12 +24,14 @@
 			<div class="person-view__title">
 				<!-- The name is the heading; who may manage people edits it in place -->
 				<form v-if="state.canManage" class="person-view__name" @submit.prevent="$event.target.querySelector('input').blur()">
-					<input
-						v-model="name"
-						class="g-display"
-						:aria-label="t('Name')"
-						:placeholder="t('Unnamed')"
-						@blur="saveName">
+					<h2 class="person-view__heading">
+						<input
+							v-model="name"
+							class="g-display"
+							:aria-label="t('Name')"
+							:placeholder="t('Unnamed')"
+							@blur="saveName">
+					</h2>
 				</form>
 				<h2 v-else class="g-display">
 					{{ person?.name || t('Unnamed') }}
@@ -206,6 +208,12 @@ async function toggleHidden() {
 		}
 	}
 
+	&__heading {
+		margin: 0;
+		font-size: inherit;
+		font-weight: inherit;
+	}
+
 	&__name input {
 		width: 100%;
 		max-width: 640px;
@@ -219,7 +227,7 @@ async function toggleHidden() {
 		box-shadow: none !important;
 		color: var(--g-text);
 		font-size: clamp(40px, 5vw, 60px);
-		caret-color: var(--g-accent);
+		caret-color: var(--g-accent-text);
 
 		&::placeholder { color: var(--g-muted); }
 

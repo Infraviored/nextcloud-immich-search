@@ -110,7 +110,7 @@ function onClick(event) {
 	}
 
 	&--selected {
-		.person__face { outline: 3px solid var(--g-accent); outline-offset: 3px; }
+		.person__face { outline: 3px solid var(--g-accent-text); outline-offset: 3px; }
 		.person__check { color: var(--g-accent-text); }
 	}
 
