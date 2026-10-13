@@ -92,8 +92,11 @@ class AssetSearch {
 	 * Everything the user may see, newest first, taken before $before (ISO date) if given.
 	 * The cursor is the Immich page within that window.
 	 */
-	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null): array {
-		return $this->collect($uid, $page, $size, function (int $p, int $s) use ($uid, $before, $after, $type) {
+	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = ''): array {
+		if ($person !== '' && !preg_match(self::UUID, $person)) {
+			return ['items' => [], 'nextPage' => null];
+		}
+		return $this->collect($uid, $page, $size, function (int $p, int $s) use ($uid, $before, $after, $type, $person) {
 			// From a point in time back to the past, or (after) forward to today, oldest first
 			// "timeline": without the stills Glimpse took from videos (VideoScenes)
 			$body = ['page' => $p, 'size' => $s, 'order' => $after !== null ? 'asc' : 'desc', 'visibility' => 'timeline'];
@@ -108,6 +111,10 @@ class AssetSearch {
 			}
 			if (in_array($type, self::TYPES, true)) {
 				$body['type'] = $type;
+			}
+			// One person's timeline (their page)
+			if ($person !== '' && preg_match(self::UUID, $person)) {
+				$body['personIds'] = [$person];
 			}
 			return $this->immich->json('POST', '/search/metadata', $body)['assets'] ?? [];
 		});
@@ -181,6 +188,49 @@ class AssetSearch {
 			}
 		}
 		$this->yearCache->set($uid, $mine, self::YEARS_TTL);
+		return $mine;
+	}
+
+	/**
+	 * Years in which a person is in pictures the user may see, newest first: Immich's buckets
+	 * for that person, and for someone who sees only their own files, just the years their own
+	 * folder has a picture of the person in (cached like years()).
+	 *
+	 * @return list<int>
+	 */
+	public function personYears(string $uid, string $person, ?int $seenYear = null): array {
+		if (!preg_match(self::UUID, $person)) {
+			return [];
+		}
+		$own = $this->ownScope($uid);
+		$key = $uid . '/' . $person;
+		$cached = $this->yearCache->get($key);
+		if (is_array($cached)) {
+			if ($seenYear !== null && $seenYear > 0 && !in_array($seenYear, $cached, true)) {
+				$this->yearCache->remove($key);
+			} else {
+				return $cached;
+			}
+		}
+		$years = [];
+		foreach ($this->immich->json('GET', '/timeline/buckets?visibility=timeline&personId=' . rawurlencode($person)) as $b) {
+			$years[(int)substr((string)$b['timeBucket'], 0, 4)] = true;
+		}
+		krsort($years);
+		$years = array_keys($years);
+		if ($own === null || $years === []) {
+			$this->yearCache->set($key, $years, self::YEARS_TTL);
+			return $years;
+		}
+		$mine = array_values(array_filter($years, fn (int $y) => ($this->immich->json('POST', '/search/metadata', [
+			'size' => 1,
+			'originalPath' => $own,
+			'personIds' => [$person],
+			'visibility' => 'timeline',
+			'takenAfter' => sprintf('%04d-01-01T00:00:00.000Z', $y),
+			'takenBefore' => sprintf('%04d-01-01T00:00:00.000Z', $y + 1),
+		])['assets']['items'] ?? []) !== []));
+		$this->yearCache->set($key, $mine, self::YEARS_TTL);
 		return $mine;
 	}
 

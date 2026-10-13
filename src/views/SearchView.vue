@@ -86,38 +86,47 @@
 			</NcButton>
 		</div>
 
-		<MediaBrowser
-			:groups="[{ key: 'all', items }]"
+		<!-- A person without words to search for: their timeline, with years to jump to -->
+		<TimelineView
+			v-if="personTimeline"
+			:key="'pt' + type"
 			:person="listedPerson"
-			@removed="drop"
-			@refresh="run(true)"
-			@similar="showSimilar">
-			<template #status>
-				<p class="search__status" aria-live="polite">
-					<template v-if="resolved">
-						{{ resolved.rest
-							? t('Pictures of {name} matching “{text}”', { name: resolved.name, text: resolved.rest })
-							: t('Pictures of {name}', { name: resolved.name }) }}
-						·
-						<NcButton variant="tertiary-no-background" size="small" @click="run(true, true)">
-							{{ t('Search the words instead') }}
-						</NcButton>
-						<br>
-					</template>
-					{{ status }}
-				</p>
-			</template>
-		</MediaBrowser>
+			:type="type"
+			@similar="showSimilar" />
+		<template v-else>
+			<MediaBrowser
+				:groups="[{ key: 'all', items }]"
+				:person="listedPerson"
+				@removed="drop"
+				@refresh="run(true)"
+				@similar="showSimilar">
+				<template #status>
+					<p class="search__status" aria-live="polite">
+						<template v-if="resolved">
+							{{ resolved.rest
+								? t('Pictures of {name} matching “{text}”', { name: resolved.name, text: resolved.rest })
+								: t('Pictures of {name}', { name: resolved.name }) }}
+							·
+							<NcButton variant="tertiary-no-background" size="small" @click="run(true, true)">
+								{{ t('Search the words instead') }}
+							</NcButton>
+							<br>
+						</template>
+						{{ status }}
+					</p>
+				</template>
+			</MediaBrowser>
 
-		<NcEmptyContent v-if="emptyState" :name="emptyState.name" :description="emptyState.description">
-			<template #icon>
-				<NcIconSvgWrapper :path="emptyState.icon" />
-			</template>
-		</NcEmptyContent>
+			<NcEmptyContent v-if="emptyState" :name="emptyState.name" :description="emptyState.description">
+				<template #icon>
+					<NcIconSvgWrapper :path="emptyState.icon" />
+				</template>
+			</NcEmptyContent>
 
-		<div ref="sentinel" class="search__more">
-			<NcLoadingIcon v-if="loading" :size="32" />
-		</div>
+			<div ref="sentinel" class="search__more">
+				<NcLoadingIcon v-if="loading" :size="32" />
+			</div>
+		</template>
 	</div>
 </template>
 
@@ -131,6 +140,7 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import LensSearch from '../components/LensSearch.vue'
 import MediaBrowser from '../components/MediaBrowser.vue'
+import TimelineView from './TimelineView.vue'
 import { errorMessage, faceUrl, getTags, search, thumbnailUrl } from '../api.js'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { t } from '../l10n.js'
@@ -176,6 +186,11 @@ const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value &&
 const peopleOptions = computed(() => props.people.filter((p) => p.name))
 
 /** Nothing to search for yet */
+/** The words of the search shown now (the field may hold a newer, not yet searched text) */
+const runQ = ref(q.value.trim())
+/** A person's page without words: their timeline instead of a date-ordered list */
+const personTimeline = computed(() => !!props.person && runQ.value === '' && !similar.value && !tagId.value)
+
 const idle = computed(() => !q.value.trim() && !personId.value && !similar.value && !tagId.value)
 /** Named people, the most pictured first */
 const faces = computed(() => peopleOptions.value.filter((p) => !p.hidden).toSorted((a, b) => (b.count ?? 0) - (a.count ?? 0)).slice(0, 24))
@@ -250,18 +265,22 @@ async function run(reset, asText = false) {
 		searched.value = false
 		error.value = ''
 		lastQ = similar.value ? null : q.value.trim()
+		runQ.value = q.value.trim()
 		if (similar.value) {
 			replaceQuery({ similar: similar.value.id, name: similar.value.name, type: type.value, tag: tagId.value })
 		} else if (!props.person) {
 			replaceQuery({ q: q.value.trim(), type: type.value, person: personId.value, tag: tagId.value })
 		} else {
-			replaceQuery({ q: q.value.trim(), type: type.value, tag: tagId.value })
+			replaceQuery({ q: q.value.trim(), type: type.value, tag: tagId.value, at: q.value.trim() ? undefined : (route.query.at || undefined) })
 		}
 	} else if (controller || !nextPage.value) {
 		return
 	}
 	if (!q.value.trim() && !personId.value && !similar.value && !tagId.value) {
 		return
+	}
+	if (personTimeline.value) {
+		return // TimelineView lists them
 	}
 
 	const ctrl = controller = new AbortController()

@@ -204,6 +204,78 @@ class AssetSearchTest extends TestCase {
 		$this->assertSame([], $this->search->search('bob', 'dog', 1, 10)['items']);
 	}
 
+	public function testPersonTimelineAsksForThatPerson(): void {
+		$bodies = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$bodies) {
+			$bodies[] = $b;
+			return ['assets' => ['items' => [], 'nextPage' => null]];
+		});
+		$this->search->timeline('alice', null, 1, 10, '', null, self::A1);
+		$this->assertSame([self::A1], $bodies[0]['personIds']);
+		$this->assertSame('timeline', $bodies[0]['visibility']);
+	}
+
+	public function testPersonTimelineWithInvalidUuidReturnsEmpty(): void {
+		$this->immich->expects($this->never())->method('json');
+		$this->assertSame(['items' => [], 'nextPage' => null], $this->search->timeline('alice', null, 1, 10, '', null, 'not-a-uuid'));
+	}
+
+	public function testPersonYearsOfSomeoneWithoutSharesOnlyFromTheirFolder(): void {
+		$this->immich->method('json')->willReturnCallback(fn ($m, $e, $b = null) => $m === 'GET'
+			? [['timeBucket' => '2024-05-01'], ['timeBucket' => '2019-01-01'], ['timeBucket' => '2019-07-01']]
+			: ['assets' => ['items' => str_starts_with($b['takenAfter'], '2024') ? [['id' => 'x']] : []]]);
+		$this->assertSame([2024], $this->search->personYears('alice', self::A1));
+		$this->assertSame([], $this->search->personYears('alice', 'not-a-uuid'));
+	}
+
+	public function testPersonYearsCacheAvoidsBucketsCallOnCacheHit(): void {
+		$calls = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use (&$calls) {
+			$calls[] = $e;
+			return $e === '/timeline/buckets?visibility=timeline&personId=' . self::A1
+				? [['timeBucket' => '2024-01-01']]
+				: ['assets' => ['items' => [['id' => 'x']]]];
+		});
+		$first = $this->search->personYears('alice', self::A1);
+		$this->assertSame([2024], $first);
+		$callCountBefore = count($calls);
+		$second = $this->search->personYears('alice', self::A1);
+		$this->assertSame([2024], $second);
+		$this->assertSame($callCountBefore, count($calls), 'cache hit does not call /timeline/buckets or /search/metadata');
+	}
+
+	public function testPersonYearsInvalidatesWhenNewYearSeen(): void {
+		$calls = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use (&$calls) {
+			$calls[] = $e;
+			return $m === 'GET'
+				? [['timeBucket' => '2025-01-01'], ['timeBucket' => '2024-01-01']]
+				: ['assets' => ['items' => [['id' => 'x']]]];
+		});
+		$this->search->personYears('alice', self::A1);
+		$callCountAfterFirst = count($calls);
+		// Passing an already cached year does not invalidate
+		$this->search->personYears('alice', self::A1, 2024);
+		$this->assertSame($callCountAfterFirst, count($calls));
+		// Passing an unseen year invalidates the cache and re-queries
+		$this->search->personYears('alice', self::A1, 2026);
+		$this->assertGreaterThan($callCountAfterFirst, count($calls));
+	}
+
+	public function testPersonYearsWithSharesCachesBuckets(): void {
+		$calls = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use (&$calls) {
+			$calls[] = $e;
+			return [['timeBucket' => '2024-05-01'], ['timeBucket' => '2022-01-01']];
+		});
+		$first = $this->search->personYears('bob', self::A1);
+		$this->assertSame([2024, 2022], $first);
+		$callCountBefore = count($calls);
+		$second = $this->search->personYears('bob', self::A1);
+		$this->assertSame([2024, 2022], $second);
+		$this->assertSame($callCountBefore, count($calls), 'cache hit does not call /timeline/buckets for shared scope');
+	}
+
 	public function testThumbnailGrantFromSearch(): void {
 		$this->immich->expects($this->once())->method('json')->willReturn($this->asset(self::A2, '/mnt/nextcloud/alice/Private/secret.jpg'));
 		$this->search->visibleItem('bob', $this->asset(self::A1, '/mnt/nextcloud/alice/Photos/beach.jpg'));
