@@ -189,14 +189,12 @@ class VideoScenes {
 			...($keyFrame ? ['-skip_frame', 'nokey'] : []), '-ss', (string)$t, '-i', $file,
 			'-frames:v', '1', '-an', '-vf', 'scale=w=' . self::WIDTH . ':h=' . self::WIDTH . ':force_original_aspect_ratio=decrease',
 			'-q:v', '4', '-f', 'image2', '-c:v', 'mjpeg', 'pipe:1'];
-		$proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+		$proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
 		if (!is_resource($proc)) {
 			return '';
 		}
 		$out = stream_get_contents($pipes[1]);
-		stream_get_contents($pipes[2]);
 		fclose($pipes[1]);
-		fclose($pipes[2]);
 		return proc_close($proc) === 0 && is_string($out) ? $out : '';
 	}
 
