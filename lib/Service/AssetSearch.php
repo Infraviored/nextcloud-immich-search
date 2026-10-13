@@ -16,6 +16,8 @@ use OCP\Files\NotFoundException;
 use OCP\ICache;
 use OCP\ICacheFactory;
 use OCP\IUserManager;
+use OCP\Share\IManager as IShareManager;
+use OCP\Share\IShare;
 
 /**
  * Immich smart (CLIP) search, filtered by Nextcloud's own permissions.
@@ -42,8 +44,14 @@ class AssetSearch {
 	private const MAX_PAGES_PER_CALL_FILTERED = 10;
 	/** Owner lookups kept in memory, enough for one person's pictures in PeopleIndex. */
 	private const OWNER_MEMO = 5000;
+	/** Share types that can bring someone else's file into a user's tree. */
+	private const SHARE_TYPES = [IShare::TYPE_USER, IShare::TYPE_GROUP, IShare::TYPE_CIRCLE, IShare::TYPE_ROOM, IShare::TYPE_DECK];
+	private const YEARS_TTL = 3600;
 
 	private ICache $grants;
+	private ICache $yearCache;
+	/** @var array<string, ?string> */
+	private array $scopes = [];
 	/** @var array<string, ?Folder> */
 	private array $folders = [];
 	/** @var array<string, array{0: ?string, 1: ?Node}> */
@@ -56,9 +64,11 @@ class AssetSearch {
 		private IRootFolder $rootFolder,
 		private IUserManager $users,
 		ICacheFactory $cacheFactory,
+		private IShareManager $shares,
 	) {
 		// "_v2": grants hold the file id now; older entries (just 1) must not count
 		$this->grants = $cacheFactory->createDistributed('glimpse_grants_v2');
+		$this->yearCache = $cacheFactory->createDistributed('glimpse_years');
 	}
 
 	/**
@@ -77,11 +87,18 @@ class AssetSearch {
 	 * Everything the user may see, newest first, taken before $before (ISO date) if given.
 	 * The cursor is the Immich page within that window.
 	 */
-	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = ''): array {
-		return $this->collect($uid, $page, $size, function (int $p, int $s) use ($before, $type) {
-			$body = ['page' => $p, 'size' => $s, 'order' => 'desc'];
+	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null): array {
+		return $this->collect($uid, $page, $size, function (int $p, int $s) use ($uid, $before, $after, $type) {
+			// From a point in time back to the past, or (after) forward to today, oldest first
+			$body = ['page' => $p, 'size' => $s, 'order' => $after !== null ? 'asc' : 'desc'];
 			if ($before !== null) {
 				$body['takenBefore'] = $before;
+			}
+			if ($after !== null) {
+				$body['takenAfter'] = $after;
+			}
+			if (($own = $this->ownScope($uid)) !== null) {
+				$body['originalPath'] = $own;
 			}
 			if (in_array($type, self::TYPES, true)) {
 				$body['type'] = $type;
@@ -90,14 +107,56 @@ class AssetSearch {
 		});
 	}
 
-	/** Years that have pictures (from Immich's timeline buckets), newest first. */
-	public function years(): array {
+	/**
+	 * Years that have pictures the user may see, newest first.
+	 *
+	 * Immich's buckets cover every user's library. Someone who only sees their own files
+	 * gets just the years their own folder has; with shares the full list stays (their
+	 * pictures can be from any of those years).
+	 */
+	public function years(string $uid = ''): array {
 		$years = [];
 		foreach ($this->immich->json('GET', '/timeline/buckets') as $b) {
 			$years[(int)substr((string)$b['timeBucket'], 0, 4)] = true;
 		}
 		krsort($years);
-		return array_keys($years);
+		$years = array_keys($years);
+		$own = $uid !== '' ? $this->ownScope($uid) : null;
+		if ($own === null) {
+			return $years;
+		}
+		$cached = $this->yearCache->get($uid);
+		if (is_array($cached)) {
+			return $cached;
+		}
+		$mine = array_values(array_filter($years, fn (int $y) => ($this->immich->json('POST', '/search/metadata', [
+			'size' => 1,
+			'originalPath' => $own,
+			'takenAfter' => sprintf('%04d-01-01T00:00:00.000Z', $y),
+			'takenBefore' => sprintf('%04d-01-01T00:00:00.000Z', $y + 1),
+		])['assets']['items'] ?? []) !== []));
+		$this->yearCache->set($uid, $mine, self::YEARS_TTL);
+		return $mine;
+	}
+
+	/**
+	 * The part of Immich's paths that only the user's own files have, when nothing is
+	 * shared with them: Immich can then skip everyone else's pictures itself instead of
+	 * this app paging through them. Null when the user may see files of others.
+	 */
+	private function ownScope(string $uid): ?string {
+		if (array_key_exists($uid, $this->scopes)) {
+			return $this->scopes[$uid];
+		}
+		$scope = str_replace(Config::USER_PLACEHOLDER, $uid, $this->config->getPathPattern());
+		foreach (self::SHARE_TYPES as $type) {
+			// Types whose app is not installed give an empty list
+			if ($this->shares->getSharedWith($uid, $type, null, 1) !== []) {
+				$scope = null;
+				break;
+			}
+		}
+		return $this->scopes[$uid] = $scope;
 	}
 
 	/**

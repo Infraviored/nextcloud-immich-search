@@ -53,13 +53,16 @@ class BrowseController extends Controller {
 		parent::__construct(Application::APP_ID, $request);
 	}
 
-	/** @param string $before ISO date: jump to this point in time (year links) */
+	/**
+	 * @param string $before ISO date: from this point back in time (year links)
+	 * @param string $after ISO date: from this point forward to today, oldest first
+	 */
 	#[NoAdminRequired]
-	public function timeline(int $page = 1, string $before = '', string $type = ''): Response {
-		return $this->guard(function () use ($page, $before, $type) {
-			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type);
+	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = ''): Response {
+		return $this->guard(function () use ($page, $before, $type, $after) {
+			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null);
 			$res['items'] = $this->privateArea->filter($this->uid(), $res['items']);
-			return $res + ($page === 1 ? ['years' => $this->assets->years()] : []);
+			return $res + ($page === 1 ? ['years' => $this->assets->years($this->uid())] : []);
 		});
 	}
 

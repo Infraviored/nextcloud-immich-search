@@ -21,6 +21,8 @@ use OCP\ICacheFactory;
 use OCP\IConfig;
 use OCP\IUserManager;
 use OCP\Security\ICrypto;
+use OCP\Share\IManager as IShareManager;
+use OCP\Share\IShare;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -38,6 +40,7 @@ class AssetSearchTest extends TestCase {
 	/** File ids that no longer resolve for a user (share taken back): uid => list<int> */
 	private array $revoked = [];
 	private AssetSearch $search;
+	private IShareManager&MockObject $shares;
 
 	protected function setUp(): void {
 		$beach = $this->file(10, '/alice/files/Photos/beach.jpg');
@@ -66,7 +69,9 @@ class AssetSearchTest extends TestCase {
 		$config = new Config($iconfig, $this->createMock(ICrypto::class));
 
 		$this->immich = $this->createMock(ImmichClient::class);
-		$this->search = new AssetSearch($this->immich, $config, $root, $users, $caches);
+		$this->shares = $this->createMock(IShareManager::class);
+		$this->shares->method('getSharedWith')->willReturnCallback(fn ($uid) => $uid === 'bob' ? [$this->createMock(IShare::class)] : []);
+		$this->search = new AssetSearch($this->immich, $config, $root, $users, $caches, $this->shares);
 	}
 
 	private function asset(string $id, string $path, array $extra = []): array {
@@ -203,5 +208,36 @@ class AssetSearchTest extends TestCase {
 		$f->method('getFirstNodeById')->willReturnCallback(fn ($id) => in_array($id, $this->revoked[$uid] ?? [], true) ? null : ($byId[$id] ?? null));
 		$f->method('getRelativePath')->willReturnCallback(fn ($p) => substr($p, strlen("/$uid/files")));
 		return $f;
+	}
+
+	public function testTimelineOfSomeoneWithoutSharesAsksOnlyForTheirFolder(): void {
+		$bodies = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$bodies) {
+			$bodies[] = $b;
+			return ['assets' => ['items' => [$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg')], 'nextPage' => null]];
+		});
+		$this->search->timeline('alice', null, 1, 4);
+		$this->search->timeline('bob', null, 1, 4);
+		$this->assertSame('/mnt/nextcloud/alice/', $bodies[0]['originalPath']);
+		$this->assertArrayNotHasKey('originalPath', $bodies[1], 'bob sees shared files from other folders');
+	}
+
+	public function testTimelineForwardFromAPointInTime(): void {
+		$body = null;
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$body) {
+			$body = $b;
+			return ['assets' => ['items' => [], 'nextPage' => null]];
+		});
+		$this->search->timeline('bob', null, 1, 4, '', '2020-01-01T00:00:00.000Z');
+		$this->assertSame('asc', $body['order']);
+		$this->assertSame('2020-01-01T00:00:00.000Z', $body['takenAfter']);
+	}
+
+	public function testYearsOnlyThoseOfTheirOwnFolder(): void {
+		$this->immich->method('json')->willReturnCallback(fn ($m, $e, $b = null) => $e === '/timeline/buckets'
+			? [['timeBucket' => '2024-05-01'], ['timeBucket' => '2023-01-01'], ['timeBucket' => '2022-03-01']]
+			: ['assets' => ['items' => str_starts_with($b['takenAfter'], '2023') ? [] : [['id' => 'x']]]]);
+		$this->assertSame([2024, 2022], $this->search->years('alice'));
+		$this->assertSame([2024, 2023, 2022], $this->search->years('bob'), 'shares can come from any year');
 	}
 }
