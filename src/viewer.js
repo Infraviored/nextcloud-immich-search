@@ -58,6 +58,41 @@ export function openInViewer(item, list = [item]) {
 			viewerState.current = null
 		},
 	})
+	if (item.at) {
+		startAt(item.at)
+	}
+}
+
+/**
+ * A video found by one of its stills starts at that moment: once the viewer's player has
+ * the video, jump there.
+ *
+ * @param {number} seconds
+ */
+export function startAt(seconds) {
+	const seek = (video) => {
+		const go = () => {
+			video.currentTime = seconds
+		}
+		if (video.readyState >= 1) {
+			go()
+		} else {
+			video.addEventListener('loadedmetadata', go, { once: true })
+		}
+	}
+	const found = () => document.querySelector('.viewer video, .modal-mask video')
+	if (found()) {
+		seek(found())
+		return
+	}
+	const observer = new MutationObserver(() => {
+		if (found()) {
+			observer.disconnect()
+			seek(found())
+		}
+	})
+	observer.observe(document.body, { childList: true, subtree: true })
+	window.setTimeout(() => observer.disconnect(), 15000)
 }
 
 /**

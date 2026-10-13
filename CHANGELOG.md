@@ -3,6 +3,55 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.6.1] - 2026-10-13
+
+### Fixed
+- Person timeline review findings: malformed person ids answer with nothing, a person's years
+  are cached and refreshed when a new year shows up, "more like this" and date links keep
+  working on a person's page.
+
+## [4.6.0] - 2026-10-13
+
+### Added
+- **A person's page is a timeline.** Newest pictures first in year bands, the person's years
+  along the right edge to jump to (say, their oldest pictures), scrolling on in both directions
+  and "Back to today" – like the main timeline. Typing words still searches in their pictures.
+  `/api/timeline` takes `person`; page 1 then lists that person's years.
+
+## [4.5.2] - 2026-10-13
+
+### Fixed
+- The night window for video stills goes by the server's local time (TZ of the container or
+  default_timezone), not UTC.
+
+## [4.5.1] - 2026-10-13
+
+### Changed
+- Search inside videos works in a night window (default 2:00–7:00, settable next to the
+  switch); `occ glimpse:video-scenes` ignores it.
+
+### Fixed
+- Review findings: a run stops when Immich is unreachable instead of giving up on videos, and
+  failed videos are retried daily; an interrupted run never uploads a still twice; only local
+  storage is read (no temporary copies of remote files); ffmpeg's error output can no longer
+  block it; deleted videos' stills are found with a few listings instead of one call per video;
+  "more like this" from a video hides the video itself.
+
+## [4.5.0] - 2026-10-13
+
+### Added
+- **Search inside videos.** Immich looks at one still per video; Glimpse now takes a still
+  every 15 seconds or so (two for short clips, at most 40 for long videos) and hands them to
+  Immich as archived pictures. A search finds the moment: the result shows that still with
+  its time, and the video starts there. Off by default (settings, "What gets indexed"); needs
+  ffmpeg on the Nextcloud server. A background job works through the videos, newest first;
+  `occ glimpse:video-scenes` does it at once, `--status` shows progress, `--purge` removes
+  all stills again. Stills of deleted videos are removed daily.
+
+### Changed
+- The timeline and date-ordered lists ask Immich for timeline pictures only, so the stills
+  never show up there; the photo count in the status leaves them out.
+
 ## [4.4.1] - 2026-10-13
 
 ### Fixed

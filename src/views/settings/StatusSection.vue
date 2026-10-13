@@ -82,6 +82,14 @@
 			<p class="status__people">
 				{{ people }}
 			</p>
+			<p v-if="status.videoScenes?.enabled" class="status__people">
+				<template v-if="!status.videoScenes.ffmpeg">
+					{{ t('Search inside videos is on, but ffmpeg is missing on the Nextcloud server.') }}
+				</template>
+				<template v-else>
+					{{ t('Search inside videos: {done} of {total} videos done, {stills} stills.', { done: status.videoScenes.done, total: status.videos, stills: status.videoScenes.stills }) }}
+				</template>
+			</p>
 			<p v-if="status.prune?.total" class="status__people">
 				{{ n('{count} tiny picture taken out of Immich so far.', '{count} tiny pictures taken out of Immich so far.', status.prune.total, { count: status.prune.total }) }}
 			</p>

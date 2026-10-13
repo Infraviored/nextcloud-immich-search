@@ -37,7 +37,8 @@ integration and the permission checks.
   beach pictures. You can also filter by tag, and show only photos or only videos.
 - **Timeline.** All your pictures by month in year bands, with a year rail to jump anywhere,
   "On this day" cards, and "Back to today".
-- **People.** Name, merge, hide and favorite people. Assign or remove single faces, or move
+- **People.** Each person's page is a timeline of their pictures, with their years to jump
+  to – straight to their oldest photos. Name, merge, hide and favorite people. Assign or remove single faces, or move
   many faces out of a person at once ("Not Tanja"). "Label people" lets you name faces one
   after another.
 - **Map.** Geotagged pictures in clusters on OpenStreetMap, with the pictures of the visible
