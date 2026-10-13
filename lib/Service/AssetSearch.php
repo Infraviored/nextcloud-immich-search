@@ -114,29 +114,78 @@ class AssetSearch {
 	 * gets just the years their own folder has; with shares the full list stays (their
 	 * pictures can be from any of those years).
 	 */
-	public function years(string $uid = ''): array {
+	public function years(string $uid = '', ?int $seenYear = null): array {
+		$own = $uid !== '' ? $this->ownScope($uid) : null;
+		if ($own === null) {
+			return $this->bucketYears();
+		}
+		$cached = $this->yearCache->get($uid);
+		if (is_array($cached)) {
+			if ($seenYear !== null && $seenYear > 0 && !in_array($seenYear, $cached, true)) {
+				$this->yearCache->remove($uid);
+			} else {
+				return $cached;
+			}
+		}
+		$years = $this->bucketYears();
+		if ($years === []) {
+			$this->yearCache->set($uid, [], self::YEARS_TTL);
+			return [];
+		}
+
+		// Bound candidate years by finding the user's newest and oldest pictures
+		$newest = $this->immich->json('POST', '/search/metadata', [
+			'size' => 1,
+			'originalPath' => $own,
+			'order' => 'desc',
+			'takenAfter' => '1970-01-01T00:00:00.000Z',
+		])['assets']['items'][0] ?? null;
+		if ($newest === null) {
+			$this->yearCache->set($uid, [], self::YEARS_TTL);
+			return [];
+		}
+		$newestYear = (int)substr((string)($newest['localDateTime'] ?? $newest['fileCreatedAt'] ?? $newest['date'] ?? ''), 0, 4);
+
+		$oldest = $this->immich->json('POST', '/search/metadata', [
+			'size' => 1,
+			'originalPath' => $own,
+			'order' => 'asc',
+			'takenAfter' => '1970-01-01T00:00:00.000Z',
+		])['assets']['items'][0] ?? null;
+		$oldestYear = $oldest !== null ? (int)substr((string)($oldest['localDateTime'] ?? $oldest['fileCreatedAt'] ?? $oldest['date'] ?? ''), 0, 4) : $newestYear;
+
+		$candidates = ($newestYear > 0 && $oldestYear > 0)
+			? array_values(array_filter($years, fn (int $y) => $y >= $oldestYear && $y <= $newestYear))
+			: $years;
+
+		$mine = [];
+		foreach ($candidates as $y) {
+			if (($y === $newestYear || $y === $oldestYear) && $newestYear > 0) {
+				$mine[] = $y;
+				continue;
+			}
+			$has = ($this->immich->json('POST', '/search/metadata', [
+				'size' => 1,
+				'originalPath' => $own,
+				'takenAfter' => sprintf('%04d-01-01T00:00:00.000Z', $y),
+				'takenBefore' => sprintf('%04d-01-01T00:00:00.000Z', $y + 1),
+			])['assets']['items'] ?? []) !== [];
+			if ($has) {
+				$mine[] = $y;
+			}
+		}
+		$this->yearCache->set($uid, $mine, self::YEARS_TTL);
+		return $mine;
+	}
+
+	/** @return list<int> all years present across the instance, newest first */
+	private function bucketYears(): array {
 		$years = [];
 		foreach ($this->immich->json('GET', '/timeline/buckets') as $b) {
 			$years[(int)substr((string)$b['timeBucket'], 0, 4)] = true;
 		}
 		krsort($years);
-		$years = array_keys($years);
-		$own = $uid !== '' ? $this->ownScope($uid) : null;
-		if ($own === null) {
-			return $years;
-		}
-		$cached = $this->yearCache->get($uid);
-		if (is_array($cached)) {
-			return $cached;
-		}
-		$mine = array_values(array_filter($years, fn (int $y) => ($this->immich->json('POST', '/search/metadata', [
-			'size' => 1,
-			'originalPath' => $own,
-			'takenAfter' => sprintf('%04d-01-01T00:00:00.000Z', $y),
-			'takenBefore' => sprintf('%04d-01-01T00:00:00.000Z', $y + 1),
-		])['assets']['items'] ?? []) !== []));
-		$this->yearCache->set($uid, $mine, self::YEARS_TTL);
-		return $mine;
+		return array_keys($years);
 	}
 
 	/**
@@ -148,7 +197,15 @@ class AssetSearch {
 		if (array_key_exists($uid, $this->scopes)) {
 			return $this->scopes[$uid];
 		}
-		$scope = str_replace(Config::USER_PLACEHOLDER, $uid, $this->config->getPathPattern());
+		$pattern = $this->config->getPathPattern();
+		if (!str_contains($pattern, Config::USER_PLACEHOLDER)) {
+			return $this->scopes[$uid] = null;
+		}
+		$pattern = rtrim($pattern, '/') . '/';
+		$scope = str_replace(Config::USER_PLACEHOLDER, $uid, $pattern);
+		if (!str_ends_with($scope, '/')) {
+			$scope .= '/';
+		}
 		foreach (self::SHARE_TYPES as $type) {
 			// Types whose app is not installed give an empty list
 			if ($this->shares->getSharedWith($uid, $type, null, 1) !== []) {
