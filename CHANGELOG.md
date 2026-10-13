@@ -3,6 +3,13 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.6.1] - 2026-10-13
+
+### Fixed
+- Person timeline review findings: malformed person ids answer with nothing, a person's years
+  are cached and refreshed when a new year shows up, "more like this" and date links keep
+  working on a person's page.
+
 ## [4.6.0] - 2026-10-13
 
 ### Added
