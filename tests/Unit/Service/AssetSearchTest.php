@@ -352,4 +352,51 @@ class AssetSearchTest extends TestCase {
 		$searchSlash->timeline('charlie', null, 1, 4);
 		$this->assertSame('/mnt/nextcloud/charlie/', $bodies[1]['originalPath'], 'trailing slash is ensured');
 	}
+
+	public function testVisibleItemParsesStillWithoutVisibilityAttribute(): void {
+		$vidId = '33333333-3333-4333-8333-333333333333';
+		$stillName = "glimpse-frame_{$vidId}_15000.jpg";
+
+		$this->immich->method('json')->willReturnCallback(function ($m, $e) use ($vidId) {
+			if ($e === '/assets/' . $vidId) {
+				return $this->asset($vidId, '/mnt/nextcloud/alice/Photos/beach.jpg', ['type' => 'VIDEO']);
+			}
+			return [];
+		});
+
+		$stillAsset = [
+			'id' => 'still-1',
+			'originalFileName' => $stillName,
+		];
+
+		$item = $this->search->visibleItem('alice', $stillAsset, true, true);
+		$this->assertNotNull($item);
+		$this->assertSame(10, $item['fileId']);
+		$this->assertEquals(15.0, $item['at']);
+		$this->assertSame('still-1', $item['thumbId']);
+	}
+
+	public function testSimilarSearchSuppressesSourceVideoMatchedViaStill(): void {
+		$vidId = '33333333-3333-4333-8333-333333333333';
+		$stillName = "glimpse-frame_{$vidId}_15000.jpg";
+
+		$this->immich->method('json')->willReturnCallback(function ($m, $e) use ($vidId, $stillName) {
+			if ($e === '/assets/' . $vidId) {
+				return $this->asset($vidId, '/mnt/nextcloud/alice/Photos/beach.jpg', ['type' => 'VIDEO']);
+			}
+			if ($e === '/search/smart') {
+				return ['assets' => ['items' => [
+					['id' => 's1', 'originalFileName' => $stillName],
+					$this->asset('a2', '/mnt/nextcloud/alice/Private/secret.jpg'),
+				], 'nextPage' => null]];
+			}
+			return [];
+		});
+
+		$res = $this->search->search('alice', '', 1, 10, '', '', $vidId);
+		$items = $res['items'];
+
+		$this->assertCount(1, $items);
+		$this->assertSame(11, $items[0]['fileId']);
+	}
 }

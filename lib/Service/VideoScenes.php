@@ -73,6 +73,10 @@ class VideoScenes {
 	}
 
 	public static function ffmpeg(): ?string {
+		$env = getenv('FFMPEG_PATH') ?: ($_SERVER['FFMPEG_PATH'] ?? null);
+		if (is_string($env) && is_executable($env)) {
+			return $env;
+		}
 		foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $path) {
 			if (is_executable($path)) {
 				return $path;
