@@ -7,7 +7,7 @@
 | 0 Grundlagen | ✅ Repo, CI (PHP 8.1–8.4, Frontend), Release-Workflow, CHANGELOG, PHPUnit/Vitest/E2E, Nextcloud-Codestil, deploy.sh mit Versionsschutz |
 | 1 Einstellungsseite | ✅ Status, Darstellung, Nextcloud-Suche, Indexierung, Personen, Verbindung, Privat |
 | 2 Mini-Bilder | ✅ Weg A+B kombiniert: Papierkorb in Immich + gebündelte Ausschlussmuster (auf Immich 3.2 gemessen, Grenzen siehe SmallImagePruner) |
-| 3 Nextcloud-Suche | ✅ Personen-Anbieter, „Tara Strand", „Mehr suchen" konfigurierbar |
+| 3 Nextcloud-Suche | ✅ Personen-Anbieter, „Alex Strand", „Mehr suchen" konfigurierbar |
 | 4 Auswahl | ✅ Ähnliche Bilder, Favoriten, Tags, Alben, ZIP, Löschen, Teilen, Rückgängig, letzte Ordner |
 | 5 Foto-App | ✅ Zeitleiste, Karte, An diesem Tag, Duplikate, Ordner |
 | 6 Gesichter | ✅ Gesichter pro Bild, „Wer ist das?", Geburtstag, Favoriten, inkrementeller Index |
@@ -16,7 +16,7 @@
 | 9 Veröffentlichen | 🟡 Doku, Sicherheitsmodell, Ratenbegrenzung, Release-Workflow fertig. **Offen:** App-Zertifikat beantragen und signieren, Store-Eintrag, Name (siehe RELEASE.md) |
 
 Bewusst nicht umgesetzt:
-- „Ist das Tara?"-Vorschläge mit Ähnlichkeit: Immich liefert keine Gesichts-Embeddings über die
+- „Ist das Alex?"-Vorschläge mit Ähnlichkeit: Immich liefert keine Gesichts-Embeddings über die
   API. Stattdessen „Wer ist das?" als Serien-Benennung.
 - Rechteck-Auswahl auf der Karte: der Kartenausschnitt bestimmt die Bilder darunter.
 
@@ -82,7 +82,7 @@ Nextcloud-Einstellungen verlinkt nur noch hierher.
 ### 1.3 Nextcloud-Suche (Admin, Standard für alle; Benutzer darf abschalten)
 
 - [x] **Fotos nach Inhalt** in der globalen Suche (heute fest an)
-- [ ] **Personen** in der globalen Suche: „Tara" → Eintrag mit Gesicht → Personenseite (Phase 3)
+- [ ] **Personen** in der globalen Suche: „Alex" → Eintrag mit Gesicht → Personenseite (Phase 3)
 - [x] Eintrag **„Alle Treffer in der Fotosuche öffnen"** an erster Stelle (heute fest an) –
       ein-/ausschaltbar, Text anpassbar
 - Mindestlänge des Suchbegriffs (heute 3), Anzahl Treffer je Abschnitt, Position des Abschnitts
@@ -115,7 +115,7 @@ Abnahme: Ein neues 64×64-PNG in Nextcloud erzeugt keinen Analyse-Job mehr (prü
 
 - **Personen-Provider:** sucht in Personennamen, Ergebnis mit Gesicht und Bildanzahl, nur
   sichtbare Personen. Link auf die Personenseite.
-- **Kombinierte Anfrage:** „Tara Strand" → erkennt den Personennamen, sucht „Strand" innerhalb
+- **Kombinierte Anfrage:** „Alex Strand" → erkennt den Personennamen, sucht „Strand" innerhalb
   ihrer Bilder.
 - **„Mehr suchen"-Eintrag** konfigurierbar (1.3); auf dem Handy öffnet er die App im Browser
   (die Android-App kann keine fremden App-Seiten nativ anzeigen).
@@ -141,7 +141,7 @@ Abnahme: Ein neues 64×64-PNG in Nextcloud erzeugt keinen Analyse-Job mehr (prü
 
 - Alle Gesichter eines Bildes mit Rahmen anzeigen (Overlay im Viewer oder in der App).
 - Einzelnes Gesicht einer anderen Person zuweisen oder „ist niemand" (Fehlerkennung).
-- Vorschläge: „Ist das Tara?" für ähnliche unbenannte Gesichter, mit Ja/Nein in Serie.
+- Vorschläge: „Ist das Alex?" für ähnliche unbenannte Gesichter, mit Ja/Nein in Serie.
 - Personen-Geburtstag → Alter auf Fotos; Lieblingspersonen oben.
 - Personen-Index inkrementell (nur geänderte Personen/Freigaben), damit er auch bei
   100.000 Fotos stündlich läuft.

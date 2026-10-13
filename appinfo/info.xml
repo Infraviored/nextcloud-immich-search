@@ -14,7 +14,7 @@ read-only. Nextcloud still decides who sees what.
 ### Search
 - **By content**: describe the picture, results are ranked by meaning, not by file names or tags.
 - **Inside videos**: finds moments in videos by what is in them, jumping straight to the scene.
-- **By person**, or both at once: "Tara beach" finds Tara's beach pictures.
+- **By person**, or both at once: "Alex beach" finds Alex's beach pictures.
 - Filter by tag, photos or videos; "More like this" for any picture.
 - Also in Nextcloud's own search bar and in the Nextcloud mobile apps.
 

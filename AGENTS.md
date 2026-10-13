@@ -46,7 +46,7 @@ are in `README.md`, the threat model in `docs/SECURITY.md`, releasing in `docs/R
   (own or shared). If nothing resolves, the hit is dropped. Visible assets become 24 h "grants"
   that authorize thumbnails. A grant is honoured only while the file still resolves.
   `collect()` pages through Immich until half a page is visible.
-- `PeopleNames`: splits "Tara beach" into person + rest. The name must be a whole word at the
+- `PeopleNames`: splits "Alex beach" into person + rest. The name must be a whole word at the
   start or end; the longest match wins. Only named, visible, non-private people count.
 - `PeopleIndex`, `MapIndex`: per-user visibility of people and map markers. Built in the
   background and stored in app data as `people/<uid>.json`.
