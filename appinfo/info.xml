@@ -48,7 +48,7 @@ Immich to the Nextcloud data directory, and Nextcloud cron. Setup guide:
 [README](https://github.com/Infraviored/nextcloud-immich-search#install).
 	]]></description>
 	<version>4.4.1</version>
-	<licence>agpl</licence>
+	<licence>AGPL-3.0-or-later</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>
 	<category>multimedia</category>
