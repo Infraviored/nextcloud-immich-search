@@ -34,7 +34,7 @@ class IndexVideoScenes extends TimedJob {
 	}
 
 	protected function run($argument): void {
-		if (!$this->config->isConfigured() || !$this->scenes->enabled()) {
+		if (!$this->config->isConfigured() || !$this->scenes->enabled() || !$this->scenes->inWindow()) {
 			return;
 		}
 		try {

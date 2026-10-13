@@ -463,6 +463,11 @@ OC.L10N.register(
         "Search inside videos": "In Videos suchen",
         "Immich looks at one still per video. With this on, Glimpse takes a still every 15 seconds or so (at most 40 per video) and hands them to Immich, so a search finds the moment in a video and opens it there. Needs ffmpeg on the Nextcloud server; the stills take about 50 KB each in Immich.": "Immich schaut sich pro Video nur ein Standbild an. Ist das hier an, nimmt Glimpse etwa alle 15 Sekunden ein Standbild (höchstens 40 pro Video) und gibt sie an Immich. So findet die Suche die Stelle im Video und öffnet es dort. Braucht ffmpeg auf dem Nextcloud-Server; die Standbilder belegen in Immich je etwa 50 KB.",
         "Search inside videos is on, but ffmpeg is missing on the Nextcloud server.": "In Videos suchen ist an, aber auf dem Nextcloud-Server fehlt ffmpeg.",
-        "Search inside videos: {done} of {total} videos done, {stills} stills.": "In Videos suchen: {done} von {total} Videos fertig, {stills} Standbilder."
+        "Search inside videos: {done} of {total} videos done, {stills} stills.": "In Videos suchen: {done} von {total} Videos fertig, {stills} Standbilder.",
+        "Processing window": "Verarbeitungsfenster",
+        "Nightly 2:00 – 7:00": "Nachts 2:00 – 7:00",
+        "Nightly 0:00 – 6:00": "Nachts 0:00 – 6:00",
+        "Nightly 23:00 – 6:00": "Nachts 23:00 – 6:00",
+        "Always": "Immer"
     },
 "nplurals=2; plural=(n != 1);");

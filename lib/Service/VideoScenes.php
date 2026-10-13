@@ -48,6 +48,30 @@ class VideoScenes {
 		return (bool)$this->config->get('video_scenes');
 	}
 
+	/**
+	 * Whether the current server local time is inside the configured processing window.
+	 * Formats: "start-end" (e.g. "2-7", "23-6"), or "" / "0-24" for always.
+	 */
+	public function inWindow(?string $window = null, ?int $timestamp = null): bool {
+		$window ??= (string)$this->config->get('video_scenes_hours');
+		$window = trim($window);
+		if ($window === '' || $window === '0-24') {
+			return true;
+		}
+		if (!preg_match('/^(\d{1,2})-(\d{1,2})$/', $window, $m)) {
+			return true;
+		}
+		$start = (int)$m[1];
+		$end = (int)$m[2];
+		if ($start === 0 && $end === 24) {
+			return true;
+		}
+		$hour = (int)date('G', $timestamp ?? time());
+		return $start < $end
+			? ($hour >= $start && $hour < $end)
+			: ($hour >= $start || $hour < $end);
+	}
+
 	public static function ffmpeg(): ?string {
 		foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $path) {
 			if (is_executable($path)) {
