@@ -154,7 +154,7 @@ class VideoScenesTest extends TestCase {
 				], 'nextPage' => null]];
 			}
 			if ($e === '/search/metadata' && str_starts_with($b['originalFileName'] ?? '', VideoScenes::PREFIX)) {
-				throw new ImmichException('502 Bad Gateway', 502);
+				throw new ImmichException('Immich is not reachable', 502, new \RuntimeException('connection refused'));
 			}
 			return [];
 		});

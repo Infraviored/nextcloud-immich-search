@@ -72,6 +72,14 @@ class VideoScenes {
 			: ($hour >= $start || $hour < $end);
 	}
 
+	/**
+	 * Immich down or not answering (a transport error), as opposed to Immich refusing one
+	 * request: then a run stops and tries again later instead of giving up on the video.
+	 */
+	private static function unreachable(ImmichException $e): bool {
+		return $e->getPrevious() !== null;
+	}
+
 	public static function ffmpeg(): ?string {
 		$env = getenv('FFMPEG_PATH') ?: ($_SERVER['FFMPEG_PATH'] ?? null);
 		if (is_string($env) && is_executable($env)) {
@@ -148,7 +156,7 @@ class VideoScenes {
 						'type' => 'VIDEO', 'page' => $page, 'size' => self::PAGE, 'order' => 'desc', 'visibility' => 'timeline',
 					])['assets'] ?? [];
 				} catch (ImmichException $e) {
-					if ($e->getCode() === 502) {
+					if (self::unreachable($e)) {
 						$this->logger->warning('Glimpse: Immich unreachable, stopping video scenes run: ' . $e->getMessage(), ['app' => 'glimpse']);
 						break;
 					}
@@ -173,7 +181,7 @@ class VideoScenes {
 						$stats['stills'] += max(0, $count);
 						$stats['failed'] += $count === self::FAILED ? 1 : 0;
 					} catch (ImmichException $e) {
-						if ($e->getCode() === 502) {
+						if (self::unreachable($e)) {
 							// (a) Immich unreachable: stop the run without marking the video failed
 							$this->logger->warning('Glimpse: Immich unreachable, stopping video scenes run: ' . $e->getMessage(), ['app' => 'glimpse']);
 							break 2;
@@ -248,7 +256,7 @@ class VideoScenes {
 				}
 			}
 		} catch (ImmichException $e) {
-			if ($e->getCode() === 502) {
+			if (self::unreachable($e)) {
 				throw $e;
 			}
 			$this->logger->warning('Glimpse: checking existing stills for ' . $video['id'] . ' failed: ' . $e->getMessage(), ['app' => 'glimpse']);
@@ -275,7 +283,7 @@ class VideoScenes {
 				]);
 				$count++;
 			} catch (ImmichException $e) {
-				if ($e->getCode() === 502) {
+				if (self::unreachable($e)) {
 					throw $e;
 				}
 				$this->logger->warning('Glimpse: still of ' . $video['id'] . ' not uploaded: ' . $e->getMessage(), ['app' => 'glimpse']);
@@ -360,6 +368,10 @@ class VideoScenes {
 						$liveVideos[$v['id']] = true;
 					}
 					$vPage = isset($res['nextPage']) ? (int)$res['nextPage'] : null;
+				}
+				if ($liveVideos === [] && $byVideo !== []) {
+					// An empty answer is no proof that every video is gone
+					return 0;
 				}
 				// Retry failed videos once a day and clean up done state for deleted videos
 				foreach ($done as $videoId => $count) {
