@@ -5,5 +5,7 @@
 
 import { createApp } from 'vue'
 import App from './App.vue'
+import { loadFont } from './theme.js'
 
+loadFont()
 createApp(App).mount('#glimpse')

@@ -62,26 +62,27 @@ function onClick(event) {
 		align-items: center;
 		gap: 2px;
 		padding: 10px 4px;
-		border-radius: var(--border-radius-large);
+		border-radius: 18px;
+		color: var(--g-text);
 		text-align: center;
 
-		&:hover, &:focus-visible { background: var(--color-background-hover); }
+		&:hover, &:focus-visible { background: var(--g-raised); }
 	}
 
 	&__face {
 		width: 100%;
 		max-width: 128px;
 		aspect-ratio: 1;
-		margin-bottom: 6px;
+		margin-bottom: 8px;
 		border-radius: 50%;
 		object-fit: cover;
-		background: var(--color-background-dark);
+		background: var(--g-raised);
 	}
 
 	&__name {
 		max-width: 100%;
 		overflow: hidden;
-		font-weight: bold;
+		font-weight: 600;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 
@@ -103,16 +104,26 @@ function onClick(event) {
 		border: 0;
 		border-radius: 50%;
 		min-height: 0;
-		background: var(--color-main-background);
-		color: var(--color-text-maxcontrast);
+		background: var(--g-bg);
+		color: var(--g-muted);
 		cursor: pointer;
 	}
 
 	&--selected {
-		.person__face { outline: 3px solid var(--color-primary-element); outline-offset: 2px; }
-		.person__check { color: var(--color-primary-element); }
+		.person__face { outline: 3px solid var(--g-accent-text); outline-offset: 3px; }
+		.person__check { color: var(--g-accent-text); }
 	}
 
 	&--hidden .person__face { opacity: 0.45; }
+
+	// The round select button shows on pointing at a face, and on all while choosing
+	&__check { opacity: 0; transition: opacity 0.12s ease; }
+	&:hover &__check, &:focus-within &__check, &--selected &__check { opacity: 1; }
+}
+
+:global(.people--choosing) .person__check { opacity: 1; }
+
+@media (hover: none) {
+	.person__check { opacity: 1; }
 }
 </style>

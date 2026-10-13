@@ -456,6 +456,9 @@ OC.L10N.register(
             "{count} Bilder hatten kein Gesicht von {name} oder ließen sich nicht ändern"
         ],
         "Choose between 1 and %d pictures": "Zwischen 1 und %d Bildern auswählen",
-        "That is the same person": "Das ist dieselbe Person"
+        "That is the same person": "Das ist dieselbe Person",
+        "Back to today": "Zurück zu heute",
+        "Search your photos": "Fotos durchsuchen",
+        "Clear": "Leeren"
     },
 "nplurals=2; plural=(n != 1);");

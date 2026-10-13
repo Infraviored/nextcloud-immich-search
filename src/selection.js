@@ -3,6 +3,11 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import { ref } from 'vue'
+
+/** Shared reactive flag indicating whether a selection is currently active. */
+export const selectionActive = ref(false)
+
 /**
  * Selection rules of the grid, kept free of Vue so they can be tested.
  *
