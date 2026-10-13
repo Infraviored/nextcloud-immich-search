@@ -6,7 +6,7 @@
 3. Commit, tag and push:
 
    ```bash
-   git tag v3.0.0 && git push origin main v3.0.0
+   git tag v4.5.0 && git push origin main v4.5.0
    ```
 
    The release workflow checks that the tag matches `info.xml`, builds the tarball and
@@ -23,7 +23,10 @@ The App Store only accepts signed apps:
    (writes `appinfo/signature.json`), then pack again. To automate: store key and certificate
    as GitHub secrets and add the step to `release.yml`.
 3. Register the app at https://apps.nextcloud.com with the certificate and upload the
-   signed tarball URL; add screenshots (blurred ones from `npm run e2e` work) to `info.xml`.
+   signed tarball URL. The `<screenshot>` entries in `info.xml` (at most 10 allowed
+   by the App Store schema) point to `docs/screenshots/` on `main`
+   (raw.githubusercontent.com), so they load once the repository is public; sources and
+   licenses of the pictures in them are in `docs/screenshots/CREDITS.md`.
 
 Until then: install from the GitHub release tarball (unpack into `custom_apps/`). Nextcloud
 shows an "integrity check" note for unsigned custom apps; that is expected.
