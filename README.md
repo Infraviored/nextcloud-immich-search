@@ -30,6 +30,9 @@ integration and the permission checks.
 
 - **Search by content.** Describe the picture: "birthday cake", "lighthouse at sunset", "red
   bicycle". Results are ranked by Immich's CLIP model. "More like this" works on any picture.
+- **Search inside videos.** Immich understands a video by a single still. Glimpse extracts
+  extra stills (every ~15 s, up to 40 per video) using ffmpeg and hands them to Immich as
+  archived pictures. Text search finds the moment, opening the video right there.
 - **Search by person.** Name a person, or combine a name with words: "Tara beach" finds Tara's
   beach pictures. You can also filter by tag, and show only photos or only videos.
 - **Timeline.** All your pictures by month in year bands, with a year rail to jump anywhere,
@@ -120,6 +123,8 @@ Details: [docs/SECURITY.md](docs/SECURITY.md).
 - **Nextcloud** 30 to 35 with background jobs (cron) running. Nextcloud AIO runs cron by
   itself.
 - **PHP** 8.1 or newer.
+- **ffmpeg** on the Nextcloud server (for search inside videos; `/usr/bin/ffmpeg`,
+  `/usr/local/bin/ffmpeg`, or `/bin/ffmpeg`).
 - **Immich**, self-hosted, with its machine-learning service. Tested with Immich 3.2.
   - Smart search (CLIP) is needed for content search.
   - Face detection and recognition are needed for people.
@@ -223,9 +228,34 @@ Admins configure everything in the app under *Settings*:
 | Section | What you set |
 |---|---|
 | Connection | Immich address, API key, path pattern; optional health check of the machine-learning service |
-| What gets indexed | File types and folders Immich should skip (with suggestions for icon and cache folders); minimum picture size (default 256 px), with the option to take smaller images out of Immich for good; libraries per user |
+| What gets indexed | File types and folders Immich should skip (with suggestions for icon and cache folders); minimum picture size (default 256 px), with the option to take smaller images out of Immich for good; search inside videos toggle (`video_scenes`) and night window (`video_scenes_hours`); libraries per user |
 | People | Who may name, merge and hide people (everyone, admins or nobody); minimum number of pictures for unnamed people; how often the people index is rebuilt (every 1 h, 6 h or 24 h) |
 | Nextcloud search | Whether the search bar shows photos and people, from how many characters, and where in the results |
+
+### Search inside videos
+
+Immich understands videos through a single still taken from the start. With *Search inside videos*
+enabled:
+
+1. Glimpse cuts stills from each video (roughly every 15 s, up to 40 per video) using `ffmpeg`
+   on the Nextcloud server.
+2. Stills are uploaded to Immich via its API with `visibility: archive` and named
+   `glimpse-frame_<video>_<ms>.jpg`. They never show up in Immich timelines or albums.
+3. Immich's CLIP model analyses the stills like any other photo.
+4. Searches in Glimpse match these stills and resolve them back to the source video, opening it
+   at that exact timestamp.
+
+Configuration:
+- **Toggle:** Enable under *Settings → What gets indexed → Search inside videos* (setting `video_scenes`).
+- **Night window:** Setting `video_scenes_hours` (default `2-7`, 2:00 to 7:00 AM) restricts heavy background extraction to off-peak hours so server performance is preserved. Options include `2-7`, `0-6`, `1-6`, `23-6`, `22-6`, `0-7`, `0-24`, or disabled.
+- **Background indexing:** The `IndexVideoScenes` job runs every 5 minutes (for up to 2 minutes) during the night window, and purges orphaned stills once a day.
+- **Command line:**
+  ```bash
+  occ glimpse:video-scenes [--minutes=60] [--limit=N]  # extract stills now
+  occ glimpse:video-scenes --status                     # show indexing progress
+  occ glimpse:video-scenes --orphans                    # remove stills of deleted videos
+  occ glimpse:video-scenes --purge                      # remove all stills created by Glimpse
+  ```
 
 Every user can set:
 
@@ -240,6 +270,7 @@ Every user can set:
 | What | When | By hand |
 |---|---|---|
 | People and map index | hourly (or 6 h / 24 h), skipped when nothing changed | `occ glimpse:people-index` |
+| Video scene indexing | every 5 minutes (up to 2 min budget) in night window | `occ glimpse:video-scenes [--minutes=N] [--limit=N]` |
 | Take tiny images out of Immich | every 15 minutes, new images only | `occ glimpse:prune [--full] [--reset]` |
 | Map tile cache cleanup | daily | – |
 | Connection | – | `occ glimpse:configure` |

@@ -9,7 +9,7 @@ are in `README.md`, the threat model in `docs/SECURITY.md`, releasing in `docs/R
 
 | Path | What |
 |---|---|
-| `appinfo/info.xml` | The **only** place for the version; dependencies (PHP ≥ 8.1, NC 30–35); jobs, commands, settings, navigation |
+| `appinfo/info.xml` | The **only** place for the version; dependencies (PHP ≥ 8.1, NC 30–35); jobs, commands, settings, navigation. Nextcloud App Store limits `<screenshot>` elements to at most 10 (`info.xsd`) |
 | `appinfo/routes.php` | All routes. Each SPA deep link (`/timeline`, `/people/{id}`, …) also has a `page#index` route so reloads work |
 | `lib/Controller/` | JSON API (see below) |
 | `lib/Service/` | All logic |
@@ -64,6 +64,11 @@ are in `README.md`, the threat model in `docs/SECURITY.md`, releasing in `docs/R
 - `SmallImagePruner`: takes images under `min_size` out of Immich (trash plus exclusion
   patterns).
 - `IndexAdmin`: status, queues, libraries, exclusion patterns, folder suggestions.
+- `VideoScenes`: search inside videos. Immich understands a video by one still; Glimpse takes
+  more stills from each video (every ~15 s, at most 40) using ffmpeg and hands them to Immich
+  as archived pictures named `glimpse-frame_<video id>_<ms>.jpg`. Immich analyses them via CLIP,
+  and `AssetSearch` maps hits back to the video opened at that moment. Settings: `video_scenes`
+  (bool) and `video_scenes_hours` (night window, default `2-7`).
 - `MoveTracker`: see below.
 - `UserPrefs`, `Permissions`.
 
@@ -92,13 +97,15 @@ are in `README.md`, the threat model in `docs/SECURITY.md`, releasing in `docs/R
 - `PruneSmallImages`: every 15 min.
 - `PruneTileCache`: daily.
 - `ScanLibraries`: queued after copies.
+- `IndexVideoScenes`: every 5 min (up to 2 min budget) inside `video_scenes_hours`. Also purges
+  orphaned stills daily.
 
 **Immich API used**
 
 | Area | Endpoints |
 |---|---|
 | Search | `/search/smart`, `/search/metadata`, `/timeline/buckets` |
-| Assets | `/assets/{id}`, `/assets/{id}/thumbnail`, `DELETE /assets` |
+| Assets | `/assets` (upload, `DELETE`), `/assets/{id}`, `/assets/{id}/thumbnail`, `/assets/statistics` |
 | People and faces | `/people`, `/people/{id}`, `/people/{id}/merge`, `/faces?id=`, `/faces/{id}` |
 | Memories and duplicates | `/memories`, `/duplicates` |
 | Libraries | `/libraries`, `/libraries/{id}`, `/libraries/{id}/scan`, `/libraries/{id}/statistics` |
@@ -199,6 +206,18 @@ Why:
 - **Permissions first.** Every new endpoint that returns assets, faces, thumbnails or
   coordinates must go through `AssetSearch` (`visibleItem` / `maySee`) and `PrivateArea`.
   Never return Immich data unfiltered. Never use Immich's person thumbnail.
+- **Search inside videos (VideoScenes):**
+  - Stills are uploaded to Immich with `visibility: archive` under filenames matching
+    `glimpse-frame_<video id>_<ms>.jpg` (`VideoScenes::PREFIX`, `VideoScenes::NAME`). They do
+    not appear in Immich's timeline or albums.
+  - `AssetSearch::visibleItem` maps them back to the source video only for searches
+    (`$stills = true`), attaching timestamp `at` and `thumbId`. In all other contexts (timeline,
+    folders, people, duplicates) or if the parent video cannot be seen by the user, stills are
+    suppressed / dropped.
+  - Extraction requires local `ffmpeg` (`/usr/bin/ffmpeg`, `/usr/local/bin/ffmpeg`, or
+    `/bin/ffmpeg`).
+  - Background indexing runs 2 minutes every 5 minutes within `video_scenes_hours` (default `2-7`).
+    CLI controls are provided via `occ glimpse:video-scenes`.
 - **One Immich account.** Person names, hiding and merges are global. Dismissing a duplicate
   group affects everyone, so it requires the user to see the whole group or be an admin.
   Merges cannot be undone.

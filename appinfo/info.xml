@@ -13,6 +13,7 @@ read-only. Nextcloud still decides who sees what.
 
 ### Search
 - **By content**: describe the picture, results are ranked by meaning, not by file names or tags.
+- **Inside videos**: finds moments in videos by what is in them, jumping straight to the scene.
 - **By person**, or both at once: "Tara beach" finds Tara's beach pictures.
 - Filter by tag, photos or videos; "More like this" for any picture.
 - Also in Nextcloud's own search bar and in the Nextcloud mobile apps.
@@ -44,10 +45,11 @@ A "Similar pictures" action and a "People" tab in Files, an "On this day" dashbo
 a native [Android app](https://github.com/Infraviored/glimpse-android).
 
 **Requirements:** a self-hosted Immich with its machine-learning service, read-only access for
-Immich to the Nextcloud data directory, and Nextcloud cron. Setup guide:
+Immich to the Nextcloud data directory, Nextcloud cron, and ffmpeg on the Nextcloud server (for
+search inside videos). Setup guide:
 [README](https://github.com/Infraviored/nextcloud-immich-search#install).
 	]]></description>
-	<version>4.4.1</version>
+	<version>4.5.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>
@@ -74,11 +76,13 @@ Immich to the Nextcloud data directory, and Nextcloud cron. Setup guide:
 		<job>OCA\Glimpse\BackgroundJob\BuildPeopleIndex</job>
 		<job>OCA\Glimpse\BackgroundJob\PruneSmallImages</job>
 		<job>OCA\Glimpse\BackgroundJob\PruneTileCache</job>
+		<job>OCA\Glimpse\BackgroundJob\IndexVideoScenes</job>
 	</background-jobs>
 	<commands>
 		<command>OCA\Glimpse\Command\Configure</command>
 		<command>OCA\Glimpse\Command\PeopleIndexCommand</command>
 		<command>OCA\Glimpse\Command\PruneCommand</command>
+		<command>OCA\Glimpse\Command\VideoScenesCommand</command>
 	</commands>
 	<settings>
 		<admin>OCA\Glimpse\Settings\Admin</admin>
