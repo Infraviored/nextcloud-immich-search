@@ -106,35 +106,74 @@ class VideoScenes {
 			return $stats;
 		}
 		$this->locks->acquireLock(self::LOCK, ILockingProvider::LOCK_EXCLUSIVE, 'Glimpse: video scenes');
+		$dirty = false;
+		$done = $this->config->getState(self::STATE);
 		try {
 			$deadline = microtime(true) + $seconds;
-			$done = $this->config->getState(self::STATE);
+			$cursorPage = (int)($this->config->getState('video_scenes_page')['page'] ?? 1);
 			$page = 1;
+			$checkedPage1 = false;
+
 			while ($page !== null && microtime(true) < $deadline && ($limit === null || $stats['videos'] < $limit)) {
 				$res = $this->immich->json('POST', '/search/metadata', [
 					'type' => 'VIDEO', 'page' => $page, 'size' => self::PAGE, 'order' => 'desc', 'visibility' => 'timeline',
 				])['assets'] ?? [];
-				foreach ($res['items'] ?? [] as $video) {
+				$items = $res['items'] ?? [];
+				$hasUnindexed = false;
+
+				foreach ($items as $video) {
 					if (isset($done[$video['id']])) {
 						continue;
 					}
+					$hasUnindexed = true;
 					if (microtime(true) >= $deadline || ($limit !== null && $stats['videos'] >= $limit)) {
 						break 2;
 					}
-					$count = $this->index($video);
-					$done[$video['id']] = $count;
-					$stats['videos']++;
-					$stats['stills'] += max(0, $count);
-					$stats['failed'] += $count === self::FAILED ? 1 : 0;
-					// Keep what is done even if the process is stopped half-way
-					if ($stats['videos'] % 20 === 0) {
+					try {
+						$count = $this->index($video);
+						$done[$video['id']] = $count;
+						$dirty = true;
+						$stats['videos']++;
+						$stats['stills'] += max(0, $count);
+						$stats['failed'] += $count === self::FAILED ? 1 : 0;
+					} catch (ImmichException $e) {
+						if ($e->getCode() === 502) {
+							// (a) Immich unreachable: stop the run without marking the video failed
+							$this->logger->warning('Glimpse: Immich unreachable, stopping video scenes run: ' . $e->getMessage(), ['app' => 'glimpse']);
+							break 2;
+						}
+						$done[$video['id']] = self::FAILED;
+						$dirty = true;
+						$stats['videos']++;
+						$stats['failed']++;
+					}
+
+					// Keep what is done periodically
+					if ($stats['videos'] % 50 === 0) {
 						$this->config->setState(self::STATE, $done);
+						$dirty = false;
 					}
 				}
-				$page = isset($res['nextPage']) ? (int)$res['nextPage'] : null;
+
+				// If page 1 was completely done and cursor is further, jump to where unindexed videos were left off
+				if ($page === 1 && !$hasUnindexed && !$checkedPage1 && $cursorPage > 1) {
+					$checkedPage1 = true;
+					$page = $cursorPage;
+					continue;
+				}
+				$checkedPage1 = true;
+
+				$next = isset($res['nextPage']) ? (int)$res['nextPage'] : null;
+				if ($page > 1 || $hasUnindexed) {
+					$cursorPage = $next ?? 1;
+					$this->config->setState('video_scenes_page', ['page' => $cursorPage]);
+				}
+				$page = $next;
 			}
-			$this->config->setState(self::STATE, $done);
 		} finally {
+			if ($dirty) {
+				$this->config->setState(self::STATE, $done);
+			}
 			$this->locks->releaseLock(self::LOCK, ILockingProvider::LOCK_EXCLUSIVE);
 		}
 		return $stats;
