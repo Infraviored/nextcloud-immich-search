@@ -168,6 +168,11 @@ function trackYear() {
 		}
 		year = Number(band.dataset.year)
 	}
+	// At the very end the last year cannot scroll up to the line: it is the one in view then
+	const el = scroller === document.scrollingElement ? document.documentElement : scroller
+	if (bands.length && !nextPage.value && el.scrollTop + el.clientHeight >= el.scrollHeight - 4) {
+		year = Number(bands[bands.length - 1].dataset.year)
+	}
 	activeYear.value = year
 }
 
