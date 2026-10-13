@@ -56,6 +56,7 @@ Immich to the Nextcloud data directory, and Nextcloud cron. Setup guide:
 	<website>https://github.com/Infraviored/nextcloud-immich-search</website>
 	<bugs>https://github.com/Infraviored/nextcloud-immich-search/issues</bugs>
 	<repository type="git">https://github.com/Infraviored/nextcloud-immich-search.git</repository>
+	<!-- App Store schema (info.xsd) allows at most 10 screenshots -->
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/search.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/search-person.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/timeline.png</screenshot>
@@ -64,7 +65,6 @@ Immich to the Nextcloud data directory, and Nextcloud cron. Setup guide:
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/selection.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/folder.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/duplicates.png</screenshot>
-	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/light-search.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/phone-search.png</screenshot>
 	<dependencies>
 		<php min-version="8.1"/>

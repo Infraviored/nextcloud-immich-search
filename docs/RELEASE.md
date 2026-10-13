@@ -23,8 +23,9 @@ The App Store only accepts signed apps:
    (writes `appinfo/signature.json`), then pack again. To automate: store key and certificate
    as GitHub secrets and add the step to `release.yml`.
 3. Register the app at https://apps.nextcloud.com with the certificate and upload the
-   signed tarball URL. The `<screenshot>` entries in `info.xml` point to `docs/screenshots/` on
-   `main` (raw.githubusercontent.com), so they load once the repository is public; sources and
+   signed tarball URL. The `<screenshot>` entries in `info.xml` (at most 10 allowed
+   by the App Store schema) point to `docs/screenshots/` on `main`
+   (raw.githubusercontent.com), so they load once the repository is public; sources and
    licenses of the pictures in them are in `docs/screenshots/CREDITS.md`.
 
 Until then: install from the GitHub release tarball (unpack into `custom_apps/`). Nextcloud
