@@ -122,15 +122,15 @@ class AssetSearchTest extends TestCase {
 	}
 
 	public function testSearchSkipsPagesUntilHalfFilled(): void {
-		$hidden = fn ($i) => $this->asset("h$i", '/mnt/nextcloud/alice/Private/secret.jpg');
+		$hidden = fn ($i) => $this->asset("h$i", '/mnt/nextcloud/carol/x.jpg');
 		$pages = [
 			1 => ['items' => array_map($hidden, range(1, 4)), 'nextPage' => '2'],
-			2 => ['items' => [$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg'), $this->asset('a6', '/mnt/nextcloud/alice/Photos/beach.jpg')], 'nextPage' => '3'],
+			2 => ['items' => [$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg'), $this->asset('a6', '/mnt/nextcloud/alice/Private/secret.jpg')], 'nextPage' => '3'],
 			3 => ['items' => [], 'nextPage' => null],
 		];
 		$this->immich->method('json')->willReturnCallback(fn ($m, $e, $b) => ['assets' => $pages[$b['page']]]);
 
-		$res = $this->search->search('bob', 'beach', 1, 4);
+		$res = $this->search->search('alice', 'beach', 1, 4);
 		$this->assertCount(2, $res['items']);
 		$this->assertSame(3, $res['nextPage'], 'stops once half a page is filled');
 	}
@@ -163,6 +163,46 @@ class AssetSearchTest extends TestCase {
 
 	private const A1 = '11111111-1111-4111-8111-111111111111';
 	private const A2 = '22222222-2222-4222-8222-222222222222';
+
+	private const VIDEO = '33333333-3333-4333-8333-333333333333';
+	private const STILL = '44444444-4444-4444-8444-444444444444';
+
+	private function still(string $id, string $video, int $ms): array {
+		return ['id' => $id, 'originalPath' => '/data/upload/x/' . $id . '.jpg', 'type' => 'IMAGE', 'visibility' => 'archive',
+			'originalFileName' => "glimpse-frame_{$video}_{$ms}.jpg", 'originalMimeType' => 'image/jpeg', 'width' => 768, 'height' => 432];
+	}
+
+	private function immichWithVideo(array $hits): void {
+		$this->immich->method('json')->willReturnCallback(fn ($m, $e) => $m === 'GET'
+			? $this->asset(self::VIDEO, '/mnt/nextcloud/alice/Photos/beach.jpg', ['type' => 'VIDEO'])
+			: ['assets' => ['items' => $hits, 'nextPage' => null]]);
+	}
+
+	public function testStillStandsForItsVideoOnceAtThatMoment(): void {
+		$this->immichWithVideo([
+			$this->still(self::STILL, self::VIDEO, 30500),
+			$this->asset(self::VIDEO, '/mnt/nextcloud/alice/Photos/beach.jpg', ['type' => 'VIDEO']),
+		]);
+		$res = $this->search->search('alice', 'dog', 1, 10);
+		$this->assertCount(1, $res['items'], 'the video once, at its best place');
+		$this->assertSame(self::VIDEO, $res['items'][0]['id']);
+		$this->assertSame(10, $res['items'][0]['fileId']);
+		$this->assertSame(30.5, $res['items'][0]['at']);
+		$this->assertSame(self::STILL, $res['items'][0]['thumbId']);
+		$this->assertTrue($this->search->maySee('alice', self::STILL), 'its thumbnail may be shown');
+	}
+
+	public function testStillsStayOutOfEverythingButSearches(): void {
+		$this->immichWithVideo([]);
+		$this->assertNull($this->search->visibleItem('alice', $this->still(self::STILL, self::VIDEO, 1000)));
+	}
+
+	public function testStillOfAVideoTheUserCannotOpenIsHidden(): void {
+		$this->immich->method('json')->willReturnCallback(fn ($m) => $m === 'GET'
+			? $this->asset(self::VIDEO, '/mnt/nextcloud/alice/Private/secret.jpg', ['type' => 'VIDEO'])
+			: ['assets' => ['items' => [$this->still(self::STILL, self::VIDEO, 1000)], 'nextPage' => null]]);
+		$this->assertSame([], $this->search->search('bob', 'dog', 1, 10)['items']);
+	}
 
 	public function testThumbnailGrantFromSearch(): void {
 		$this->immich->expects($this->once())->method('json')->willReturn($this->asset(self::A2, '/mnt/nextcloud/alice/Private/secret.jpg'));
@@ -311,5 +351,52 @@ class AssetSearchTest extends TestCase {
 		$searchSlash = new AssetSearch($this->immich, new Config($iconfigSlash, $this->createMock(ICrypto::class)), $root, $users, $caches, $shares);
 		$searchSlash->timeline('charlie', null, 1, 4);
 		$this->assertSame('/mnt/nextcloud/charlie/', $bodies[1]['originalPath'], 'trailing slash is ensured');
+	}
+
+	public function testVisibleItemParsesStillWithoutVisibilityAttribute(): void {
+		$vidId = '33333333-3333-4333-8333-333333333333';
+		$stillName = "glimpse-frame_{$vidId}_15000.jpg";
+
+		$this->immich->method('json')->willReturnCallback(function ($m, $e) use ($vidId) {
+			if ($e === '/assets/' . $vidId) {
+				return $this->asset($vidId, '/mnt/nextcloud/alice/Photos/beach.jpg', ['type' => 'VIDEO']);
+			}
+			return [];
+		});
+
+		$stillAsset = [
+			'id' => 'still-1',
+			'originalFileName' => $stillName,
+		];
+
+		$item = $this->search->visibleItem('alice', $stillAsset, true, true);
+		$this->assertNotNull($item);
+		$this->assertSame(10, $item['fileId']);
+		$this->assertEquals(15.0, $item['at']);
+		$this->assertSame('still-1', $item['thumbId']);
+	}
+
+	public function testSimilarSearchSuppressesSourceVideoMatchedViaStill(): void {
+		$vidId = '33333333-3333-4333-8333-333333333333';
+		$stillName = "glimpse-frame_{$vidId}_15000.jpg";
+
+		$this->immich->method('json')->willReturnCallback(function ($m, $e) use ($vidId, $stillName) {
+			if ($e === '/assets/' . $vidId) {
+				return $this->asset($vidId, '/mnt/nextcloud/alice/Photos/beach.jpg', ['type' => 'VIDEO']);
+			}
+			if ($e === '/search/smart') {
+				return ['assets' => ['items' => [
+					['id' => 's1', 'originalFileName' => $stillName],
+					$this->asset('a2', '/mnt/nextcloud/alice/Private/secret.jpg'),
+				], 'nextPage' => null]];
+			}
+			return [];
+		});
+
+		$res = $this->search->search('alice', '', 1, 10, '', '', $vidId);
+		$items = $res['items'];
+
+		$this->assertCount(1, $items);
+		$this->assertSame(11, $items[0]['fileId']);
 	}
 }

@@ -34,8 +34,13 @@
 					alt=""
 					loading="lazy"
 					decoding="async">
-				<span v-if="item.type === 'VIDEO'" class="tile__play" aria-hidden="true">
+				<span
+					v-if="item.type === 'VIDEO'"
+					class="tile__play"
+					:class="{ 'tile__play--at': item.at }"
+					aria-hidden="true">
 					<NcIconSvgWrapper :path="mdiPlay" :size="18" />
+					<span v-if="item.at" class="tile__at">{{ clock(item.at) }}</span>
 				</span>
 			</button>
 			<button
@@ -95,7 +100,19 @@ const MOVE_TOLERANCE_PX = 10
  *
  * @param item
  */
-const thumb = (item) => (item.id ? thumbnailUrl(item.id) : previewUrl(item.fileId))
+const thumb = (item) => (item.id ? thumbnailUrl(item.thumbId || item.id) : previewUrl(item.fileId))
+
+/**
+ * "1:23": where in a video the search found it.
+ *
+ * @param {number} s seconds
+ */
+function clock(s) {
+	const t = Math.floor(s)
+	return t >= 3600
+		? `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+		: `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
+}
 
 const selecting = computed(() => props.selected.size > 0)
 let pressTimer = null
@@ -258,6 +275,21 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 			width: 18px;
 			height: 18px;
 		}
+	}
+
+	// Found inside the video: the mark says where
+	&__play--at {
+		align-items: center;
+		padding: 3px 9px 3px 4px;
+		border-radius: 14px;
+		background: rgba(20, 22, 43, 0.78);
+	}
+
+	&__at {
+		margin-inline-start: 3px;
+		font-size: 12px;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
 	}
 
 	&__check, &__folder, &__similar {
