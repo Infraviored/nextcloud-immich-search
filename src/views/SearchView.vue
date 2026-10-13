@@ -274,7 +274,9 @@ async function run(reset, asText = false) {
 			return
 		}
 		resolved.value = res.person ?? null
-		items.value.push(...res.items)
+		// A video can turn up again on a later page, found by another of its stills
+		const shown = new Set(items.value.map((i) => i.fileId))
+		items.value.push(...res.items.filter((i) => !shown.has(i.fileId)))
 		nextPage.value = res.nextPage
 		searched.value = true
 	} catch (e) {

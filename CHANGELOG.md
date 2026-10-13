@@ -3,6 +3,21 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.5.0] - 2026-10-13
+
+### Added
+- **Search inside videos.** Immich looks at one still per video; Glimpse now takes a still
+  every 15 seconds or so (two for short clips, at most 40 for long videos) and hands them to
+  Immich as archived pictures. A search finds the moment: the result shows that still with
+  its time, and the video starts there. Off by default (settings, "What gets indexed"); needs
+  ffmpeg on the Nextcloud server. A background job works through the videos, newest first;
+  `occ glimpse:video-scenes` does it at once, `--status` shows progress, `--purge` removes
+  all stills again. Stills of deleted videos are removed daily.
+
+### Changed
+- The timeline and date-ordered lists ask Immich for timeline pictures only, so the stills
+  never show up there; the photo count in the status leaves them out.
+
 ## [4.4.1] - 2026-10-13
 
 ### Fixed

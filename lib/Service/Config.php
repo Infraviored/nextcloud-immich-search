@@ -118,6 +118,8 @@ class Config {
 		'face_mode' => ['enum:all,admins,off', 'all'],
 		'people_min_count' => ['int', 1],
 		'people_interval_hours' => ['enum:1,6,24', '1'],
+		// Search inside videos: stills every ~15 s go to Immich as archived pictures (VideoScenes)
+		'video_scenes' => ['bool', false],
 		// Optional health check of Immich's machine-learning service (GET <url>/ping -> "pong")
 		'ml_ping_url' => ['url', ''],
 	];

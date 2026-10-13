@@ -62,6 +62,18 @@ class ImmichClient {
 		return is_array($decoded) ? $decoded : [];
 	}
 
+	/**
+	 * Multipart upload (a new asset), answered with JSON.
+	 *
+	 * @param list<array{name: string, contents: string, filename?: string}> $parts
+	 */
+	public function upload(string $endpoint, array $parts): array {
+		$options = $this->options($this->config->getApiKey(), ['Accept' => 'application/json']);
+		$options['multipart'] = $parts;
+		$options['timeout'] = 120;
+		return $this->decode($this->send($this->config->getUrl(), 'POST', $endpoint, $options), 'POST', $endpoint);
+	}
+
 	/** @return array{body: string, type: string} */
 	public function binary(string $endpoint): array {
 		$resp = $this->send($this->config->getUrl(), 'GET', $endpoint, $this->options($this->config->getApiKey(), []));

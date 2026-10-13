@@ -50,6 +50,10 @@ class AssetSearch {
 
 	private ICache $grants;
 	private ICache $yearCache;
+	/** Videos behind stills, so a search does not ask Immich for each one again */
+	private ICache $videos;
+	/** @var array<string, ?array> */
+	private array $videoMemo = [];
 	/** @var array<string, ?string> */
 	private array $scopes = [];
 	/** @var array<string, ?Folder> */
@@ -69,6 +73,7 @@ class AssetSearch {
 		// "_v2": grants hold the file id now; older entries (just 1) must not count
 		$this->grants = $cacheFactory->createDistributed('glimpse_grants_v2');
 		$this->yearCache = $cacheFactory->createDistributed('glimpse_years');
+		$this->videos = $cacheFactory->createDistributed('glimpse_videos');
 	}
 
 	/**
@@ -80,7 +85,7 @@ class AssetSearch {
 	 *                                                   does not get a string of empty pages.
 	 */
 	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = '', ?array $onlyFiles = null): array {
-		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar, $onlyFiles);
+		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar, $onlyFiles, true);
 	}
 
 	/**
@@ -90,7 +95,8 @@ class AssetSearch {
 	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null): array {
 		return $this->collect($uid, $page, $size, function (int $p, int $s) use ($uid, $before, $after, $type) {
 			// From a point in time back to the past, or (after) forward to today, oldest first
-			$body = ['page' => $p, 'size' => $s, 'order' => $after !== null ? 'asc' : 'desc'];
+			// "timeline": without the stills Glimpse took from videos (VideoScenes)
+			$body = ['page' => $p, 'size' => $s, 'order' => $after !== null ? 'asc' : 'desc', 'visibility' => 'timeline'];
 			if ($before !== null) {
 				$body['takenBefore'] = $before;
 			}
@@ -221,8 +227,9 @@ class AssetSearch {
 	 *
 	 * @param callable(int $page, int $size): array $fetch returns Immich's "assets" block
 	 * @param ?array<int, true> $onlyFiles keep only these file ids, null for all
+	 * @param bool $stills a still taken from a video stands for the video (searches only)
 	 */
-	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = '', ?array $onlyFiles = null): array {
+	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = '', ?array $onlyFiles = null, bool $stills = false): array {
 		$size = max(1, min(200, $size));
 		$items = [];
 		$next = max(1, $page);
@@ -233,6 +240,8 @@ class AssetSearch {
 		// The cursor is an Immich page, so a filtered search keeps its page size on every call
 		$fetchSize = $onlyFiles === null ? $size : self::FILTERED_PAGE_SIZE;
 		$want = $onlyFiles === null ? intdiv($size + 1, 2) : $size;
+		// A video found by several of its stills (or by its own) is listed once, at its best place
+		$seen = [];
 		for ($i = 0; $i < $maxPages && $next !== null && count($items) < $want; $i++) {
 			if ($onlyFiles !== null && $page <= 1 && count($items) >= count($onlyFiles)) {
 				break;
@@ -242,8 +251,9 @@ class AssetSearch {
 				if ($a['id'] === $skipId) {
 					continue; // "more like this": the picture itself is its best match
 				}
-				$item = $this->visibleItem($uid, $a);
-				if ($item !== null && ($onlyFiles === null || isset($onlyFiles[$item['fileId']]))) {
+				$item = $this->visibleItem($uid, $a, true, $stills);
+				if ($item !== null && !isset($seen[$item['fileId']]) && ($onlyFiles === null || isset($onlyFiles[$item['fileId']]))) {
+					$seen[$item['fileId']] = true;
 					$items[] = $item;
 				}
 			}
@@ -287,7 +297,32 @@ class AssetSearch {
 		} catch (ImmichException) {
 			return false;
 		}
-		return $this->visibleItem($uid, $asset) !== null;
+		return $this->visibleItem($uid, $asset, true, true) !== null;
+	}
+
+	/** The video a still was taken from, or null if Immich no longer has it. */
+	private function videoAsset(string $id): ?array {
+		if (array_key_exists($id, $this->videoMemo)) {
+			return $this->videoMemo[$id];
+		}
+		$cached = $this->videos->get($id);
+		if (!is_array($cached)) {
+			try {
+				$a = $this->immich->json('GET', '/assets/' . $id);
+				$cached = ($a['type'] ?? '') === 'VIDEO' && !($a['isTrashed'] ?? false)
+					? array_intersect_key($a, array_flip(['id', 'type', 'originalPath', 'originalMimeType', 'localDateTime', 'fileCreatedAt', 'width', 'height', 'duration']))
+					: [];
+			} catch (ImmichException) {
+				$cached = [];
+			}
+			$this->videos->set($id, $cached, 3600);
+		}
+		return $this->videoMemo[$id] = $cached !== [] ? $cached : null;
+	}
+
+	/** The owner's file behind an Immich path (whoever asks), or null. */
+	public function ownerFile(string $immichPath): ?Node {
+		return $this->ownerNode($immichPath)[1];
 	}
 
 	/** @return list<array{id: string, name: string}> named, visible people, sorted by name */
@@ -322,6 +357,7 @@ class AssetSearch {
 			// Smart search needs text to rank by; metadata search lists by date instead.
 			$endpoint = '/search/metadata';
 			$body['order'] = 'desc';
+			$body['visibility'] = 'timeline';
 		}
 		return $this->immich->json('POST', $endpoint, $body)['assets'] ?? [];
 	}
@@ -330,7 +366,20 @@ class AssetSearch {
 	 * The hit as $uid sees it, or null if the file is not reachable for $uid.
 	 * $grant remembers the asset for the thumbnail check; bulk callers (PeopleIndex) skip that.
 	 */
-	public function visibleItem(string $uid, array $a, bool $grant = true): ?array {
+	public function visibleItem(string $uid, array $a, bool $grant = true, bool $stills = false): ?array {
+		// A still Glimpse took from a video (VideoScenes): stands for that video, at that moment
+		$still = ($a['visibility'] ?? 'timeline') !== 'timeline' ? VideoScenes::parseName((string)($a['originalFileName'] ?? '')) : null;
+		if ($still !== null) {
+			$video = $stills ? $this->videoAsset($still[0]) : null;
+			$item = $video !== null ? $this->visibleItem($uid, $video, $grant) : null;
+			if ($item === null) {
+				return null;
+			}
+			if ($grant) {
+				$this->grants->set($uid . '/' . $a['id'], $item['fileId'], self::GRANT_TTL);
+			}
+			return $item + ['at' => $still[1], 'thumbId' => $a['id']];
+		}
 		if ($this->tooSmallOrIcon($a)) {
 			return null;
 		}

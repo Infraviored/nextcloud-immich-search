@@ -26,7 +26,7 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 - In the Files app: a "Similar pictures" action and a sidebar tab with the people in a picture.
   A dashboard widget shows today's memories.
 	]]></description>
-	<version>4.4.1</version>
+	<version>4.5.0</version>
 	<licence>agpl</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>
@@ -43,11 +43,13 @@ self-hosted [Immich](https://immich.app) that indexes your Nextcloud files read-
 		<job>OCA\Glimpse\BackgroundJob\BuildPeopleIndex</job>
 		<job>OCA\Glimpse\BackgroundJob\PruneSmallImages</job>
 		<job>OCA\Glimpse\BackgroundJob\PruneTileCache</job>
+		<job>OCA\Glimpse\BackgroundJob\IndexVideoScenes</job>
 	</background-jobs>
 	<commands>
 		<command>OCA\Glimpse\Command\Configure</command>
 		<command>OCA\Glimpse\Command\PeopleIndexCommand</command>
 		<command>OCA\Glimpse\Command\PruneCommand</command>
+		<command>OCA\Glimpse\Command\VideoScenesCommand</command>
 	</commands>
 	<settings>
 		<admin>OCA\Glimpse\Settings\Admin</admin>

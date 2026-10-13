@@ -105,6 +105,14 @@
 			{{ t('Check all pictures now') }}
 		</NcButton>
 
+		<h3>{{ t('Search inside videos') }}</h3>
+		<p class="hint">
+			{{ t('Immich looks at one still per video. With this on, Glimpse takes a still every 15 seconds or so (at most 40 per video) and hands them to Immich, so a search finds the moment in a video and opens it there. Needs ffmpeg on the Nextcloud server; the stills take about 50 KB each in Immich.') }}
+		</p>
+		<NcCheckboxRadioSwitch v-model="s.video_scenes" type="switch" @update:modelValue="save({ video_scenes: $event })">
+			{{ t('Search inside videos') }}
+		</NcCheckboxRadioSwitch>
+
 		<h3>{{ t('Libraries per user') }}</h3>
 		<p class="hint">
 			{{ t('Every Nextcloud user whose files should be searchable needs a read-only mount in the Immich container and a library.') }}
