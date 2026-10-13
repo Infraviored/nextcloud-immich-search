@@ -73,7 +73,7 @@ unknown owner, foreign paths, custom path pattern, icon/size filter, page fillin
 thumbnail grant and its end when the share is taken back; `PrivateAreaTest.php` the private
 filter; `DiscoverTest.php` duplicate groups across users; `tests/Unit/Controller/` the locked
 private area (lists, password setting) and private people. Manually on flo-server
-(2026-10-04): Tara sees only `/Shared/Photos`, not Flo's unshared `snapchat_backup`, and is
+(2026-10-04): a second user sees only `/Shared/Photos`, not the owner's unshared folders, and is
 refused its thumbnails; path traversal on the folder endpoint answers 404; unauthenticated
 requests 401.
 

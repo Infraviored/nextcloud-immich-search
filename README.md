@@ -33,13 +33,13 @@ integration and the permission checks.
 - **Search inside videos.** Immich understands a video by a single still. Glimpse extracts
   extra stills (every ~15 s, up to 40 per video) using ffmpeg and hands them to Immich as
   archived pictures. Text search finds the moment, opening the video right there.
-- **Search by person.** Name a person, or combine a name with words: "Tara beach" finds Tara's
+- **Search by person.** Name a person, or combine a name with words: "Alex beach" finds Alex's
   beach pictures. You can also filter by tag, and show only photos or only videos.
 - **Timeline.** All your pictures by month in year bands, with a year rail to jump anywhere,
   "On this day" cards, and "Back to today".
 - **People.** Each person's page is a timeline of their pictures, with their years to jump
   to – straight to their oldest photos. Name, merge, hide and favorite people. Assign or remove single faces, or move
-  many faces out of a person at once ("Not Tanja"). "Label people" lets you name faces one
+  many faces out of a person at once ("Not Sam"). "Label people" lets you name faces one
   after another.
 - **Map.** Geotagged pictures in clusters on OpenStreetMap, with the pictures of the visible
   area below. Tiles are fetched by your server, so browsers never contact the tile server.
