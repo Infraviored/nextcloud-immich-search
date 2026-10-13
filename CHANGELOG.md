@@ -3,6 +3,14 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.6.0] - 2026-10-13
+
+### Added
+- **A person's page is a timeline.** Newest pictures first in year bands, the person's years
+  along the right edge to jump to (say, their oldest pictures), scrolling on in both directions
+  and "Back to today" – like the main timeline. Typing words still searches in their pictures.
+  `/api/timeline` takes `person`; page 1 then lists that person's years.
+
 ## [4.5.2] - 2026-10-13
 
 ### Fixed

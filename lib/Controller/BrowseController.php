@@ -58,15 +58,22 @@ class BrowseController extends Controller {
 	 * @param string $after ISO date: from this point forward to today, oldest first
 	 */
 	#[NoAdminRequired]
-	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = ''): Response {
-		return $this->guard(function () use ($page, $before, $type, $after) {
-			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null);
+	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = '', string $person = ''): Response {
+		return $this->guard(function () use ($page, $before, $type, $after, $person) {
+			// Private people while locked: nothing to show by id (as in the search)
+			if ($person !== '' && in_array($person, $this->privateArea->hiddenPeople($this->uid()), true)) {
+				return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
+			}
+			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person);
 			$res['items'] = $this->privateArea->filter($this->uid(), $res['items']);
 			$seenYear = null;
 			if ($page === 1 && $before === '' && $after === '' && isset($res['items'][0]['date'])) {
 				$seenYear = (int)substr((string)$res['items'][0]['date'], 0, 4);
 			}
-			return $res + ($page === 1 ? ['years' => $this->assets->years($this->uid(), $seenYear)] : []);
+			if ($page !== 1) {
+				return $res;
+			}
+			return $res + ['years' => $person !== '' ? $this->assets->personYears($this->uid(), $person) : $this->assets->years($this->uid(), $seenYear)];
 		});
 	}
 

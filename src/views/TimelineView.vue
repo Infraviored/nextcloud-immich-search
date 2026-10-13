@@ -8,7 +8,7 @@
 <template>
 	<div class="timeline" :class="{ 'timeline--rail': years.length > 1 }">
 		<div class="timeline__main">
-			<section v-if="memories.length" class="timeline__memories" :aria-label="t('On this day')">
+			<section v-if="memories.length && !person" class="timeline__memories" :aria-label="t('On this day')">
 				<button
 					v-for="m in memories"
 					:key="m.year"
@@ -43,6 +43,7 @@
 			<MediaBrowser
 				ref="grid"
 				class="timeline__grid"
+				:person="person"
 				:groups="groups"
 				@removed="drop"
 				@refresh="reload"
@@ -90,6 +91,13 @@ import { errorMessage, memories as getMemories, thumbnailUrl, timeline, timeline
 import { scrollParent, useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { n, t } from '../l10n.js'
 import { navigate, route } from '../router.js'
+
+const props = defineProps({
+	/** {id, name}: one person's timeline (their page); null for everyone's */
+	person: { type: Object, default: null },
+	/** '', 'IMAGE' or 'VIDEO' */
+	type: { type: String, default: '' },
+})
 
 const thisYear = new Date().getFullYear()
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' })
@@ -183,7 +191,7 @@ async function load() {
 	const ctrl = controller = new AbortController()
 	loading.value = true
 	try {
-		const res = await timeline({ page: nextPage.value, before: before.value }, ctrl.signal)
+		const res = await timeline({ page: nextPage.value, before: before.value, type: props.type, person: props.person?.id ?? '' }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}
@@ -227,7 +235,7 @@ async function loadNewer() {
 	const ctrl = newerController = new AbortController()
 	loadingNewer.value = true
 	try {
-		const res = await timeline({ page: newerPage.value, after: before.value }, ctrl.signal)
+		const res = await timeline({ page: newerPage.value, after: before.value, type: props.type, person: props.person?.id ?? '' }, ctrl.signal)
 		if (ctrl !== newerController) {
 			return
 		}
@@ -330,6 +338,9 @@ onMounted(async () => {
 	scrollTarget.addEventListener('scroll', onScroll, { passive: true })
 	newerPage.value = before.value ? 1 : null
 	load()
+	if (props.person) {
+		return
+	}
 	try {
 		memories.value = await getMemories()
 	} catch {

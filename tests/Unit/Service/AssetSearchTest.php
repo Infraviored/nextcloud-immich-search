@@ -204,6 +204,25 @@ class AssetSearchTest extends TestCase {
 		$this->assertSame([], $this->search->search('bob', 'dog', 1, 10)['items']);
 	}
 
+	public function testPersonTimelineAsksForThatPerson(): void {
+		$bodies = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$bodies) {
+			$bodies[] = $b;
+			return ['assets' => ['items' => [], 'nextPage' => null]];
+		});
+		$this->search->timeline('alice', null, 1, 10, '', null, self::A1);
+		$this->assertSame([self::A1], $bodies[0]['personIds']);
+		$this->assertSame('timeline', $bodies[0]['visibility']);
+	}
+
+	public function testPersonYearsOfSomeoneWithoutSharesOnlyFromTheirFolder(): void {
+		$this->immich->method('json')->willReturnCallback(fn ($m, $e, $b = null) => $m === 'GET'
+			? [['timeBucket' => '2024-05-01'], ['timeBucket' => '2019-01-01'], ['timeBucket' => '2019-07-01']]
+			: ['assets' => ['items' => str_starts_with($b['takenAfter'], '2024') ? [['id' => 'x']] : []]]);
+		$this->assertSame([2024], $this->search->personYears('alice', self::A1));
+		$this->assertSame([], $this->search->personYears('alice', 'not-a-uuid'));
+	}
+
 	public function testThumbnailGrantFromSearch(): void {
 		$this->immich->expects($this->once())->method('json')->willReturn($this->asset(self::A2, '/mnt/nextcloud/alice/Private/secret.jpg'));
 		$this->search->visibleItem('bob', $this->asset(self::A1, '/mnt/nextcloud/alice/Photos/beach.jpg'));
