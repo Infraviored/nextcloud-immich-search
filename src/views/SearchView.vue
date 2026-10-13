@@ -19,7 +19,7 @@
 			@submit="submit"
 			@blur="submitIfChanged"
 			@clear="run(true)" />
-		<h2 v-else-if="q.trim() && !similar" class="search__query g-display">
+		<h2 v-else-if="q.trim() && !similar" class="search__query g-display" :class="{ 'search__query--long': q.trim().length > 28 }">
 			{{ q.trim() }}
 		</h2>
 		<div class="search__filters">
@@ -274,7 +274,9 @@ async function run(reset, asText = false) {
 			return
 		}
 		resolved.value = res.person ?? null
-		items.value.push(...res.items)
+		// A video can turn up again on a later page, found by another of its stills
+		const shown = new Set(items.value.map((i) => i.fileId))
+		items.value.push(...res.items.filter((i) => !shown.has(i.fileId)))
 		nextPage.value = res.nextPage
 		searched.value = true
 	} catch (e) {
@@ -349,6 +351,13 @@ onBeforeUnmount(() => controller?.abort())
 		margin: 8px 0 14px;
 		font-size: clamp(40px, 6vw, 64px);
 		overflow-wrap: anywhere;
+
+		// A whole sentence stays a heading, not a wall
+		&--long {
+			max-width: 24ch;
+			font-size: clamp(30px, 3.6vw, 44px);
+			line-height: 1;
+		}
 	}
 
 	&__filters {

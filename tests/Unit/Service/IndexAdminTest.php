@@ -12,6 +12,7 @@ namespace OCA\Glimpse\Tests\Unit\Service;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\IndexAdmin;
+use OCA\Glimpse\Service\VideoScenes;
 use OCP\Http\Client\IClientService;
 use OCP\IConfig;
 use OCP\IUserManager;
@@ -34,7 +35,7 @@ class IndexAdminTest extends TestCase {
 
 	private function admin(Config $config, ImmichClient $immich, ?IUserManager $users = null): IndexAdmin {
 		return new IndexAdmin($immich, $config, $users ?? $this->createMock(IUserManager::class),
-			$this->createMock(IClientService::class), $this->createMock(LoggerInterface::class));
+			$this->createMock(IClientService::class), $this->createMock(LoggerInterface::class), $this->createMock(VideoScenes::class));
 	}
 
 	public function testFolderNamesAreMadeLiteral(): void {

@@ -118,6 +118,9 @@ class Config {
 		'face_mode' => ['enum:all,admins,off', 'all'],
 		'people_min_count' => ['int', 1],
 		'people_interval_hours' => ['enum:1,6,24', '1'],
+		// Search inside videos: stills every ~15 s go to Immich as archived pictures (VideoScenes)
+		'video_scenes' => ['bool', false],
+		'video_scenes_hours' => ['enum:2-7,0-6,1-6,23-6,22-6,0-7,0-24,', '2-7'],
 		// Optional health check of Immich's machine-learning service (GET <url>/ping -> "pong")
 		'ml_ping_url' => ['url', ''],
 	];
@@ -186,6 +189,22 @@ class Config {
 		} else {
 			$this->config->setAppValue(Application::APP_ID, 'state_' . $key, json_encode($value));
 		}
+	}
+
+	/**
+	 * The server's local time zone, for "at night": PHP runs in UTC under Nextcloud, but the
+	 * container (TZ) or the config (default_timezone) usually says where the server is.
+	 */
+	public function serverTimezone(): \DateTimeZone {
+		foreach ([getenv('TZ') ?: '', $this->config->getSystemValueString('default_timezone', '')] as $name) {
+			if ($name !== '') {
+				try {
+					return new \DateTimeZone($name);
+				} catch (\Exception) {
+				}
+			}
+		}
+		return new \DateTimeZone('UTC');
 	}
 
 	public function isConfigured(): bool {

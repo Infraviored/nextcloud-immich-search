@@ -105,6 +105,25 @@
 			{{ t('Check all pictures now') }}
 		</NcButton>
 
+		<h3>{{ t('Search inside videos') }}</h3>
+		<p class="hint">
+			{{ t('Immich looks at one still per video. With this on, Glimpse takes a still every 15 seconds or so (at most 40 per video) and hands them to Immich, so a search finds the moment in a video and opens it there. Needs ffmpeg on the Nextcloud server; the stills take about 50 KB each in Immich.') }}
+		</p>
+		<div class="indexing__scenes">
+			<NcCheckboxRadioSwitch v-model="s.video_scenes" type="switch" @update:modelValue="save({ video_scenes: $event })">
+				{{ t('Search inside videos') }}
+			</NcCheckboxRadioSwitch>
+			<NcSelect
+				:modelValue="selectedHours"
+				:options="hourOptions"
+				:disabled="!s.video_scenes"
+				:clearable="false"
+				:ariaLabelCombobox="t('Processing window')"
+				class="indexing__hours"
+				label="label"
+				@update:modelValue="saveHours" />
+		</div>
+
 		<h3>{{ t('Libraries per user') }}</h3>
 		<p class="hint">
 			{{ t('Every Nextcloud user whose files should be searchable needs a read-only mount in the Immich container and a library.') }}
@@ -145,12 +164,20 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { adminSettings, loadAdminSettings, saveAdmin } from '../../adminSettings.js'
 import { createLibrary, getFolderSuggestions, getLibraries, pruneSmall } from '../../api.js'
 import { useAction } from '../../composables/useAction.js'
 import { n, t } from '../../l10n.js'
 import { serialSaver } from '../../serialSaver.js'
+
+const hourOptions = [
+	{ id: '2-7', label: t('Nightly 2:00 – 7:00') },
+	{ id: '0-6', label: t('Nightly 0:00 – 6:00') },
+	{ id: '23-6', label: t('Nightly 23:00 – 6:00') },
+	{ id: '0-24', label: t('Always') },
+]
 
 const formatCatalog = [
 	{ ext: 'svg', label: t('SVG (vector graphics, icons)') },
@@ -181,6 +208,17 @@ const { busy, act } = useAction()
 
 const formats = computed(() => s.value?.excluded_formats ?? [])
 const customFormats = computed(() => formats.value.filter((f) => !formatCatalog.some((c) => c.ext === f) && f !== 'svgz'))
+const selectedHours = computed(() => {
+	const val = s.value?.video_scenes_hours ?? '2-7'
+	return hourOptions.find((o) => o.id === val || (val === '' && o.id === '0-24')) ?? hourOptions[0]
+})
+
+function saveHours(opt) {
+	if (opt?.id) {
+		save({ video_scenes_hours: opt.id })
+	}
+}
+
 const snippet = computed(() => {
 	const pattern = libs.value?.pathPattern ?? '/mnt/nextcloud/{user}/'
 	return 'services:\n  immich-server:\n    volumes:\n'
@@ -336,6 +374,18 @@ onMounted(async () => {
 		padding: 8px 12px;
 		border-radius: var(--border-radius);
 		background: var(--color-background-dark);
+	}
+
+	&__scenes {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 12px;
+	}
+
+	&__hours {
+		min-width: 200px;
+		max-width: 240px;
 	}
 }
 

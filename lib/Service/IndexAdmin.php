@@ -35,6 +35,7 @@ class IndexAdmin {
 		private IUserManager $users,
 		private IClientService $clientService,
 		private LoggerInterface $logger,
+		private VideoScenes $scenes,
 	) {
 	}
 
@@ -52,14 +53,17 @@ class IndexAdmin {
 			];
 		}
 		$stats = $this->immich->json('GET', '/server/statistics');
+		$scenes = $this->scenes->progress();
 		return [
-			'photos' => (int)($stats['photos'] ?? 0),
+			// Immich counts the stills taken from videos as photos; they are not the user's
+			'photos' => max(0, (int)($stats['photos'] ?? 0) - $scenes['stills']),
 			'videos' => (int)($stats['videos'] ?? 0),
 			'queues' => $queues,
 			'busy' => $this->busy($queues),
 			'ml' => $this->mlHealth(),
 			'libraries' => $this->libraries(),
 			'peopleIndex' => $this->config->getState('people_index'),
+			'videoScenes' => $scenes,
 			'prune' => $this->config->getState('prune') + ['entries' => count($this->config->getState('pruned_entries'))],
 		];
 	}
