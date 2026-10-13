@@ -66,7 +66,7 @@ class VideoScenes {
 		if ($start === 0 && $end === 24) {
 			return true;
 		}
-		$hour = (int)date('G', $timestamp ?? time());
+		$hour = (int)(new \DateTimeImmutable('@' . ($timestamp ?? time())))->setTimezone($this->config->serverTimezone())->format('G');
 		return $start < $end
 			? ($hour >= $start && $hour < $end)
 			: ($hour >= $start || $hour < $end);

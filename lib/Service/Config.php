@@ -191,6 +191,22 @@ class Config {
 		}
 	}
 
+	/**
+	 * The server's local time zone, for "at night": PHP runs in UTC under Nextcloud, but the
+	 * container (TZ) or the config (default_timezone) usually says where the server is.
+	 */
+	public function serverTimezone(): \DateTimeZone {
+		foreach ([getenv('TZ') ?: '', $this->config->getSystemValueString('default_timezone', '')] as $name) {
+			if ($name !== '') {
+				try {
+					return new \DateTimeZone($name);
+				} catch (\Exception) {
+				}
+			}
+		}
+		return new \DateTimeZone('UTC');
+	}
+
 	public function isConfigured(): bool {
 		return $this->getUrl() !== '' && $this->hasApiKey();
 	}

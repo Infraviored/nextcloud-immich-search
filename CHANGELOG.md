@@ -3,6 +3,12 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.5.2] - 2026-10-13
+
+### Fixed
+- The night window for video stills goes by the server's local time (TZ of the container or
+  default_timezone), not UTC.
+
 ## [4.5.1] - 2026-10-13
 
 ### Changed
