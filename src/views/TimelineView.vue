@@ -116,7 +116,7 @@ const error = ref('')
 let controller = null
 const sentinel = ref(null)
 const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value && load())
-const less = useInfiniteScroll(topSentinel, () => newerPage.value && items.value.length && loadNewer(), { above: true })
+const less = useInfiniteScroll(topSentinel, () => newerPage.value && !loading.value && loadNewer(), { above: true })
 
 const memory = computed(() => memories.value.find((m) => m.year === openMemory.value) ?? null)
 /** The year the top of the window is in; follows the scrolling. */
@@ -190,8 +190,12 @@ async function load() {
 		const first = !items.value.length
 		items.value.push(...res.items)
 		nextPage.value = res.nextPage
-		if (first && before.value && res.items.length) {
-			showJumpPoint()
+		if (first && before.value) {
+			if (res.items.length) {
+				showJumpPoint()
+			} else if (newerPage.value) {
+				loadNewer()
+			}
 		}
 		if (first) {
 			nextTick(trackYear)
@@ -227,18 +231,24 @@ async function loadNewer() {
 		if (ctrl !== newerController) {
 			return
 		}
-		// Whatever is at the top of the view stays there (pictures below may be loading too,
+		// Whatever tile is at the top of the view stays there (pictures below may be loading too,
 		// so the page height alone would not tell how much was added above)
 		const scroller = scrollParent(topSentinel.value)
-		const box = scroller === document.scrollingElement ? { left: 0, top: 0, width: window.innerWidth } : scroller.getBoundingClientRect()
-		// Below the app's bar, which stays in place and would make a useless anchor
-		const bar = document.querySelector('.bar')?.offsetHeight ?? 0
-		const anchor = document.elementFromPoint(box.left + box.width / 2, Math.max(box.top, 0) + bar + 80)
+		const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top
+		const tiles = grid.value?.$el?.querySelectorAll('.tile') ?? []
+		let anchor = null
+		for (const tile of tiles) {
+			if (tile.getBoundingClientRect().top >= scrollerTop) {
+				anchor = tile
+				break
+			}
+		}
+		anchor ??= tiles[0] ?? null
 		const anchorTop = anchor?.getBoundingClientRect().top
 		newer.value.push(...res.items)
 		newerPage.value = res.nextPage
 		await nextTick()
-		if (anchor?.isConnected) {
+		if (anchor?.isConnected && anchorTop !== undefined) {
 			const delta = anchor.getBoundingClientRect().top - anchorTop
 			if (scroller === document.scrollingElement) {
 				window.scrollBy({ top: delta })

@@ -62,7 +62,11 @@ class BrowseController extends Controller {
 		return $this->guard(function () use ($page, $before, $type, $after) {
 			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null);
 			$res['items'] = $this->privateArea->filter($this->uid(), $res['items']);
-			return $res + ($page === 1 ? ['years' => $this->assets->years($this->uid())] : []);
+			$seenYear = null;
+			if ($page === 1 && $before === '' && $after === '' && isset($res['items'][0]['date'])) {
+				$seenYear = (int)substr((string)$res['items'][0]['date'], 0, 4);
+			}
+			return $res + ($page === 1 ? ['years' => $this->assets->years($this->uid(), $seenYear)] : []);
 		});
 	}
 

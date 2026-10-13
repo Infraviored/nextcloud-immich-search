@@ -25,7 +25,13 @@ export function useInfiniteScroll(sentinel, loadMore, { above = false } = {}) {
 	function check() {
 		queueMicrotask(() => {
 			const r = sentinel.value?.getBoundingClientRect()
-			if (r && (above ? r.bottom > -MARGIN : r.top < window.innerHeight + MARGIN)) {
+			if (!r) {
+				return
+			}
+			const root = scrollParent(sentinel.value)
+			const topBound = root === document.scrollingElement ? 0 : root.getBoundingClientRect().top
+			const bottomBound = root === document.scrollingElement ? window.innerHeight : root.getBoundingClientRect().bottom
+			if (above ? r.bottom > topBound - MARGIN : r.top < bottomBound + MARGIN) {
 				loadMore()
 			}
 		})

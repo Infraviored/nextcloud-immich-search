@@ -3,6 +3,17 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.4.1] - 2026-10-13
+
+### Fixed
+- Review findings: newer pictures loaded above are anchored on a picture, not on whatever
+  sits at that spot; a jump to a year with nothing older still loads the newer ones; the
+  years list checks its cache first and asks Immich less often; the own-folder scope needs
+  `{user}` in the path pattern and ends in a slash.
+- Phones: the selection bar takes the dock's place. Leaving the search clears the pill; the
+  name "Glimpse" opens the start view; light theme marks with the darker apricot; settings,
+  folders and duplicates keep a margin on phones; the year rail scrolls when it is long.
+
 ## [4.4.0] - 2026-10-13
 
 ### Changed
