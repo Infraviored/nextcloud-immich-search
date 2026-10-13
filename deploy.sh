@@ -1,26 +1,57 @@
 #!/bin/bash
-# Installs/updates the app in the Nextcloud AIO container.
-#   ./deploy.sh            copy + enable (+ run app migrations if the version changed)
+# Installs/updates the app in a dockerized Nextcloud (default: Nextcloud AIO).
+#   ./deploy.sh                          CONTAINER=my-nextcloud ./deploy.sh
+# Copies the release files, enables the app, and runs the upgrade step only when
+# the version in appinfo/info.xml changed (it switches maintenance mode on briefly).
 set -euo pipefail
 cd "$(dirname "$0")"
 
-CONTAINER=nextcloud-aio-nextcloud
-TARGET=/var/www/html/custom_apps/immich_search
+CONTAINER=${CONTAINER:-nextcloud-aio-nextcloud}
+APPS_DIR=${APPS_DIR:-/var/www/html/custom_apps}
+TARGET=$APPS_DIR/glimpse
 occ() { docker exec -u www-data "$CONTAINER" php occ "$@"; }
 
-for f in $(find lib appinfo templates -name '*.php'); do
-    docker exec -i "$CONTAINER" php -l >/dev/null < "$f" || { echo "Syntaxfehler: $f" >&2; exit 1; }
-done
+make -s build >/dev/null
+
+# Browsers cache the app's scripts and Nextcloud caches its routes by app version. If
+# anything shipped changed but the version did not, bump the patch version, or users keep
+# seeing the old interface and new routes answer 404.
+stamp=$(find js l10n templates lib appinfo img -type f ! -name info.xml -print0 | sort -z | xargs -0 cat | sha256sum | cut -c1-16)
+version=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
+last=$(cat build/.deployed 2>/dev/null || true)
+if [ -n "$last" ] && [ "${last% *}" = "$version" ] && [ "${last#* }" != "$stamp" ]; then
+    IFS=. read -r major minor patch <<< "$version"
+    bumped="$major.$minor.$((patch + 1))"
+    sed -i "s:<version>$version</version>:<version>$bumped</version>:" appinfo/info.xml
+    echo "frontend changed: version $version -> $bumped"
+    version=$bumped
+fi
+
+# A malformed version puts the whole Nextcloud into "update required" (503 for everyone).
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "invalid version '$version' in appinfo/info.xml" >&2; exit 1; }
+
+make -s dist >/dev/null
+tarball=build/glimpse-$version.tar.gz
 
 docker exec "$CONTAINER" rm -rf "$TARGET.new"
-tar --exclude=.git --exclude=deploy.sh -cf - . | docker exec -i "$CONTAINER" sh -c "mkdir $TARGET.new && tar -xf - -C $TARGET.new"
+docker exec -i "$CONTAINER" sh -c "mkdir $TARGET.new && tar -xzf - -C $TARGET.new --strip-components=1" < "$tarball"
 docker exec "$CONTAINER" sh -c "chown -R www-data:www-data $TARGET.new && rm -rf $TARGET && mv $TARGET.new $TARGET"
 
-if occ app:list --enabled --output=json | grep -q '"immich_search"'; then
-    # A version bump in appinfo/info.xml needs the upgrade step, otherwise Nextcloud
-    # shows the update screen on the next page load.
-    occ upgrade --no-interaction >/dev/null || true
-else
-    occ app:enable immich_search
+# PHP caches compiled files for up to a minute (opcache.revalidate_freq). Without a reload,
+# Nextcloud can rebuild its route cache for the new version from the old routes.php and
+# keep that stale table until the next version (405 on changed routes). A graceful reload
+# of php-fpm clears opcache; running requests finish first.
+docker exec "$CONTAINER" sh -c 'kill -USR2 $(ps -o pid,args | awk "/php-fpm: master/ && !/awk/ {print \$1}")' 2>/dev/null \
+    || echo "note: could not reload php-fpm, PHP changes may take a minute" >&2
+
+new=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
+old=$(occ config:app:get glimpse installed_version 2>/dev/null || true)
+enabled=$(occ config:app:get glimpse enabled 2>/dev/null || true)
+
+if [ "$enabled" != "yes" ]; then
+    occ app:enable glimpse
+elif [ "$new" != "$old" ]; then
+    occ upgrade --no-interaction >/dev/null 2>&1
 fi
-occ app:list --output=json | python3 -c 'import json,sys; print("immich_search", json.load(sys.stdin)["enabled"].get("immich_search", "NICHT aktiv"))'
+mkdir -p build && echo "$version $stamp" > build/.deployed
+echo "glimpse $(occ config:app:get glimpse installed_version) active"

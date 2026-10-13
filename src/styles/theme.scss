@@ -1,0 +1,125 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Florian Schneider
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+// Glimpse's look, the same as the Android app: a night-blue field, the blue-to-violet of the
+// lens ring, the apricot of the sunset inside it. Photos are the colour; the interface stays
+// quiet around them and uses apricot only where something is chosen.
+//
+// The tokens sit on <body> while the app is open, so dialogs and menus that Nextcloud puts
+// at the end of the page get them too. Nextcloud's own variables are mapped onto them, which
+// turns its components (buttons, fields, selects, dialogs) into Glimpse's colours as well.
+
+@mixin night {
+	--g-bg: #14162b;
+	--g-bg-rgb: 20, 22, 43;
+	--g-raised: #1d2040;
+	--g-line: #2e3260;
+	--g-text: #ecedf7;
+	--g-muted: #9599be;
+	--g-accent: #ffb27a;
+	--g-accent-text: #ffb27a;
+	--g-on-accent: #14162b;
+	--g-scrim: rgba(20, 22, 43, 0.92);
+	color-scheme: dark;
+}
+
+@mixin paper {
+	--g-bg: #f5f5fa;
+	--g-bg-rgb: 245, 245, 250;
+	--g-raised: #ffffff;
+	--g-line: #e1e2ee;
+	--g-text: #191b33;
+	--g-muted: #5e6286;
+	--g-accent: #ffb27a;
+	--g-accent-text: #b8541a;
+	--g-on-accent: #191b33;
+	--g-scrim: rgba(245, 245, 250, 0.92);
+	color-scheme: light;
+}
+
+@mixin nextcloud-mapping {
+	--g-lens-blue: #2b7de9;
+	--g-lens-violet: #6a3fd8;
+	--g-lens: linear-gradient(135deg, var(--g-lens-blue), var(--g-lens-violet));
+	--g-font-display: 'Glimpse Bricolage', var(--font-face, sans-serif);
+
+	--color-main-background: var(--g-bg);
+	--color-main-background-rgb: var(--g-bg-rgb);
+	--color-main-text: var(--g-text);
+	--color-text-maxcontrast: var(--g-muted);
+	--color-text-maxcontrast-default: var(--g-muted);
+	--color-text-light: var(--g-text);
+	--color-text-lighter: var(--g-muted);
+	--color-background-hover: var(--g-raised);
+	--color-background-dark: var(--g-raised);
+	--color-background-darker: var(--g-line);
+	--color-placeholder-light: var(--g-line);
+	--color-placeholder-dark: var(--g-muted);
+	--color-border: var(--g-line);
+	--color-border-dark: var(--g-line);
+	--color-border-maxcontrast: var(--g-muted);
+	--color-primary: var(--g-lens-blue);
+	--color-primary-text: #fff;
+	--color-primary-hover: #4a8ff0;
+	--color-primary-light: var(--g-raised);
+	--color-primary-light-text: var(--g-text);
+	--color-primary-light-hover: var(--g-line);
+	--color-primary-element: var(--g-lens-blue);
+	--color-primary-element-hover: #4a8ff0;
+	--color-primary-element-text: #fff;
+	--color-primary-element-text-dark: #fff;
+	--color-primary-element-light: var(--g-raised);
+	--color-primary-element-light-hover: var(--g-line);
+	--color-primary-element-light-text: var(--g-text);
+	--color-scrollbar: var(--g-line) transparent;
+}
+
+body:has(#content.app-glimpse) {
+	@include paper;
+	@include nextcloud-mapping;
+}
+
+body[data-themes*='dark']:has(#content.app-glimpse) {
+	@include night;
+}
+
+// "Follow the system" in Nextcloud: no explicit light theme chosen
+@media (prefers-color-scheme: dark) {
+	body:not([data-themes*='light']):has(#content.app-glimpse) {
+		@include night;
+	}
+}
+
+#content.app-glimpse,
+#content-vue.app-glimpse {
+	background: var(--g-bg);
+	color: var(--g-text);
+}
+
+// Type: Bricolage Grotesque, a variable face. Big and slightly condensed for years and names,
+// a little wider for headings; the body text stays Nextcloud's.
+.g-display {
+	font-family: var(--g-font-display);
+	font-weight: 720;
+	font-variation-settings: 'wdth' 82, 'opsz' 72;
+	letter-spacing: -0.03em;
+	line-height: 0.9;
+}
+
+.g-heading {
+	font-family: var(--g-font-display);
+	font-weight: 640;
+	font-variation-settings: 'wdth' 92, 'opsz' 24;
+	letter-spacing: -0.005em;
+	line-height: 1.15;
+}
+
+// Settings and other plain pages: section headings in the heading face
+#content.app-glimpse h2,
+#content.app-glimpse h3 {
+	font-family: var(--g-font-display);
+	font-weight: 640;
+	font-variation-settings: 'wdth' 92, 'opsz' 24;
+}

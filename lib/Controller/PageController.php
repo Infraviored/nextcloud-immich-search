@@ -1,45 +1,101 @@
 <?php
+
+/**
+ * SPDX-FileCopyrightText: 2026 Florian Schneider
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 declare(strict_types=1);
 
-namespace OCA\ImmichSearch\Controller;
+namespace OCA\Glimpse\Controller;
 
-use OCA\ImmichSearch\AppInfo\Application;
-use OCA\ImmichSearch\Service\Config;
+use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\Permissions;
+use OCA\Glimpse\Service\UserPrefs;
+use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\EventDispatcher\IEventDispatcher;
+use OCP\IConfig;
 use OCP\IRequest;
-use OCP\IURLGenerator;
+use OCP\IUserSession;
 use OCP\Util;
 
 class PageController extends Controller {
-    public function __construct(
-        IRequest $request,
-        private string $userId,
-        private Config $config,
-        private IInitialState $initialState,
-        private IEventDispatcher $events,
-        private IURLGenerator $url,
-    ) {
-        parent::__construct(Application::APP_ID, $request);
-    }
+	public function __construct(
+		IRequest $request,
+		private IUserSession $userSession,
+		private Config $config,
+		private Permissions $permissions,
+		private UserPrefs $prefs,
+		private IInitialState $initialState,
+		private IEventDispatcher $events,
+		private IAppManager $appManager,
+		private IConfig $ncConfig,
+	) {
+		parent::__construct(Application::APP_ID, $request);
+	}
 
-    #[NoAdminRequired]
-    #[NoCSRFRequired]
-    public function index(): TemplateResponse {
-        // Nextcloud's own viewer opens the real file: zoom, video playback, sidebar, download.
-        if (class_exists(\OCA\Viewer\Event\LoadViewer::class)) {
-            $this->events->dispatchTyped(new \OCA\Viewer\Event\LoadViewer());
-        }
-        $this->initialState->provideInitialState('page', [
-            'configured' => $this->config->isConfigured($this->userId),
-            'settingsUrl' => $this->url->linkToRoute('settings.PersonalSettings.index', ['section' => 'additional']),
-        ]);
-        Util::addScript(Application::APP_ID, 'search');
-        Util::addStyle(Application::APP_ID, 'search');
-        return new TemplateResponse(Application::APP_ID, 'main');
-    }
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function index(): TemplateResponse {
+		// Nextcloud's own viewer opens the real file: zoom, video playback, sidebar, download.
+		if (class_exists(\OCA\Viewer\Event\LoadViewer::class)) {
+			$this->events->dispatchTyped(new \OCA\Viewer\Event\LoadViewer());
+		}
+		$isAdmin = $this->permissions->isAdmin($this->uid());
+		$this->initialState->provideInitialState('page', [
+			'configured' => $this->config->isConfigured(),
+			'isAdmin' => $isAdmin,
+			'canManagePeople' => $this->permissions->canManagePeople($this->uid()),
+			// Albums live in the Photos app; the action is offered only if it is there.
+			'photosEnabled' => $this->appManager->isEnabledForUser('photos'),
+			// "Open in Memories" links into its timeline, for pictures inside its folders.
+			'memoriesPaths' => $this->memoriesPaths(),
+		]);
+		$this->initialState->provideInitialState('prefs', $this->prefs->all($this->uid()));
+		if ($isAdmin) {
+			$this->provideAdminState();
+		}
+		Util::addScript(Application::APP_ID, Application::APP_ID . '-main');
+		return new TemplateResponse(Application::APP_ID, 'main');
+	}
+
+	/**
+	 * The folders Memories' timeline shows for the user (its "timelinePath", several
+	 * separated by ";"); none if Memories is off or not set up yet.
+	 *
+	 * @return string[]
+	 */
+	private function memoriesPaths(): array {
+		if (!$this->appManager->isEnabledForUser('memories')) {
+			return [];
+		}
+		$paths = $this->ncConfig->getUserValue($this->uid(), 'memories', 'timelinePath', '')
+			?: $this->ncConfig->getSystemValueString('memories.timeline.default_path', '_empty_');
+		if ($paths === '_empty_') {
+			return [];
+		}
+		return array_values(array_filter(array_map(trim(...), explode(';', $paths)), static fn ($p) => $p !== ''));
+	}
+
+	/** Same data the admin settings section gets, for the in-app settings dialog. */
+	private function provideAdminState(): void {
+		$this->initialState->provideInitialState('admin', [
+			'url' => $this->config->getUrl(),
+			'hasKey' => $this->config->hasApiKey(),
+			'pathPattern' => $this->config->getPathPattern(),
+			'faceMode' => $this->config->getFaceMode(),
+			'minSize' => $this->config->getMinSize(),
+		]);
+	}
+
+	/** Resolved per call: with basic auth the user is only logged in after the controller is built. */
+	private function uid(): string {
+		return $this->userSession->getUser()?->getUID() ?? throw new \RuntimeException('Not logged in');
+	}
 }
