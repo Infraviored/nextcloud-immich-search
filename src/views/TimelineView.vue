@@ -6,65 +6,82 @@
 <!-- All pictures the user may see, newest first, by month; "on this day" on top; jump to a year
      and scroll on from there in both directions. -->
 <template>
-	<div class="timeline">
-		<section v-if="memories.length" class="timeline__memories" :aria-label="t('On this day')">
-			<button
-				v-for="m in memories"
-				:key="m.year"
-				type="button"
-				class="memory"
-				:class="{ 'memory--open': openMemory === m.year }"
-				@click="openMemory = openMemory === m.year ? null : m.year">
-				<img :src="thumbnailUrl(m.items[0].id)" alt="" loading="lazy">
-				<span class="memory__label">
-					<strong>{{ n('{count} year ago', '{count} years ago', thisYear - m.year, { count: thisYear - m.year }) }}</strong>
-					<span>{{ m.year }} · {{ n('{count} picture', '{count} pictures', m.items.length, { count: m.items.length }) }}</span>
-				</span>
-			</button>
-		</section>
-		<MediaBrowser
-			v-if="memory"
-			class="timeline__memory"
-			:groups="[{ key: 'memory', title: t('On this day in {year}', { year: memory.year }), items: memory.items }]"
-			@removed="dropMemory"
-			@similar="similar" />
+	<div class="timeline" :class="{ 'timeline--rail': years.length > 1 }">
+		<div class="timeline__main">
+			<section v-if="memories.length" class="timeline__memories" :aria-label="t('On this day')">
+				<button
+					v-for="m in memories"
+					:key="m.year"
+					type="button"
+					class="memory"
+					:class="{ 'memory--open': openMemory === m.year }"
+					:aria-pressed="openMemory === m.year"
+					@click="openMemory = openMemory === m.year ? null : m.year">
+					<img :src="thumbnailUrl(m.items[0].id)" alt="" loading="lazy">
+					<span class="memory__label">
+						<strong class="g-heading">{{ n('{count} year ago', '{count} years ago', thisYear - m.year, { count: thisYear - m.year }) }}</strong>
+						<span>{{ n('{count} picture', '{count} pictures', m.items.length, { count: m.items.length }) }}</span>
+					</span>
+				</button>
+			</section>
+			<MediaBrowser
+				v-if="memory"
+				class="timeline__memory"
+				:groups="[{ key: 'memory', title: t('On this day in {year}', { year: memory.year }), items: memory.items }]"
+				@removed="dropMemory"
+				@similar="similar" />
 
-		<nav v-if="years.length > 1" class="timeline__years" :aria-label="t('Jump to year')">
-			<NcButton
+			<div v-if="before" class="timeline__today">
+				<button type="button" class="today" @click="jump(thisYear)">
+					{{ t('Back to today') }}
+				</button>
+			</div>
+
+			<div ref="topSentinel" class="timeline__newer">
+				<NcLoadingIcon v-if="loadingNewer" :size="32" />
+			</div>
+			<MediaBrowser
+				ref="grid"
+				class="timeline__grid"
+				:groups="groups"
+				@removed="drop"
+				@refresh="reload"
+				@similar="similar" />
+
+			<NcEmptyContent v-if="!loading && !all.length" :name="error || t('No pictures yet')">
+				<template #icon>
+					<NcIconSvgWrapper :path="mdiImageMultipleOutline" />
+				</template>
+			</NcEmptyContent>
+			<div ref="sentinel" class="timeline__more">
+				<NcLoadingIcon v-if="loading" :size="32" />
+			</div>
+		</div>
+
+		<!-- All years along the edge: the one in view in apricot, a click jumps there -->
+		<nav
+			v-if="years.length > 1"
+			class="rail"
+			:class="{ 'rail--awake': awake }"
+			:style="{ '--years': years.length }"
+			:aria-label="t('Jump to year')">
+			<button
 				v-for="y in years"
 				:key="y"
-				size="small"
-				:variant="y === activeYear ? 'secondary' : 'tertiary'"
+				type="button"
+				class="rail__year"
+				:class="{ 'rail__year--active': y === activeYear }"
+				:aria-current="y === activeYear ? 'true' : undefined"
 				@click="jump(y)">
 				{{ y }}
-			</NcButton>
+			</button>
 		</nav>
-
-		<div ref="topSentinel" class="timeline__newer">
-			<NcLoadingIcon v-if="loadingNewer" :size="32" />
-		</div>
-		<MediaBrowser
-			ref="grid"
-			:groups="groups"
-			@removed="drop"
-			@refresh="reload"
-			@similar="similar" />
-
-		<NcEmptyContent v-if="!loading && !all.length" :name="error || t('No pictures yet')">
-			<template #icon>
-				<NcIconSvgWrapper :path="mdiImageMultipleOutline" />
-			</template>
-		</NcEmptyContent>
-		<div ref="sentinel" class="timeline__more">
-			<NcLoadingIcon v-if="loading" :size="32" />
-		</div>
 	</div>
 </template>
 
 <script setup>
 import { mdiImageMultipleOutline } from '@mdi/js'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
@@ -75,7 +92,7 @@ import { n, t } from '../l10n.js'
 import { navigate, route } from '../router.js'
 
 const thisYear = new Date().getFullYear()
-const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
+const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' })
 
 const items = ref([])
 /** After a jump: pictures from the jump point forward to today, oldest first, loaded on scrolling up. */
@@ -102,20 +119,62 @@ const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value &&
 const less = useInfiniteScroll(topSentinel, () => newerPage.value && !loading.value && loadNewer(), { above: true })
 
 const memory = computed(() => memories.value.find((m) => m.year === openMemory.value) ?? null)
-const activeYear = computed(() => (items.value[0]?.date ? Number(items.value[0].date.slice(0, 4)) : null))
+/** The year the top of the window is in; follows the scrolling. */
+const activeYear = ref(null)
 
-/** Consecutive items of the same month form a group with the month as heading. */
+/**
+ * Consecutive items of the same month form a group with the month as heading; the first
+ * month of each year opens a band with the year in big type.
+ */
 const groups = computed(() => {
 	const out = []
+	let year = null
 	for (const item of all.value) {
 		const key = (item.date || '').slice(0, 7) || 'unknown'
 		if (out.at(-1)?.key !== key) {
-			out.push({ key, title: key === 'unknown' ? t('Unknown date') : monthFormat.format(new Date(key + '-01T00:00:00Z')), items: [] })
+			const y = key === 'unknown' ? null : Number(key.slice(0, 4))
+			out.push({
+				key,
+				year: y !== year ? y : null,
+				title: key === 'unknown' ? t('Unknown date') : monthFormat.format(new Date(key + '-01T00:00:00Z')),
+				items: [],
+			})
+			year = y
 		}
 		out.at(-1).items.push(item)
 	}
 	return out
 })
+
+let scroller = null
+let frame = 0
+/** The last year band whose heading has scrolled past the top third of the window. */
+function trackYear() {
+	frame = 0
+	const bands = grid.value?.$el?.querySelectorAll('[data-year]') ?? []
+	const line = (scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top) + window.innerHeight / 3
+	let year = all.value[0]?.date ? Number(all.value[0].date.slice(0, 4)) : null
+	for (const band of bands) {
+		if (band.getBoundingClientRect().top > line) {
+			break
+		}
+		year = Number(band.dataset.year)
+	}
+	activeYear.value = year
+}
+
+/** Phones: the years show while scrolling and a moment after, then leave the pictures free. */
+const awake = ref(false)
+let sleepTimer = 0
+
+function onScroll() {
+	frame ||= window.requestAnimationFrame(trackYear)
+	awake.value = true
+	window.clearTimeout(sleepTimer)
+	sleepTimer = window.setTimeout(() => {
+		awake.value = false
+	}, 1800)
+}
 
 async function load() {
 	if (controller || !nextPage.value) {
@@ -137,6 +196,9 @@ async function load() {
 			} else if (newerPage.value) {
 				loadNewer()
 			}
+		}
+		if (first) {
+			nextTick(trackYear)
 		}
 		if (res.years) {
 			years.value = res.years
@@ -187,7 +249,12 @@ async function loadNewer() {
 		newerPage.value = res.nextPage
 		await nextTick()
 		if (anchor?.isConnected && anchorTop !== undefined) {
-			scroller.scrollTop += anchor.getBoundingClientRect().top - anchorTop
+			const delta = anchor.getBoundingClientRect().top - anchorTop
+			if (scroller === document.scrollingElement) {
+				window.scrollBy({ top: delta })
+			} else {
+				scroller.scrollTop += delta
+			}
 		}
 	} catch (e) {
 		if (ctrl === newerController && e?.name !== 'CanceledError') {
@@ -224,7 +291,7 @@ function reload() {
  */
 function jump(year) {
 	before.value = year >= thisYear ? '' : `${year + 1}-01-01T00:00:00.000Z`
-	const scroller = scrollParent(topSentinel.value)
+	activeYear.value = year
 	if (scroller === document.scrollingElement) {
 		window.scrollTo({ top: 0 })
 	} else if (scroller) {
@@ -258,6 +325,9 @@ function similar(item) {
 }
 
 onMounted(async () => {
+	scroller = scrollParent(sentinel.value)
+	const scrollTarget = scroller === document.scrollingElement ? window : scroller
+	scrollTarget.addEventListener('scroll', onScroll, { passive: true })
 	newerPage.value = before.value ? 1 : null
 	load()
 	try {
@@ -267,6 +337,10 @@ onMounted(async () => {
 	}
 })
 onBeforeUnmount(() => {
+	const scrollTarget = scroller === document.scrollingElement ? window : scroller
+	scrollTarget?.removeEventListener('scroll', onScroll)
+	window.cancelAnimationFrame(frame)
+	window.clearTimeout(sleepTimer)
 	controller?.abort()
 	newerController?.abort()
 })
@@ -274,23 +348,42 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .timeline {
+	&--rail {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 52px;
+		gap: 12px;
+	}
+
+	&__main {
+		min-width: 0;
+	}
+
 	&__memories {
 		display: flex;
-		gap: 8px;
+		gap: 10px;
 		overflow-x: auto;
 		padding-bottom: 8px;
 		margin-bottom: 8px;
+		scrollbar-width: none;
 	}
 
 	&__memory {
 		margin-bottom: 16px;
 	}
 
-	&__years {
+	// Floats in the top right corner while scrolling, as in the app
+	&__today {
+		position: sticky;
+		top: 88px;
+		z-index: 15;
+		height: 0;
 		display: flex;
-		flex-wrap: wrap;
-		gap: 2px;
-		margin-bottom: 4px;
+		justify-content: flex-end;
+	}
+
+	// A jump puts the year below the app's bar, not under it
+	&__grid {
+		scroll-margin-top: 84px;
 	}
 
 	&__newer {
@@ -307,16 +400,70 @@ onBeforeUnmount(() => {
 	}
 }
 
+.today {
+	height: 40px;
+	margin: 8px 0 0;
+	padding: 0 18px;
+	border: 1px solid var(--g-line);
+	border-radius: 20px;
+	background: var(--g-raised);
+	box-shadow: 0 6px 20px rgba(8, 9, 20, 0.35);
+	color: var(--g-text);
+	font-weight: 600;
+	cursor: pointer;
+
+	&:hover, &:focus-visible {
+		border-color: var(--g-lens-blue);
+	}
+}
+
+.rail {
+	position: sticky;
+	top: 88px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	align-self: start;
+	height: calc(100vh - var(--header-height, 50px) - 120px);
+	max-height: calc(28px * var(--years, 40));
+
+	&__year {
+		flex: 0 1 auto;
+		min-height: 0;
+		margin: 0;
+		padding: 1px 4px;
+		border: 0;
+		border-radius: 8px;
+		background: none;
+		color: var(--g-muted);
+		font-size: 13px;
+		font-variant-numeric: tabular-nums;
+		text-align: end;
+		cursor: pointer;
+
+		&:hover, &:focus-visible {
+			color: var(--g-text);
+			background: var(--g-raised);
+		}
+
+		&--active {
+			color: var(--g-accent-text);
+			font-weight: 700;
+		}
+	}
+}
+
 .memory {
 	position: relative;
 	flex: 0 0 auto;
-	width: 160px;
-	height: 200px;
+	width: 148px;
+	height: 196px;
 	margin: 0;
 	padding: 0;
 	overflow: hidden;
 	border: 0;
-	border-radius: var(--border-radius-large);
+	border-radius: 16px;
+	background: var(--g-raised);
 	cursor: pointer;
 
 	img {
@@ -330,28 +477,71 @@ onBeforeUnmount(() => {
 		inset: auto 0 0 0;
 		display: flex;
 		flex-direction: column;
-		padding: 24px 10px 8px;
-		background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+		padding: 32px 12px 10px;
+		background: linear-gradient(transparent, rgba(20, 22, 43, 0.85));
 		color: #fff;
+		font-size: 13px;
 		text-align: start;
+
+		strong {
+			font-size: 17px;
+		}
 	}
 
 	&--open {
-		outline: 3px solid var(--color-primary-element);
+		outline: 3px solid var(--g-accent-text);
 		outline-offset: -3px;
 	}
 }
 
+// Phones: the years float over the pictures' right edge, like the app's scrubber
 @media (max-width: 600px) {
-	// One scrollable row instead of a wall of years
-	.timeline__years {
-		flex-wrap: nowrap;
-		overflow-x: auto;
+	.timeline--rail {
+		display: block;
+	}
+
+	.timeline__memories {
+		padding-inline: 16px;
+	}
+
+	.timeline__today {
+		top: 12px;
+		padding-inline-end: 52px;
+	}
+
+	.rail {
+		position: fixed;
+		z-index: 25;
+		top: calc(var(--header-height, 50px) + 70px);
+		right: 2px;
+		height: auto;
+		max-height: calc(100vh - var(--header-height, 50px) - 220px);
+		overflow-y: auto;
+		scrollbar-width: none;
+		padding: 6px 2px;
+		border-radius: 14px;
+		background: var(--g-scrim);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.25s ease;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
+
+		&--awake, &:focus-within {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		&__year {
+			font-size: 11px;
+		}
 	}
 
 	.memory {
-		width: 120px;
-		height: 150px;
+		width: 116px;
+		height: 154px;
 	}
 }
 </style>

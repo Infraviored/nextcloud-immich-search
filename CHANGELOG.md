@@ -3,6 +3,33 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.4.1] - 2026-10-13
+
+### Fixed
+- Review findings: newer pictures loaded above are anchored on a picture, not on whatever
+  sits at that spot; a jump to a year with nothing older still loads the newer ones; the
+  years list checks its cache first and asks Immich less often; the own-folder scope needs
+  `{user}` in the path pattern and ends in a slash.
+- Phones: the selection bar takes the dock's place. Leaving the search clears the pill; the
+  name "Glimpse" opens the start view; light theme marks with the darker apricot; settings,
+  folders and duplicates keep a margin on phones; the year rail scrolls when it is long.
+
+## [4.4.0] - 2026-10-13
+
+### Changed
+- **New look, the same as the Android app.** Night blue around the pictures, the lens's
+  blue-to-violet for actions, apricot for what is chosen, years and names in Bricolage
+  Grotesque. Nextcloud's light theme gets a light version of it.
+- **One navigation instead of two.** The side panel and the row of tabs are gone; the views
+  sit as words next to the app's name, the search is a pill that is always there. On phones
+  the search and the views sit at the bottom, in reach of the thumb, as in the app.
+- **Timeline in year bands.** Each year opens with its number in big type; all years run down
+  the right edge, the one in view in apricot, and a click jumps there. "Back to today" floats
+  in the corner after a jump.
+- An empty search shows the people to start from. Photo/video filters are chips; selected
+  pictures get a floating bar at the bottom. A person's name is the page's heading and is
+  edited in place.
+
 ## [4.3.4] - 2026-10-13
 
 ### Changed

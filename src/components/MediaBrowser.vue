@@ -33,7 +33,7 @@
 			@delete="dialog = 'delete'"
 			@notPerson="dialog = 'notPerson'"
 			@timeline="navigate('/timeline', { at: singleSelected.date.slice(0, 10) })" />
-		<slot v-else name="status" />
+		<slot name="status" />
 
 		<FacesDialog v-if="dialog === 'faces' && singleSelected" :item="singleSelected" @close="dialog = null" />
 		<TagDialog
@@ -60,7 +60,10 @@
 			@closing="dialog = null" />
 
 		<template v-for="group in groups" :key="group.key">
-			<h3 v-if="group.title" class="media__heading">
+			<h2 v-if="group.year" class="media__year g-display" :data-year="group.year">
+				{{ group.year }}
+			</h2>
+			<h3 v-if="group.title" class="media__heading g-heading">
 				{{ group.title }}
 			</h3>
 			<AssetGrid
@@ -76,7 +79,7 @@
 <script setup>
 import { showSuccess, showWarning } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import AlbumDialog from './AlbumDialog.vue'
 import AssetGrid from './AssetGrid.vue'
@@ -92,11 +95,11 @@ import { n, t } from '../l10n.js'
 import { peopleState, reloadPeople } from '../people.js'
 import { privateState, setPrivateFiles } from '../private.js'
 import { navigate } from '../router.js'
-import { pruneSelection, toggleSelection } from '../selection.js'
+import { pruneSelection, selectionActive, toggleSelection } from '../selection.js'
 import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
-	/** [{key, title?, items}] */
+	/** [{key, title?, year?, items}]; a year opens a band with the year in big type above the group */
 	groups: { type: Array, required: true },
 	/** {id, name}: the pictures are this person's; offers correcting wrong faces */
 	person: { type: Object, default: null },
@@ -123,6 +126,12 @@ const singleSelected = computed(() => (selected.value.size === 1 ? allItems.valu
 // or delete and move would act on pictures the user no longer sees.
 watch(allItems, (items) => {
 	selected.value = pruneSelection(selected.value, items)
+})
+watch(selected, (s) => {
+	selectionActive.value = s.size > 0
+}, { immediate: true })
+onBeforeUnmount(() => {
+	selectionActive.value = false
 })
 
 function toggle(item, range) {
@@ -288,13 +297,30 @@ defineExpose({
 </script>
 
 <style scoped lang="scss">
+.media__year {
+	margin: 40px 0 0;
+	color: var(--g-text);
+	font-size: clamp(64px, 9vw, 112px);
+
+	&:first-of-type {
+		margin-top: 8px;
+	}
+}
+
 .media__heading {
-	position: sticky;
-	top: 0;
-	z-index: 5;
-	margin: 16px 0 6px;
-	padding: 4px 0;
-	background: var(--color-main-background);
-	font-size: 1.05em;
+	margin: 22px 0 10px;
+	color: var(--g-text);
+	font-size: 22px;
+}
+
+@media (max-width: 600px) {
+	.media__year {
+		margin-inline: 16px;
+	}
+
+	.media__heading {
+		margin-inline: 16px;
+		font-size: 20px;
+	}
 }
 </style>

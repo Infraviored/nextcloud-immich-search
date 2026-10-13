@@ -199,4 +199,10 @@ onMounted(async () => {
 		margin-top: 8px;
 	}
 }
+
+@media (max-width: 600px) {
+	.dups {
+		padding-inline: 16px;
+	}
+}
 </style>

@@ -192,4 +192,10 @@ onMounted(load)
 		color: var(--color-text-maxcontrast);
 	}
 }
+
+@media (max-width: 600px) {
+	.folders {
+		padding-inline: 16px;
+	}
+}
 </style>
