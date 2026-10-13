@@ -115,9 +115,17 @@ class VideoScenes {
 			$checkedPage1 = false;
 
 			while ($page !== null && microtime(true) < $deadline && ($limit === null || $stats['videos'] < $limit)) {
-				$res = $this->immich->json('POST', '/search/metadata', [
-					'type' => 'VIDEO', 'page' => $page, 'size' => self::PAGE, 'order' => 'desc', 'visibility' => 'timeline',
-				])['assets'] ?? [];
+				try {
+					$res = $this->immich->json('POST', '/search/metadata', [
+						'type' => 'VIDEO', 'page' => $page, 'size' => self::PAGE, 'order' => 'desc', 'visibility' => 'timeline',
+					])['assets'] ?? [];
+				} catch (ImmichException $e) {
+					if ($e->getCode() === 502) {
+						$this->logger->warning('Glimpse: Immich unreachable, stopping video scenes run: ' . $e->getMessage(), ['app' => 'glimpse']);
+						break;
+					}
+					throw $e;
+				}
 				$items = $res['items'] ?? [];
 				$hasUnindexed = false;
 
@@ -196,8 +204,35 @@ class VideoScenes {
 		}
 		$moments = self::moments(self::seconds($video['duration'] ?? null));
 		$taken = strtotime((string)($video['fileCreatedAt'] ?? '')) ?: time();
+
+		// (c) Look up existing stills for this video to avoid duplicating on interrupted runs
+		$existingMoments = [];
+		try {
+			$res = $this->immich->json('POST', '/search/metadata', [
+				'originalFileName' => self::PREFIX . $video['id'] . '_',
+				'visibility' => 'archive',
+				'size' => 100,
+			])['assets'] ?? [];
+			foreach ($res['items'] ?? [] as $item) {
+				$parsed = self::parseName((string)($item['originalFileName'] ?? ''));
+				if ($parsed !== null && $parsed[0] === $video['id']) {
+					$existingMoments[(int)round($parsed[1] * 1000)] = true;
+				}
+			}
+		} catch (ImmichException $e) {
+			if ($e->getCode() === 502) {
+				throw $e;
+			}
+			$this->logger->warning('Glimpse: checking existing stills for ' . $video['id'] . ' failed: ' . $e->getMessage(), ['app' => 'glimpse']);
+		}
+
 		$count = 0;
 		foreach ($moments as $t) {
+			$ms = (int)round($t * 1000);
+			if (isset($existingMoments[$ms])) {
+				$count++;
+				continue;
+			}
 			$jpeg = $this->still($local, $t);
 			if ($jpeg === '') {
 				continue;
@@ -205,13 +240,16 @@ class VideoScenes {
 			$at = gmdate('Y-m-d\TH:i:s', $taken + (int)$t) . '.000Z';
 			try {
 				$this->immich->upload('/assets', [
-					['name' => 'assetData', 'contents' => $jpeg, 'filename' => self::PREFIX . $video['id'] . '_' . (int)round($t * 1000) . '.jpg'],
+					['name' => 'assetData', 'contents' => $jpeg, 'filename' => self::PREFIX . $video['id'] . '_' . $ms . '.jpg'],
 					['name' => 'fileCreatedAt', 'contents' => $at],
 					['name' => 'fileModifiedAt', 'contents' => $at],
 					['name' => 'visibility', 'contents' => 'archive'],
 				]);
 				$count++;
 			} catch (ImmichException $e) {
+				if ($e->getCode() === 502) {
+					throw $e;
+				}
 				$this->logger->warning('Glimpse: still of ' . $video['id'] . ' not uploaded: ' . $e->getMessage(), ['app' => 'glimpse']);
 				return self::FAILED;
 			}
