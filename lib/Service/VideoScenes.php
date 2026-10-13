@@ -143,9 +143,13 @@ class VideoScenes {
 	/** @return int stills uploaded, or FAILED / NO_FILE */
 	private function index(array $video): int {
 		$file = $this->assets->ownerFile($video['originalPath'] ?? '');
+		$storage = $file?->getStorage();
+		if ($storage === null || (!$storage->isLocal() && !$storage->instanceOfStorage(\OC\Files\Storage\Local::class))) {
+			return self::NO_FILE;
+		}
 		$local = null;
 		try {
-			$local = $file?->getStorage()->getLocalFile($file->getInternalPath());
+			$local = $storage->getLocalFile($file->getInternalPath());
 		} catch (\Throwable) {
 		}
 		if (!is_string($local) || !is_readable($local)) {
