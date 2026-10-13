@@ -60,9 +60,14 @@ class BrowseController extends Controller {
 	#[NoAdminRequired]
 	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = '', string $person = ''): Response {
 		return $this->guard(function () use ($page, $before, $type, $after, $person) {
-			// Private people while locked: nothing to show by id (as in the search)
-			if ($person !== '' && in_array($person, $this->privateArea->hiddenPeople($this->uid()), true)) {
-				return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
+			if ($person !== '') {
+				if (!preg_match(AssetSearch::UUID, $person)) {
+					return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
+				}
+				// Private people while locked: nothing to show by id (as in the search)
+				if (in_array($person, $this->privateArea->hiddenPeople($this->uid()), true)) {
+					return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
+				}
 			}
 			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person);
 			$res['items'] = $this->privateArea->filter($this->uid(), $res['items']);
@@ -73,7 +78,10 @@ class BrowseController extends Controller {
 			if ($page !== 1) {
 				return $res;
 			}
-			return $res + ['years' => $person !== '' ? $this->assets->personYears($this->uid(), $person) : $this->assets->years($this->uid(), $seenYear)];
+			if ($person !== '' && $before === '' && $after === '' && $res['items'] === []) {
+				return $res + ['years' => []];
+			}
+			return $res + ['years' => $person !== '' ? $this->assets->personYears($this->uid(), $person, $seenYear) : $this->assets->years($this->uid(), $seenYear)];
 		});
 	}
 

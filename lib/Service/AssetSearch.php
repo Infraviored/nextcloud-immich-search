@@ -93,6 +93,9 @@ class AssetSearch {
 	 * The cursor is the Immich page within that window.
 	 */
 	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = ''): array {
+		if ($person !== '' && !preg_match(self::UUID, $person)) {
+			return ['items' => [], 'nextPage' => null];
+		}
 		return $this->collect($uid, $page, $size, function (int $p, int $s) use ($uid, $before, $after, $type, $person) {
 			// From a point in time back to the past, or (after) forward to today, oldest first
 			// "timeline": without the stills Glimpse took from videos (VideoScenes)
@@ -195,9 +198,19 @@ class AssetSearch {
 	 *
 	 * @return list<int>
 	 */
-	public function personYears(string $uid, string $person): array {
+	public function personYears(string $uid, string $person, ?int $seenYear = null): array {
 		if (!preg_match(self::UUID, $person)) {
 			return [];
+		}
+		$own = $this->ownScope($uid);
+		$key = $uid . '/' . $person;
+		$cached = $this->yearCache->get($key);
+		if (is_array($cached)) {
+			if ($seenYear !== null && $seenYear > 0 && !in_array($seenYear, $cached, true)) {
+				$this->yearCache->remove($key);
+			} else {
+				return $cached;
+			}
 		}
 		$years = [];
 		foreach ($this->immich->json('GET', '/timeline/buckets?visibility=timeline&personId=' . rawurlencode($person)) as $b) {
@@ -205,14 +218,9 @@ class AssetSearch {
 		}
 		krsort($years);
 		$years = array_keys($years);
-		$own = $this->ownScope($uid);
 		if ($own === null || $years === []) {
+			$this->yearCache->set($key, $years, self::YEARS_TTL);
 			return $years;
-		}
-		$key = $uid . '/' . $person;
-		$cached = $this->yearCache->get($key);
-		if (is_array($cached)) {
-			return $cached;
 		}
 		$mine = array_values(array_filter($years, fn (int $y) => ($this->immich->json('POST', '/search/metadata', [
 			'size' => 1,

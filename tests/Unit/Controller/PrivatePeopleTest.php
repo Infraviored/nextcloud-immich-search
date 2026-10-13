@@ -118,4 +118,27 @@ class PrivatePeopleTest extends TestCase {
 		$this->unlocked = true;
 		$this->assertSame(self::SECRET, $this->api()->search('Secret beach')->getData()['person']['id']);
 	}
+
+	private function browse(): \OCA\Glimpse\Controller\BrowseController {
+		return new \OCA\Glimpse\Controller\BrowseController(
+			$this->createMock(IRequest::class),
+			$this->userSession,
+			$this->createMock(Config::class),
+			$this->assets,
+			$this->createMock(\OCA\Glimpse\Service\Discover::class),
+			$this->createMock(\OCA\Glimpse\Service\FolderBrowser::class),
+			$this->createMock(\OCA\Glimpse\Service\MapIndex::class),
+			$this->createMock(\OCA\Glimpse\Service\TileProxy::class),
+			$this->area,
+			$this->createMock(Permissions::class),
+			$this->l,
+			$this->createMock(LoggerInterface::class),
+		);
+	}
+
+	public function testTimelineIgnoresPrivateOrInvalidPersonWhileLocked(): void {
+		$b = $this->browse();
+		$this->assertSame(['items' => [], 'nextPage' => null, 'years' => []], $b->timeline(1, '', '', '', self::SECRET)->getData());
+		$this->assertSame(['items' => [], 'nextPage' => null, 'years' => []], $b->timeline(1, '', '', '', 'not-a-uuid')->getData());
+	}
 }
