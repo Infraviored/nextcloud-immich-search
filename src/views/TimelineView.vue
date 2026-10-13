@@ -82,7 +82,7 @@
 
 <script setup>
 import { mdiImageMultipleOutline } from '@mdi/js'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
@@ -98,6 +98,7 @@ const props = defineProps({
 	/** '', 'IMAGE' or 'VIDEO' */
 	type: { type: String, default: '' },
 })
+const emit = defineEmits(['similar'])
 
 const thisYear = new Date().getFullYear()
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' })
@@ -297,6 +298,9 @@ function reload() {
 	load()
 }
 
+watch(() => props.type, () => reload())
+watch(() => props.person?.id, () => reload())
+
 /**
  * Start the list at the end of that year.
  *
@@ -334,7 +338,11 @@ function dropMemory(fileIds) {
 }
 
 function similar(item) {
-	navigate('/', { similar: item.id, name: item.name })
+	if (props.person) {
+		emit('similar', item)
+	} else {
+		navigate('/', { similar: item.id, name: item.name })
+	}
 }
 
 onMounted(async () => {

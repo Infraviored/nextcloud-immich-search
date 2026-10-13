@@ -91,7 +91,8 @@
 			v-if="personTimeline"
 			:key="'pt' + type"
 			:person="listedPerson"
-			:type="type" />
+			:type="type"
+			@similar="showSimilar" />
 		<template v-else>
 			<MediaBrowser
 				:groups="[{ key: 'all', items }]"
@@ -270,7 +271,7 @@ async function run(reset, asText = false) {
 		} else if (!props.person) {
 			replaceQuery({ q: q.value.trim(), type: type.value, person: personId.value, tag: tagId.value })
 		} else {
-			replaceQuery({ q: q.value.trim(), type: type.value, tag: tagId.value })
+			replaceQuery({ q: q.value.trim(), type: type.value, tag: tagId.value, at: q.value.trim() ? undefined : (route.query.at || undefined) })
 		}
 	} else if (controller || !nextPage.value) {
 		return
