@@ -99,7 +99,7 @@ const error = ref('')
 let controller = null
 const sentinel = ref(null)
 const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value && load())
-const less = useInfiniteScroll(topSentinel, () => newerPage.value && items.value.length && loadNewer(), { above: true })
+const less = useInfiniteScroll(topSentinel, () => newerPage.value && !loading.value && loadNewer(), { above: true })
 
 const memory = computed(() => memories.value.find((m) => m.year === openMemory.value) ?? null)
 const activeYear = computed(() => (items.value[0]?.date ? Number(items.value[0].date.slice(0, 4)) : null))
@@ -131,8 +131,12 @@ async function load() {
 		const first = !items.value.length
 		items.value.push(...res.items)
 		nextPage.value = res.nextPage
-		if (first && before.value && res.items.length) {
-			showJumpPoint()
+		if (first && before.value) {
+			if (res.items.length) {
+				showJumpPoint()
+			} else if (newerPage.value) {
+				loadNewer()
+			}
 		}
 		if (res.years) {
 			years.value = res.years
@@ -165,16 +169,24 @@ async function loadNewer() {
 		if (ctrl !== newerController) {
 			return
 		}
-		// Whatever is at the top of the view stays there (pictures below may be loading too,
+		// Whatever tile is at the top of the view stays there (pictures below may be loading too,
 		// so the page height alone would not tell how much was added above)
 		const scroller = scrollParent(topSentinel.value)
-		const box = scroller === document.scrollingElement ? { left: 0, top: 0, width: window.innerWidth } : scroller.getBoundingClientRect()
-		const anchor = document.elementFromPoint(box.left + box.width / 2, Math.max(box.top, 0) + 80)
+		const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top
+		const tiles = grid.value?.$el?.querySelectorAll('.tile') ?? []
+		let anchor = null
+		for (const tile of tiles) {
+			if (tile.getBoundingClientRect().top >= scrollerTop) {
+				anchor = tile
+				break
+			}
+		}
+		anchor ??= tiles[0] ?? null
 		const anchorTop = anchor?.getBoundingClientRect().top
 		newer.value.push(...res.items)
 		newerPage.value = res.nextPage
 		await nextTick()
-		if (anchor?.isConnected) {
+		if (anchor?.isConnected && anchorTop !== undefined) {
 			scroller.scrollTop += anchor.getBoundingClientRect().top - anchorTop
 		}
 	} catch (e) {
@@ -212,7 +224,12 @@ function reload() {
  */
 function jump(year) {
 	before.value = year >= thisYear ? '' : `${year + 1}-01-01T00:00:00.000Z`
-	window.scrollTo({ top: 0 })
+	const scroller = scrollParent(topSentinel.value)
+	if (scroller === document.scrollingElement) {
+		window.scrollTo({ top: 0 })
+	} else if (scroller) {
+		scroller.scrollTop = 0
+	}
 	reload()
 }
 
