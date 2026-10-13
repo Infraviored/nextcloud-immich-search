@@ -252,7 +252,7 @@ class AssetSearch {
 					continue; // "more like this": the picture itself is its best match
 				}
 				$item = $this->visibleItem($uid, $a, true, $stills);
-				if ($item !== null && !isset($seen[$item['fileId']]) && ($onlyFiles === null || isset($onlyFiles[$item['fileId']]))) {
+				if ($item !== null && $item['id'] !== $skipId && !isset($seen[$item['fileId']]) && ($onlyFiles === null || isset($onlyFiles[$item['fileId']]))) {
 					$seen[$item['fileId']] = true;
 					$items[] = $item;
 				}
@@ -368,7 +368,7 @@ class AssetSearch {
 	 */
 	public function visibleItem(string $uid, array $a, bool $grant = true, bool $stills = false): ?array {
 		// A still Glimpse took from a video (VideoScenes): stands for that video, at that moment
-		$still = ($a['visibility'] ?? 'timeline') !== 'timeline' ? VideoScenes::parseName((string)($a['originalFileName'] ?? '')) : null;
+		$still = VideoScenes::parseName((string)($a['originalFileName'] ?? ''));
 		if ($still !== null) {
 			$video = $stills ? $this->videoAsset($still[0]) : null;
 			$item = $video !== null ? $this->visibleItem($uid, $video, $grant) : null;
