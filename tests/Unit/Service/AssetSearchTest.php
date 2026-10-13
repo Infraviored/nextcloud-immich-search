@@ -21,6 +21,8 @@ use OCP\ICacheFactory;
 use OCP\IConfig;
 use OCP\IUserManager;
 use OCP\Security\ICrypto;
+use OCP\Share\IManager as IShareManager;
+use OCP\Share\IShare;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -38,6 +40,7 @@ class AssetSearchTest extends TestCase {
 	/** File ids that no longer resolve for a user (share taken back): uid => list<int> */
 	private array $revoked = [];
 	private AssetSearch $search;
+	private IShareManager&MockObject $shares;
 
 	protected function setUp(): void {
 		$beach = $this->file(10, '/alice/files/Photos/beach.jpg');
@@ -58,6 +61,10 @@ class AssetSearchTest extends TestCase {
 			return true;
 		});
 		$cache->method('get')->willReturnCallback(fn ($k) => $this->grants[$k] ?? null);
+		$cache->method('remove')->willReturnCallback(function ($k) {
+			unset($this->grants[$k]);
+			return true;
+		});
 		$caches = $this->createMock(ICacheFactory::class);
 		$caches->method('createDistributed')->willReturn($cache);
 
@@ -66,7 +73,9 @@ class AssetSearchTest extends TestCase {
 		$config = new Config($iconfig, $this->createMock(ICrypto::class));
 
 		$this->immich = $this->createMock(ImmichClient::class);
-		$this->search = new AssetSearch($this->immich, $config, $root, $users, $caches);
+		$this->shares = $this->createMock(IShareManager::class);
+		$this->shares->method('getSharedWith')->willReturnCallback(fn ($uid) => $uid === 'bob' ? [$this->createMock(IShare::class)] : []);
+		$this->search = new AssetSearch($this->immich, $config, $root, $users, $caches, $this->shares);
 	}
 
 	private function asset(string $id, string $path, array $extra = []): array {
@@ -203,5 +212,104 @@ class AssetSearchTest extends TestCase {
 		$f->method('getFirstNodeById')->willReturnCallback(fn ($id) => in_array($id, $this->revoked[$uid] ?? [], true) ? null : ($byId[$id] ?? null));
 		$f->method('getRelativePath')->willReturnCallback(fn ($p) => substr($p, strlen("/$uid/files")));
 		return $f;
+	}
+
+	public function testTimelineOfSomeoneWithoutSharesAsksOnlyForTheirFolder(): void {
+		$bodies = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$bodies) {
+			$bodies[] = $b;
+			return ['assets' => ['items' => [$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg')], 'nextPage' => null]];
+		});
+		$this->search->timeline('alice', null, 1, 4);
+		$this->search->timeline('bob', null, 1, 4);
+		$this->assertSame('/mnt/nextcloud/alice/', $bodies[0]['originalPath']);
+		$this->assertArrayNotHasKey('originalPath', $bodies[1], 'bob sees shared files from other folders');
+	}
+
+	public function testTimelineForwardFromAPointInTime(): void {
+		$body = null;
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$body) {
+			$body = $b;
+			return ['assets' => ['items' => [], 'nextPage' => null]];
+		});
+		$this->search->timeline('bob', null, 1, 4, '', '2020-01-01T00:00:00.000Z');
+		$this->assertSame('asc', $body['order']);
+		$this->assertSame('2020-01-01T00:00:00.000Z', $body['takenAfter']);
+	}
+
+	public function testYearsOnlyThoseOfTheirOwnFolder(): void {
+		$this->immich->method('json')->willReturnCallback(fn ($m, $e, $b = null) => $e === '/timeline/buckets'
+			? [['timeBucket' => '2024-05-01'], ['timeBucket' => '2023-01-01'], ['timeBucket' => '2022-03-01']]
+			: ['assets' => ['items' => str_starts_with($b['takenAfter'] ?? '', '2023') ? [] : [['id' => 'x']]]]);
+		$this->assertSame([2024, 2022], $this->search->years('alice'));
+		$this->assertSame([2024, 2023, 2022], $this->search->years('bob'), 'shares can come from any year');
+	}
+
+	public function testYearsCacheAvoidsBucketsCallOnCacheHit(): void {
+		$calls = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use (&$calls) {
+			$calls[] = $e;
+			return $e === '/timeline/buckets'
+				? [['timeBucket' => '2024-01-01']]
+				: ['assets' => ['items' => [['id' => 'x']]]];
+		});
+		$first = $this->search->years('alice');
+		$this->assertSame([2024], $first);
+		$callCountBefore = count($calls);
+		$second = $this->search->years('alice');
+		$this->assertSame([2024], $second);
+		$this->assertSame($callCountBefore, count($calls), 'cache hit does not call /timeline/buckets or /search/metadata');
+	}
+
+	public function testYearsInvalidatesWhenNewYearSeen(): void {
+		$calls = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use (&$calls) {
+			$calls[] = $e;
+			return $e === '/timeline/buckets'
+				? [['timeBucket' => '2025-01-01'], ['timeBucket' => '2024-01-01']]
+				: ['assets' => ['items' => [['id' => 'x']]]];
+		});
+		$this->search->years('alice');
+		$callCountAfterFirst = count($calls);
+		// Passing an already cached year does not invalidate
+		$this->search->years('alice', 2024);
+		$this->assertSame($callCountAfterFirst, count($calls));
+		// Passing an unseen year invalidates the cache and re-queries
+		$this->search->years('alice', 2026);
+		$this->assertGreaterThan($callCountAfterFirst, count($calls));
+	}
+
+	public function testOwnScopeRequiresUserPlaceholderAndTrailingSlash(): void {
+		$bodies = [];
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$bodies) {
+			$bodies[] = $b;
+			return ['assets' => ['items' => [], 'nextPage' => null]];
+		});
+
+		$root = $this->createMock(IRootFolder::class);
+		$root->method('getUserFolder')->willReturnMap([
+			['dan', $this->folder('dan', [], [])],
+			['charlie', $this->folder('charlie', [], [])],
+		]);
+		$users = $this->createMock(IUserManager::class);
+		$users->method('userExists')->willReturn(true);
+		$caches = $this->createMock(ICacheFactory::class);
+		$caches->method('createDistributed')->willReturn($this->createMock(ICache::class));
+		$shares = $this->createMock(IShareManager::class);
+		$shares->method('getSharedWith')->willReturn([]);
+
+		// Pattern without {user} placeholder: falls back to unscoped
+		$iconfigNoUser = $this->createMock(IConfig::class);
+		$iconfigNoUser->method('getAppValue')->willReturn('/mnt/nextcloud/data/');
+		$searchNoUser = new AssetSearch($this->immich, new Config($iconfigNoUser, $this->createMock(ICrypto::class)), $root, $users, $caches, $shares);
+		$searchNoUser->timeline('dan', null, 1, 4);
+		$this->assertArrayNotHasKey('originalPath', $bodies[0], 'no {user} placeholder falls back to unscoped');
+
+		// Pattern without trailing slash: ensures trailing slash is appended
+		$iconfigSlash = $this->createMock(IConfig::class);
+		$iconfigSlash->method('getAppValue')->willReturn('/mnt/nextcloud/{user}');
+		$searchSlash = new AssetSearch($this->immich, new Config($iconfigSlash, $this->createMock(ICrypto::class)), $root, $users, $caches, $shares);
+		$searchSlash->timeline('charlie', null, 1, 4);
+		$this->assertSame('/mnt/nextcloud/charlie/', $bodies[1]['originalPath'], 'trailing slash is ensured');
 	}
 }

@@ -26,6 +26,15 @@ export function downloadZip(fileIds) {
 		showError(t('At most {max} files can be downloaded as one ZIP.', { max: ZIP_MAX_FILES }))
 		return
 	}
+	// The Android app's WebView cannot save the answer of a form POST: it sends the form itself
+	if (window.GlimpseApp?.postMessage) {
+		window.GlimpseApp.postMessage(JSON.stringify({
+			type: 'postDownload',
+			url: new URL(url('/api/files/zip'), window.location.origin).href,
+			fields: { ids: fileIds.join(','), requesttoken: getRequestToken() ?? '' },
+		}))
+		return
+	}
 	let frame = document.getElementById('glimpse-zip-frame')
 	if (!frame) {
 		frame = document.createElement('iframe')

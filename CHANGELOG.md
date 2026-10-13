@@ -3,6 +3,18 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.3.4] - 2026-10-13
+
+### Changed
+- **The timeline goes on in both directions after a jump.** Pick a year and scroll down into
+  older pictures as before, or up into newer ones up to today; it is one unbroken list.
+  "Show in timeline" works the same way.
+
+### Fixed
+- Someone who sees only their own files no longer gets the years of everyone's library, and
+  their timeline no longer pages through other people's pictures (empty pages, slow): Immich
+  is asked for their own folder only. With files shared to them, it stays as before.
+
 ## [4.2.3] - 2026-10-13
 
 ### Added

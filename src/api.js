@@ -130,8 +130,8 @@ export async function tagFiles(fileIds, tagIds, newTags) {
 	return (await axios.post(url('/api/files/tag'), { fileIds, tagIds, newTags })).data
 }
 
-export async function timeline({ page = 1, before = '', type = '' }, signal) {
-	return (await axios.get(url('/api/timeline'), { params: { page, before, type }, signal })).data
+export async function timeline({ page = 1, before = '', after = '', type = '' }, signal) {
+	return (await axios.get(url('/api/timeline'), { params: { page, before, after, type }, signal })).data
 }
 
 /**

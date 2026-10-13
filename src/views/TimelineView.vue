@@ -3,7 +3,8 @@
   - SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 
-<!-- All pictures the user may see, newest first, by month; "on this day" on top; jump to a year. -->
+<!-- All pictures the user may see, newest first, by month; "on this day" on top; jump to a year
+     and scroll on from there in both directions. -->
 <template>
 	<div class="timeline">
 		<section v-if="memories.length" class="timeline__memories" :aria-label="t('On this day')">
@@ -39,13 +40,17 @@
 			</NcButton>
 		</nav>
 
+		<div ref="topSentinel" class="timeline__newer">
+			<NcLoadingIcon v-if="loadingNewer" :size="32" />
+		</div>
 		<MediaBrowser
+			ref="grid"
 			:groups="groups"
 			@removed="drop"
 			@refresh="reload"
 			@similar="similar" />
 
-		<NcEmptyContent v-if="!loading && !items.length" :name="error || t('No pictures yet')">
+		<NcEmptyContent v-if="!loading && !all.length" :name="error || t('No pictures yet')">
 			<template #icon>
 				<NcIconSvgWrapper :path="mdiImageMultipleOutline" />
 			</template>
@@ -58,14 +63,14 @@
 
 <script setup>
 import { mdiImageMultipleOutline } from '@mdi/js'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import MediaBrowser from '../components/MediaBrowser.vue'
 import { errorMessage, memories as getMemories, thumbnailUrl, timeline, timelineStart } from '../api.js'
-import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
+import { scrollParent, useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { n, t } from '../l10n.js'
 import { navigate, route } from '../router.js'
 
@@ -73,6 +78,15 @@ const thisYear = new Date().getFullYear()
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
 const items = ref([])
+/** After a jump: pictures from the jump point forward to today, oldest first, loaded on scrolling up. */
+const newer = ref([])
+const newerPage = ref(null)
+const loadingNewer = ref(false)
+let newerController = null
+const topSentinel = ref(null)
+const grid = ref(null)
+/** One unbroken list, newest first. */
+const all = computed(() => [...newer.value.toReversed(), ...items.value])
 const years = ref([])
 const memories = ref([])
 const openMemory = ref(null)
@@ -85,6 +99,7 @@ const error = ref('')
 let controller = null
 const sentinel = ref(null)
 const more = useInfiniteScroll(sentinel, () => nextPage.value && !error.value && load())
+const less = useInfiniteScroll(topSentinel, () => newerPage.value && !loading.value && loadNewer(), { above: true })
 
 const memory = computed(() => memories.value.find((m) => m.year === openMemory.value) ?? null)
 const activeYear = computed(() => (items.value[0]?.date ? Number(items.value[0].date.slice(0, 4)) : null))
@@ -92,7 +107,7 @@ const activeYear = computed(() => (items.value[0]?.date ? Number(items.value[0].
 /** Consecutive items of the same month form a group with the month as heading. */
 const groups = computed(() => {
 	const out = []
-	for (const item of items.value) {
+	for (const item of all.value) {
 		const key = (item.date || '').slice(0, 7) || 'unknown'
 		if (out.at(-1)?.key !== key) {
 			out.push({ key, title: key === 'unknown' ? t('Unknown date') : monthFormat.format(new Date(key + '-01T00:00:00Z')), items: [] })
@@ -113,8 +128,16 @@ async function load() {
 		if (ctrl !== controller) {
 			return
 		}
+		const first = !items.value.length
 		items.value.push(...res.items)
 		nextPage.value = res.nextPage
+		if (first && before.value) {
+			if (res.items.length) {
+				showJumpPoint()
+			} else if (newerPage.value) {
+				loadNewer()
+			}
+		}
 		if (res.years) {
 			years.value = res.years
 		}
@@ -131,11 +154,64 @@ async function load() {
 	}
 }
 
-/** Start over (year jump, undo); a request still running is dropped. */
+/**
+ * Pictures newer than the jump point, put above the ones in view. The page keeps its place:
+ * what is on screen stays where it is, the new pictures grow above it.
+ */
+async function loadNewer() {
+	if (newerController || !newerPage.value) {
+		return
+	}
+	const ctrl = newerController = new AbortController()
+	loadingNewer.value = true
+	try {
+		const res = await timeline({ page: newerPage.value, after: before.value }, ctrl.signal)
+		if (ctrl !== newerController) {
+			return
+		}
+		// Whatever tile is at the top of the view stays there (pictures below may be loading too,
+		// so the page height alone would not tell how much was added above)
+		const scroller = scrollParent(topSentinel.value)
+		const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top
+		const tiles = grid.value?.$el?.querySelectorAll('.tile') ?? []
+		let anchor = null
+		for (const tile of tiles) {
+			if (tile.getBoundingClientRect().top >= scrollerTop) {
+				anchor = tile
+				break
+			}
+		}
+		anchor ??= tiles[0] ?? null
+		const anchorTop = anchor?.getBoundingClientRect().top
+		newer.value.push(...res.items)
+		newerPage.value = res.nextPage
+		await nextTick()
+		if (anchor?.isConnected && anchorTop !== undefined) {
+			scroller.scrollTop += anchor.getBoundingClientRect().top - anchorTop
+		}
+	} catch (e) {
+		if (ctrl === newerController && e?.name !== 'CanceledError') {
+			newerPage.value = null
+		}
+	} finally {
+		if (ctrl === newerController) {
+			newerController = null
+			loadingNewer.value = false
+			less.check()
+		}
+	}
+}
+
+/** Start over (year jump, undo); requests still running are dropped. */
 function reload() {
 	controller?.abort()
 	controller = null
+	newerController?.abort()
+	newerController = null
+	loadingNewer.value = false
 	items.value = []
+	newer.value = []
+	newerPage.value = before.value ? 1 : null
 	nextPage.value = 1
 	error.value = ''
 	load()
@@ -148,13 +224,27 @@ function reload() {
  */
 function jump(year) {
 	before.value = year >= thisYear ? '' : `${year + 1}-01-01T00:00:00.000Z`
-	window.scrollTo({ top: 0 })
+	const scroller = scrollParent(topSentinel.value)
+	if (scroller === document.scrollingElement) {
+		window.scrollTo({ top: 0 })
+	} else if (scroller) {
+		scroller.scrollTop = 0
+	}
 	reload()
+}
+
+/** After a jump, the first pictures go to the top of the window; newer ones load above. */
+async function showJumpPoint() {
+	await nextTick()
+	grid.value?.$el?.scrollIntoView({ block: 'start' })
+	// The top was in reach before there was anything to put above it
+	less.check()
 }
 
 function drop(fileIds) {
 	const gone = new Set(fileIds)
 	items.value = items.value.filter((i) => !gone.has(i.fileId))
+	newer.value = newer.value.filter((i) => !gone.has(i.fileId))
 }
 
 function dropMemory(fileIds) {
@@ -168,6 +258,7 @@ function similar(item) {
 }
 
 onMounted(async () => {
+	newerPage.value = before.value ? 1 : null
 	load()
 	try {
 		memories.value = await getMemories()
@@ -175,7 +266,10 @@ onMounted(async () => {
 		// memories are a bonus
 	}
 })
-onBeforeUnmount(() => controller?.abort())
+onBeforeUnmount(() => {
+	controller?.abort()
+	newerController?.abort()
+})
 </script>
 
 <style scoped lang="scss">
@@ -197,6 +291,12 @@ onBeforeUnmount(() => controller?.abort())
 		flex-wrap: wrap;
 		gap: 2px;
 		margin-bottom: 4px;
+	}
+
+	&__newer {
+		display: flex;
+		justify-content: center;
+		min-height: 1px;
 	}
 
 	&__more {
