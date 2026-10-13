@@ -6,7 +6,7 @@
 3. Commit, tag and push:
 
    ```bash
-   git tag v3.0.0 && git push origin main v3.0.0
+   git tag v4.5.0 && git push origin main v4.5.0
    ```
 
    The release workflow checks that the tag matches `info.xml`, builds the tarball and
