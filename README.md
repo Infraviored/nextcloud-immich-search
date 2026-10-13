@@ -1,52 +1,143 @@
-# Glimpse – photo search for Nextcloud
+<p align="center">
+  <img src="docs/screenshots/hero.png" alt="Glimpse: search results for 'astronaut floating in space' on the desktop and 'snowy mountains under a blue sky' on a phone" width="100%">
+</p>
 
-A photo app for Nextcloud that understands your pictures. Describe what you are looking for –
-"woman on the beach", "dog in the snow" – or pick a person. The image understanding (CLIP),
-face recognition, memories and duplicate detection come from a self-hosted
-[Immich](https://immich.app) that indexes your Nextcloud files **read-only**. This app is the
-Nextcloud side: the interface, Nextcloud's search integration and – most importantly – the
-permission checks.
+<h1 align="center">Glimpse</h1>
 
-## Features
+<p align="center">
+  <b>Find any photo in your Nextcloud by what is in it.</b><br>
+  Type "dog in the snow" or a person's name, browse a timeline, a map and your folders.<br>
+  The understanding comes from your own <a href="https://immich.app">Immich</a>; who sees what is decided by Nextcloud.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Infraviored/nextcloud-immich-search/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Infraviored/nextcloud-immich-search/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Nextcloud 30 to 35" src="https://img.shields.io/badge/Nextcloud-30%E2%80%9335-0082c9?logo=nextcloud&logoColor=white">
+  <img alt="PHP 8.1+" src="https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white">
+  <img alt="Immich" src="https://img.shields.io/badge/powered%20by-Immich-4250af">
+  <a href="LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-6a3fd8"></a>
+</p>
+
+---
+
+Nextcloud keeps your photos, but finding one means remembering the folder. Immich understands
+pictures (what is in them, who is in them) but wants to own your library and has its own
+accounts. **Glimpse puts Immich's understanding on top of the files you already have in
+Nextcloud.** Immich indexes them read-only. Glimpse adds the interface, Nextcloud's search
+integration and the permission checks.
+
+## What it does
+
+- **Search by content.** Describe the picture: "birthday cake", "lighthouse at sunset", "red
+  bicycle". Results are ranked by Immich's CLIP model. "More like this" works on any picture.
+- **Search by person.** Name a person, or combine a name with words: "Tara beach" finds Tara's
+  beach pictures. You can also filter by tag, and show only photos or only videos.
+- **Timeline.** All your pictures by month in year bands, with a year rail to jump anywhere,
+  "On this day" cards, and "Back to today".
+- **People.** Name, merge, hide and favorite people. Assign or remove single faces, or move
+  many faces out of a person at once ("Not Tanja"). "Label people" lets you name faces one
+  after another.
+- **Map.** Geotagged pictures in clusters on OpenStreetMap, with the pictures of the visible
+  area below. Tiles are fetched by your server, so browsers never contact the tile server.
+- **Folders.** Any Nextcloud folder as a gallery.
+- **Duplicates.** Groups of identical or nearly identical pictures. Immich's suggestion of what
+  to keep is preselected; the rest goes to the trash bin.
+- **Sort in bulk.** Select many pictures (long-press on touch) and act on all of them:
+  - move or copy into folders, with recent targets and undo
+  - tag or favorite
+  - add to a Photos album and share it
+  - download as ZIP
+  - delete
+- **Private area.** Folders, people and single pictures that only appear after you unlock with
+  your password. They never appear in the global search or on the dashboard.
+- **All over Nextcloud.**
+  - "Photos by content" and "People in photos" in the search bar, also in the mobile apps
+  - in Files, a "Similar pictures" action and a "People" tab in the sidebar
+  - an "On this day" dashboard widget
+- **Android app.** [Glimpse for Android](https://github.com/Infraviored/glimpse-android) is a
+  native app with timeline, search, people and folders. You log in with Nextcloud's own login
+  page.
+- **Light and dark.** The app follows your Nextcloud theme.
+
+Everything is a real Nextcloud file: clicking opens the Nextcloud viewer (videos play), and
+every action goes through Nextcloud with your own permissions.
+
+## Screenshots
 
 | | |
 |---|---|
-| **Search** | By content, by person, both ("Tara beach"), by tag, photos or videos, "more like this" for any picture |
-| **Browse** | Timeline by month with year jumps and "on this day", map of geotagged pictures, folders as galleries; "show in timeline" and "open in Memories" for a picture |
-| **Sort** | Multi-select (hover checkbox, shift range, long-press on touch); move/copy into folders with recent targets and undo; tag; favorite; add to a Photos album and share it with users or groups; download as ZIP; delete |
-| **People** | Name, merge, hide, favorites; assign or remove single faces; "Not Tanja" moves her faces out of many selected pictures at once; "Label people" to name people in a row, three faces each |
-| **Duplicates** | Groups of identical or nearly identical pictures, Immich's choice of what to keep preselected |
-| **Private area** | Folders, people and single pictures that only show after unlocking (password, 30 minutes) – never in the global search or the dashboard |
-| **Nextcloud search** | "Photos by content" and "People in photos" in the search bar on every page and in the mobile apps; first entry opens all results in the app |
-| **Files app** | "Similar pictures" action; sidebar tab with the people in a picture and similar pictures |
-| **Dashboard** | "On this day" widget |
-| **Index hygiene** | Exclude file types and folders (with suggestions), take tiny images out of Immich for good, status page with queues and libraries |
+| ![Search results for "snowy mountains under a blue sky"](docs/screenshots/search-mountains.png) | ![A person's name and a word: pictures of Jessica Meir, best match for "spacesuit" first](docs/screenshots/search-person.png) |
+| **Search by content.** No tags, no captions: Immich's CLIP model reads the pictures. | **Person + words.** "Jessica Meir spacesuit" is split into a person and a query. |
+| ![Timeline with the year 2022 and the year rail](docs/screenshots/timeline.png) | ![Map with picture clusters over Europe, America and Asia](docs/screenshots/map.png) |
+| **Timeline** in year bands; the rail jumps to any year. | **Map** of everything geotagged, clustered. |
+| ![People view with named and unnamed people](docs/screenshots/people.png) | ![One person's page with "Search in these pictures"](docs/screenshots/person.png) |
+| **People**, with faces cut only from pictures you can open. | **A person's page**, searchable on its own. |
+| ![Five pictures selected, the floating selection bar with Copy and Move](docs/screenshots/selection.png) | ![A duplicate group with Keep and Delete](docs/screenshots/duplicates.png) |
+| **Bulk actions** from a floating bar. | **Duplicates** with Immich's suggestion preselected. |
+| ![The Greece folder as a gallery](docs/screenshots/folder.png) | ![Search results in the light theme](docs/screenshots/light-search.png) |
+| **Folders** as galleries. | **Light theme** when Nextcloud is light. |
 
-Everything is a real Nextcloud file: clicking opens it in the Nextcloud viewer (videos play),
-actions go through Nextcloud's APIs with the user's own permissions. Pictures, faces and map
-tiles are fetched server-side, so Immich and the tile server are never contacted by browsers.
+<p align="center">
+  <img src="docs/screenshots/phone-timeline.png" width="24%" alt="Phone: timeline with year rail">
+  <img src="docs/screenshots/phone-search.png" width="24%" alt="Phone: search results">
+  <img src="docs/screenshots/phone-people.png" width="24%" alt="Phone: people">
+  <img src="docs/screenshots/phone-map.png" width="24%" alt="Phone: map">
+</p>
+<p align="center"><sub>The web app on a phone: search and tabs sit at the bottom, where the thumb is.</sub></p>
+
+<sub>All screenshots come from a demo account holding only public-domain (NASA) and CC0
+(Wikimedia Commons) photos. See [docs/screenshots/CREDITS.md](docs/screenshots/CREDITS.md).</sub>
 
 ## Who sees what
 
-One shared index, Nextcloud decides. Immich indexes the files of all users under one service
-account. For every hit the app maps Immich's path back to the owner's file and checks whether
-the searching user can reach that file in their own Nextcloud – own file or shared with them.
-If not, the hit is dropped, and so are its thumbnail, its faces, its map marker and its place
-in memories and duplicates. Share recipients see files under their own paths.
+Immich indexes everyone's files under one service account. **Nextcloud still decides.** For every
+hit, Glimpse maps Immich's path back to the owner's file and checks that the person searching
+can open that file in Nextcloud, either as their own file or through a share. Hits that fail
+the check are dropped, together with:
 
-- **People** are listed for a user only if they appear in a picture that user can open; their
-  face is cut from such a picture (not Immich's person thumbnail, which may come from a
-  private one). Computed hourly in the background, skipped when nothing changed.
-- **Shared across users:** person names (one Immich account) and the list of years that have
-  pictures. Who may name, merge and hide people is an admin setting.
-- **Private area:** per user, on top of the above.
+- their thumbnail
+- their faces
+- their map marker
+- their place in memories and duplicates
 
-Details and the reasoning: [docs/SECURITY.md](docs/SECURITY.md).
+Recipients of a share see the files under their own paths.
 
-## Setup
+- **People** are listed for you only if they appear in a picture you can open. The face shown
+  is cut from such a picture, never from Immich's own person thumbnail.
+- **Shared between users:**
+  - person names (there is one Immich account, so a name someone types is seen by everyone who
+    can see that person)
+  - the list of years that have pictures
 
-**1. Give Immich read-only access to the Nextcloud data**, one mount per user (or the whole
-data directory). Example for the Immich `docker-compose.yml`:
+  Admins decide who may name, merge and hide people.
+- **The private area** is per user, on top of all this. It hides things from view; it is not
+  encryption.
+
+Details: [docs/SECURITY.md](docs/SECURITY.md).
+
+## Requirements
+
+- **Nextcloud** 30 to 35 with background jobs (cron) running. Nextcloud AIO runs cron by
+  itself.
+- **PHP** 8.1 or newer.
+- **Immich**, self-hosted, with its machine-learning service. Tested with Immich 3.2.
+  - Smart search (CLIP) is needed for content search.
+  - Face detection and recognition are needed for people.
+  - Duplicate detection is needed for duplicates.
+- **Read access for Immich** to the Nextcloud data directory, mounted read-only into the Immich
+  container.
+- Optional:
+  - the Photos app, for "Add to album"
+  - the Memories app, for "Open in Memories"
+  - the PHP extension `pdo_pgsql` plus network access to Immich's Postgres, to keep pictures
+    when they are moved (step 5 below)
+
+## Install
+
+### 1. Give Immich read-only access to the files
+
+Mount each user's Nextcloud files into the Immich server container, read-only. For example, in
+Immich's `docker-compose.yml`:
 
 ```yaml
   immich-server:
@@ -55,102 +146,171 @@ data directory). Example for the Immich `docker-compose.yml`:
       - /srv/nextcloud-data/bob/files:/mnt/nextcloud/bob:ro
 ```
 
-For **Nextcloud AIO** the data directory is the volume `nextcloud_aio_nextcloud_datadir`
-(or `NEXTCLOUD_DATADIR`); mount `<datadir>/<user>/files`.
+For **Nextcloud AIO**, the data directory is the volume `nextcloud_aio_nextcloud_datadir` (or
+your `NEXTCLOUD_DATADIR`); mount `<datadir>/<user>/files`. Then run `docker compose up -d
+immich-server`.
 
-**2. In Immich**, as an admin: create an API key with permission "all" (Account settings → API
-keys). External libraries can be created from the app later (Settings → What gets indexed).
+### 2. Create an API key in Immich
 
-**3. Install the app** – unpack the release tarball into `custom_apps/` and enable it, or
-`make deploy` (see below). Then in the app: Settings → Connection, or
+As the Immich account that should own the libraries, open *Account settings → API keys* and
+create a key with the permission **all**.
+
+### 3. Install and connect the app
+
+- **From the App Store:** in Nextcloud, open *Apps*, search for "Glimpse", and choose
+  *Download and enable*.
+- **By hand:** unpack the release tarball from
+  [Releases](https://github.com/Infraviored/nextcloud-immich-search/releases) into
+  `custom_apps/`, then run `occ app:enable glimpse`.
+
+Then open Glimpse and go to *Settings → Connection*, or *Administration settings → Glimpse
+(Immich)*. Enter three things:
+
+- the Immich address, e.g. `http://immich:2283`
+- the API key
+- the path under which Immich sees a user's files, e.g. `/mnt/nextcloud/{user}/`. Here
+  `{user}` stands for the Nextcloud user ID.
+
+*Test connection* checks the key before anything is saved. The same works on the command line;
+the key is read from stdin, so it never shows in a process list:
 
 ```bash
 occ glimpse:configure --url http://immich:2283 --key-stdin < api-key
-occ glimpse:configure --path-pattern '/mnt/nextcloud/{user}/'   # default
+occ glimpse:configure --path-pattern '/mnt/nextcloud/{user}/'    # the default
 ```
 
-The path pattern says where Immich sees a user's files; `{user}` is the Nextcloud user ID.
-The key is stored encrypted and read from stdin so it never shows up in a process list.
+The key is stored encrypted and never sent to the browser.
 
-**4. Libraries:** Settings → What gets indexed → "Libraries per user" lists users without one
-and creates them (the mount from step 1 must exist).
+### 4. Create the libraries
 
-**5. Optional – keep pictures when they are moved.** Immich knows library files only by path:
-a moved or renamed picture (or folder) is imported again and analysed from scratch, and faces
-assigned by hand are lost. The app can carry every move in Nextcloud over to Immich's
-database. Give the Nextcloud container network access to Immich's Postgres and create a user
-that may only touch asset paths:
+Go to *Settings → What gets indexed → Libraries per user*. It lists the users that have no
+Immich library yet. For each user, it shows the `volumes:` line that user needs and a *Create
+library* button. The mount from step 1 must exist first.
 
-```sql
-CREATE ROLE nextcloud_moves LOGIN PASSWORD '…';
-GRANT CONNECT ON DATABASE immich TO nextcloud_moves;
-GRANT USAGE ON SCHEMA public TO nextcloud_moves;
-GRANT SELECT (id, "originalPath", "libraryId", "checksumAlgorithm") ON asset TO nextcloud_moves;
-GRANT UPDATE ("originalPath", "originalFileName", checksum) ON asset TO nextcloud_moves;
-```
+Immich then scans and analyses the pictures. *Settings → Status* shows the queues. People and
+the map follow with the next hourly index, or right away with *Update people now*.
 
-```bash
-occ glimpse:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < password
-```
+### 5. Optional: keep pictures when they are moved
+
+Immich knows the files of an external library only by their path. A picture or folder that is
+moved or renamed gets imported again and analysed from scratch, and faces you assigned by hand
+are lost. Glimpse can carry each move in Nextcloud over to Immich's database. To set this up:
+
+1. Give the Nextcloud container network access to Immich's Postgres.
+2. Create a role that may touch only asset paths:
+
+   ```sql
+   CREATE ROLE nextcloud_moves LOGIN PASSWORD '…';
+   GRANT CONNECT ON DATABASE immich TO nextcloud_moves;
+   GRANT USAGE ON SCHEMA public TO nextcloud_moves;
+   GRANT SELECT (id, "originalPath", "libraryId", "checksumAlgorithm") ON asset TO nextcloud_moves;
+   GRANT UPDATE ("originalPath", "originalFileName", checksum) ON asset TO nextcloud_moves;
+   ```
+
+3. Configure Glimpse with that role:
+
+   ```bash
+   occ glimpse:configure --db-host immich_postgres --db-user nextcloud_moves --db-password-stdin < password
+   ```
+
+If the database cannot be reached, moving still works. Immich just analyses the picture again
+at its next scan.
+
+## Configuration
+
+Admins configure everything in the app under *Settings*:
+
+| Section | What you set |
+|---|---|
+| Connection | Immich address, API key, path pattern; optional health check of the machine-learning service |
+| What gets indexed | File types and folders Immich should skip (with suggestions for icon and cache folders); minimum picture size (default 256 px), with the option to take smaller images out of Immich for good; libraries per user |
+| People | Who may name, merge and hide people (everyone, admins or nobody); minimum number of pictures for unnamed people; how often the people index is rebuilt (every 1 h, 6 h or 24 h) |
+| Nextcloud search | Whether the search bar shows photos and people, from how many characters, and where in the results |
+
+Every user can set:
+
+| Section | What you set |
+|---|---|
+| Display | Tile size, start view, whether videos are included by default |
+| Nextcloud search | Whether your own search bar shows photos |
+| Private | Your private folders and people, and whether unlocking asks for your password |
 
 ### Background jobs and commands
 
-| What | When | Command |
+| What | When | By hand |
 |---|---|---|
-| People and map index | hourly (admin setting: 1/6/24 h), skipped if nothing changed | `occ glimpse:people-index` |
-| Take tiny images out of Immich | every 15 min, new images only | `occ glimpse:prune [--full]` |
+| People and map index | hourly (or 6 h / 24 h), skipped when nothing changed | `occ glimpse:people-index` |
+| Take tiny images out of Immich | every 15 minutes, new images only | `occ glimpse:prune [--full] [--reset]` |
+| Map tile cache cleanup | daily | – |
 | Connection | – | `occ glimpse:configure` |
 
-Nextcloud's cron must run (AIO does this by itself).
+## FAQ and troubleshooting
 
-## Develop
+**The search finds nothing, but the timeline works.**
+Content search needs Immich's machine-learning service. As an admin, look at *Settings →
+Status*. It shows how much is still queued. If you set a health-check address under *Settings →
+Connection*, it also shows whether the service answers. If the service is
+down, the Nextcloud search bar simply shows no photos.
 
-PHP backend, Vue 3 frontend with `@nextcloud/vue` (Vite, `@nextcloud/vite-config`), the
-Nextcloud coding standards for both.
+**New pictures don't show up.**
+Immich picks up new files with its library scan, which runs nightly by default. *Settings →
+Status → Scan libraries now* starts one right away. People and the map follow with the next
+index run.
+
+**A user sees no people or no map.**
+Both come from a background index that is rebuilt hourly by default. Check that Nextcloud's
+cron runs, or start a rebuild with *Update people now*.
+
+**A user sees pictures that aren't theirs.**
+They shouldn't. Glimpse only shows files that resolve in that user's own Nextcloud tree. Check
+whether the files were shared with them, for example through a group, a circle, a Talk room or
+a Deck board. If not, please report it privately.
+
+**"Libraries per user" doesn't list a user.**
+The list only contains users who have logged in at least once and who are enabled.
+
+**Can I undo a merge of two people?**
+No. Immich has no way to split people again.
+
+**Does Glimpse change my files?**
+Only when you ask it to (move, copy, tag, favorite, delete), and always as you, through
+Nextcloud. Immich only reads the files.
+
+## Development
+
+PHP backend (controllers and services under `lib/`), Vue 3 frontend with `@nextcloud/vue`
+(under `src/`, built by Vite into `js/`).
 
 ```bash
-make build     # npm install + vite build into js/
-make lint      # PHP syntax + translation JSON
-make test      # PHPUnit (against nextcloud/ocp stubs) + Vitest
-npm run lint   # ESLint, @nextcloud/eslint-config
+make build      # npm install + vite build into js/
+make test       # PHPUnit (against nextcloud/ocp stubs, no server needed) + Vitest
+make lint       # PHP syntax + translation JSON
+npm run lint    # ESLint (@nextcloud/eslint-config)
 composer cs:check
-make dist      # build/glimpse-<version>.tar.gz
-make deploy    # into a dockerized Nextcloud (CONTAINER=..., default AIO)
+make dist       # build/glimpse-<version>.tar.gz
+make deploy     # install into a dockerized Nextcloud (CONTAINER=…, default AIO)
 NC_URL=… NC_USER=… NC_PASS=<app password> npm run e2e   # live smoke test, pictures blurred
 ```
 
-`deploy.sh` bumps the patch version whenever shipped files changed: Nextcloud caches routes
-and browsers cache scripts by version. It then reloads php-fpm gracefully, so PHP changes show at once. CI runs on every push; tagging `vX.Y.Z` builds a release
-([docs/RELEASE.md](docs/RELEASE.md)).
+`deploy.sh` raises the patch version whenever shipped files change. Nextcloud caches routes,
+and browsers cache scripts, per app version. The script reloads php-fpm gracefully to clear the
+PHP cache. When the version changed, it then runs Nextcloud's upgrade step, which puts the
+instance into maintenance mode for a moment.
 
-| Where | What |
-|---|---|
-| `lib/Service/AssetSearch.php` | Immich search, permission check, path mapping |
-| `lib/Service/PeopleIndex.php`, `MapIndex.php`, `IndexSignature.php` | Per-user people and map visibility, change detection |
-| `lib/Service/PrivateArea.php` | Private folders, people, files; session unlock |
-| `lib/Service/SmallImagePruner.php`, `IndexAdmin.php` | Index hygiene, status, libraries |
-| `lib/Service/FileTransfer.php`, `FileActions.php` | Bulk actions as the user |
-| `lib/Service/MoveTracker.php`, `lib/Listener/TrackMoves.php` | Moves in Nextcloud → Immich paths |
-| `src/viewerFix.js` | Viewer workaround for large folders in the Files app |
-| `lib/Service/Discover.php`, `FolderBrowser.php`, `TileProxy.php` | Memories, duplicates, folders, map tiles |
-| `lib/Search/` | Nextcloud search providers |
-| `lib/Controller/` | JSON API, permission-checked images |
-| `src/views/`, `src/components/` | The app; `src/files.js` the Files integration |
-| `l10n/` | English source, German (`de` informal, `de_DE` formal) |
+CI runs on every push. Tagging `vX.Y.Z` builds a release; see [docs/RELEASE.md](docs/RELEASE.md).
+For a map of the code, see [AGENTS.md](AGENTS.md).
 
 ## Limits
 
-- Immich's analysis service must be running for content search; the global search then just
-  shows nothing.
-- New pictures arrive with Immich's library scan (nightly by default); people and the map
-  follow with the next hourly index.
-- Immich allows 128 exclusion patterns per library and fails scans on patterns over 10000
-  characters or with braces in file names; the app packs and sanitizes its patterns
-  accordingly ([details](lib/Service/SmallImagePruner.php)).
-- Merging people cannot be undone (Immich has no unmerge).
-- Moves are carried over only when they happen through Nextcloud and stay with the same
-  owner; this writes to Immich's database directly, as Immich has no API for it.
+- New pictures arrive with Immich's library scan. People and the map follow with the next index
+  run.
+- Immich allows at most 128 exclusion patterns per library, and a pattern longer than about
+  10,000 characters makes the scan fail. Glimpse packs and sanitizes its patterns to stay within
+  both limits.
+- Moves are carried over only when they happen through Nextcloud and the file stays with the
+  same owner.
 
 ## License
 
-AGPL-3.0-or-later
+[AGPL-3.0-or-later](LICENSE). The Bricolage Grotesque font in `img/` is under the SIL Open Font
+License ([img/bricolage-OFL.txt](img/bricolage-OFL.txt)).
