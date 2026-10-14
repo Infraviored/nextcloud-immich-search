@@ -52,7 +52,9 @@ class SensitiveController extends Controller {
 		if (!$this->sensitive->isEnabled($uid)) {
 			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
 		}
-		return new JSONResponse($this->sensitive->mark($uid, $marks));
+		$res = $this->sensitive->mark($uid, $marks);
+		// Objects also when empty (none of the files was the user's): [] would not decode as a map
+		return new JSONResponse(['previous' => (object)$res['previous'], 'sensitive' => (object)$res['sensitive']]);
 	}
 
 	#[NoAdminRequired]

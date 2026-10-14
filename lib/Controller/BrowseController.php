@@ -60,8 +60,8 @@ class BrowseController extends Controller {
 	 * @param string $after ISO date: from this point forward to today, oldest first
 	 */
 	#[NoAdminRequired]
-	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = '', string $person = ''): Response {
-		return $this->guard(function () use ($page, $before, $type, $after, $person) {
+	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = '', string $person = '', int $seen = 0): Response {
+		return $this->guard(function () use ($page, $before, $type, $after, $person, $seen) {
 			if ($person !== '') {
 				if (!preg_match(AssetSearch::UUID, $person)) {
 					return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
@@ -71,7 +71,7 @@ class BrowseController extends Controller {
 					return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
 				}
 			}
-			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person, $this->sensitive->onlyFiles($this->uid()));
+			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person, $this->sensitive->onlyFiles($this->uid()), max(0, $seen));
 			$res['items'] = $this->filter($res['items']);
 			$seenYear = null;
 			if ($page === 1 && $before === '' && $after === '' && isset($res['items'][0]['date'])) {

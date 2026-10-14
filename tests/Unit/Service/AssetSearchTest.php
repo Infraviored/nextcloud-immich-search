@@ -472,7 +472,7 @@ class AssetSearchTest extends TestCase {
 		$this->assertSame(11, $items[0]['fileId']);
 	}
 
-	public function testTimelineOnlyFilesCascadeTerminatesWithNextPageNullWhenEmpty(): void {
+	public function testOnlyFilesKeepsPagingPastEmptyCallsUntilTheClientHasThemAll(): void {
 		$calls = 0;
 		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$calls) {
 			$calls++;
@@ -482,11 +482,17 @@ class AssetSearchTest extends TestCase {
 			]];
 		});
 
-		// Looking for file 11, but Immich only returns file 10 across all pages
+		// File 11 not in these pages: the rest of the set can be further back, paging goes on
 		$res = $this->search->timeline('alice', null, 1, 4, '', null, '', [11 => true]);
 		$this->assertSame([], $res['items']);
-		$this->assertNull($res['nextPage'], 'ends with nextPage null when nothing found across all pages');
-		$this->assertSame(10, $calls, 'probes up to MAX_PAGES_PER_CALL_FILTERED pages, then stops');
+		$this->assertNotNull($res['nextPage']);
+		$this->assertSame(10, $calls, 'probes up to MAX_PAGES_PER_CALL_FILTERED pages per call');
+
+		// The client already shows the one file of the set: nothing more to look for
+		$calls = 0;
+		$res = $this->search->timeline('alice', null, 11, 4, '', null, '', [11 => true], 1);
+		$this->assertNull($res['nextPage']);
+		$this->assertSame(0, $calls);
 	}
 
 	public function testTimelineOnlyFilesCompletesEvenOnSubsequentPages(): void {

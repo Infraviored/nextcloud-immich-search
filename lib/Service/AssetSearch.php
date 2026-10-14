@@ -84,16 +84,16 @@ class AssetSearch {
 	 *                                                   fetching Immich pages until half a page is filled, so a user who may see little
 	 *                                                   does not get a string of empty pages.
 	 */
-	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = '', ?array $onlyFiles = null): array {
-		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar, $onlyFiles, true);
+	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = '', ?array $onlyFiles = null, int $seen = 0): array {
+		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar, $onlyFiles, true, $seen);
 	}
 
 	/**
 	 * Everything the user may see, newest first, taken before $before (ISO date) if given.
 	 * The cursor is the Immich page within that window.
 	 */
-	/** @param ?array<int, true> $onlyFiles as in search() */
-	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = '', ?array $onlyFiles = null): array {
+	/** @param ?array<int, true> $onlyFiles as in search(), with $seen */
+	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = '', ?array $onlyFiles = null, int $seen = 0): array {
 		if ($person !== '' && !preg_match(self::UUID, $person)) {
 			return ['items' => [], 'nextPage' => null];
 		}
@@ -118,7 +118,7 @@ class AssetSearch {
 				$body['personIds'] = [$person];
 			}
 			return $this->immich->json('POST', '/search/metadata', $body)['assets'] ?? [];
-		}, '', $onlyFiles);
+		}, '', $onlyFiles, false, $seen);
 	}
 
 	/**
@@ -280,7 +280,7 @@ class AssetSearch {
 	 * @param ?array<int, true> $onlyFiles keep only these file ids, null for all
 	 * @param bool $stills a still taken from a video stands for the video (searches only)
 	 */
-	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = '', ?array $onlyFiles = null, bool $stills = false): array {
+	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = '', ?array $onlyFiles = null, bool $stills = false, int $shown = 0): array {
 		$size = max(1, min(200, $size));
 		$items = [];
 		$next = max(1, $page);
@@ -294,7 +294,7 @@ class AssetSearch {
 		// A video found by several of its stills (or by its own) is listed once, at its best place
 		$seen = [];
 		for ($i = 0; $i < $maxPages && $next !== null && count($items) < $want; $i++) {
-			if ($onlyFiles !== null && count($items) >= count($onlyFiles)) {
+			if ($onlyFiles !== null && $shown + count($items) >= count($onlyFiles)) {
 				break;
 			}
 			$assets = $fetch($next, $fetchSize);
@@ -310,9 +310,10 @@ class AssetSearch {
 			}
 			$next = isset($assets['nextPage']) ? (int)$assets['nextPage'] : null;
 		}
-		// A search with onlyFiles that found nothing across all pages has no more to look for,
-		// and one that already found every target file covers the set
-		if ($onlyFiles !== null && ($items === [] || count($items) >= count($onlyFiles))) {
+		// Every file of the set found, in this call and before it ($shown, from the client): nothing
+		// more to look for. Without that, paging goes on until Immich has no more pages; a call
+		// that found nothing does not end it, the rest of the set can still be further back.
+		if ($onlyFiles !== null && $shown + count($items) >= count($onlyFiles)) {
 			$next = null;
 		}
 		return ['items' => $items, 'nextPage' => $next];
