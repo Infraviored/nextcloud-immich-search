@@ -144,6 +144,36 @@ class PrivatePeopleTest extends TestCase {
 		$this->assertSame(['items' => [], 'nextPage' => null, 'years' => []], $b->timeline(1, '', '', '', 'not-a-uuid')->getData());
 	}
 
+	public function testTimelineOnlyModeSuppressesYearRail(): void {
+		$sensitive = $this->createMock(SensitiveContent::class);
+		$sensitive->method('apply')->willReturnArgument(1);
+		$sensitive->method('mode')->willReturn('only');
+		$sensitive->method('onlyFiles')->willReturn([10 => true]);
+
+		$assets = $this->createMock(AssetSearch::class);
+		$assets->method('timeline')->willReturn(['items' => [['id' => 'a1', 'fileId' => 10, 'date' => '2024-05-01T12:00:00Z']], 'nextPage' => null]);
+		$assets->method('years')->willReturn([2024, 2023, 2022]);
+
+		$b = new \OCA\Glimpse\Controller\BrowseController(
+			$this->createMock(IRequest::class),
+			$this->userSession,
+			$this->createMock(Config::class),
+			$assets,
+			$this->createMock(\OCA\Glimpse\Service\Discover::class),
+			$this->createMock(\OCA\Glimpse\Service\FolderBrowser::class),
+			$this->createMock(\OCA\Glimpse\Service\MapIndex::class),
+			$this->createMock(\OCA\Glimpse\Service\TileProxy::class),
+			$this->area,
+			$sensitive,
+			$this->createMock(Permissions::class),
+			$this->l,
+			$this->createMock(LoggerInterface::class),
+		);
+
+		$data = $b->timeline(1)->getData();
+		$this->assertSame([], $data['years'], 'years rail is empty in only sensitive mode');
+	}
+
 	/** Sensitive content off: items pass unchanged. */
 	private function sensitive(): SensitiveContent {
 		$sensitive = $this->createMock(SensitiveContent::class);

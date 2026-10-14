@@ -272,27 +272,32 @@ class SensitiveContent {
 	}
 
 	/**
-	 * The terms as vectors of the current model, cached per model.
+	 * The terms as vectors of the current model, cached per model and term as each arrives.
 	 *
 	 * @return array{sensitive: list<list<float>>, neutral: list<list<float>>}
 	 */
 	private function terms(): array {
 		$model = $this->model();
-		$key = md5($model . json_encode([SensitiveModel::POSITIVE, SensitiveModel::NEUTRAL])) . '.json';
+		return [
+			'sensitive' => array_map(fn ($t) => $this->termEmbedding($model, $t), SensitiveModel::POSITIVE),
+			'neutral' => array_map(fn ($t) => $this->termEmbedding($model, $t), SensitiveModel::NEUTRAL),
+		];
+	}
+
+	/** One term's vector, saved as soon as fetched so a failed run keeps what it got. @return list<float> */
+	private function termEmbedding(string $model, string $text): array {
+		$key = md5($model . '|' . $text) . '.json';
 		$folder = $this->folder(self::TERMS_FOLDER);
 		try {
 			$cached = json_decode($folder->getFile($key)->getContent(), true);
-			if (is_array($cached)) {
+			if (is_array($cached) && $cached !== []) {
 				return $cached;
 			}
 		} catch (NotFoundException) {
 		}
-		$terms = [
-			'sensitive' => array_map(fn ($t) => $this->embed($model, $t), SensitiveModel::POSITIVE),
-			'neutral' => array_map(fn ($t) => $this->embed($model, $t), SensitiveModel::NEUTRAL),
-		];
-		$folder->newFile($key, json_encode($terms));
-		return $terms;
+		$vector = $this->embed($model, $text);
+		$folder->newFile($key, json_encode($vector));
+		return $vector;
 	}
 
 	/** A text as Immich's machine-learning service encodes it for search. @return list<float> */

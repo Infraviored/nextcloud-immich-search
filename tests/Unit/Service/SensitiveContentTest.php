@@ -129,4 +129,44 @@ class SensitiveContentTest extends TestCase {
 		$this->assertSame([1 => true, 3 => false], $back['sensitive']);
 		$this->assertSame([1 => true], $this->service()->flagged('u'));
 	}
+
+	public function testTermsCachedPerTermIndividually(): void {
+		$client = $this->createMock(\OCP\Http\Client\IClient::class);
+		$resp = $this->createMock(\OCP\Http\Client\IResponse::class);
+		$resp->method('getBody')->willReturn(json_encode(['clip' => [0.1, 0.2]]));
+		$client->method('post')->willReturn($resp);
+
+		$clients = $this->createMock(IClientService::class);
+		$clients->method('newClient')->willReturn($client);
+
+		$config = $this->createMock(Config::class);
+		$config->method('get')->willReturnCallback(fn ($k) => $k === 'ml_ping_url' ? 'http://ml:3000' : null);
+
+		$immich = $this->createMock(ImmichClient::class);
+		$immich->method('json')->willReturnCallback(fn ($m, $e) => $e === '/system-config' ? ['machineLearning' => ['clip' => ['modelName' => 'vit-b']]] : []);
+
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('getFile')->willThrowException(new NotFoundException());
+		$saved = [];
+		$folder->method('newFile')->willReturnCallback(function ($k, $c) use (&$saved) {
+			$saved[$k] = $c;
+			return $this->createMock(ISimpleFile::class);
+		});
+
+		$appData = $this->createMock(IAppData::class);
+		$appData->method('getFolder')->willReturn($folder);
+		$factory = $this->createMock(IAppDataFactory::class);
+		$factory->method('get')->willReturn($appData);
+
+		$s = new SensitiveContent($config, $this->createMock(UserPrefs::class), $this->createMock(ImmichDb::class), $immich,
+			$this->createMock(AssetSearch::class), $this->createMock(IRootFolder::class), $clients, $this->createMock(IConfig::class), $factory);
+
+		$r = new \ReflectionMethod($s, 'terms');
+		$r->setAccessible(true);
+		$terms = $r->invoke($s);
+
+		$this->assertCount(count(\OCA\Glimpse\Service\SensitiveModel::POSITIVE), $terms['sensitive']);
+		$this->assertCount(count(\OCA\Glimpse\Service\SensitiveModel::NEUTRAL), $terms['neutral']);
+		$this->assertCount(count(\OCA\Glimpse\Service\SensitiveModel::POSITIVE) + count(\OCA\Glimpse\Service\SensitiveModel::NEUTRAL), $saved);
+	}
 }

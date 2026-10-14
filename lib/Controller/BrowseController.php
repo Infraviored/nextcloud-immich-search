@@ -80,7 +80,8 @@ class BrowseController extends Controller {
 			if ($page !== 1) {
 				return $res;
 			}
-			if ($person !== '' && $before === '' && $after === '' && $res['items'] === []) {
+			// In "only sensitive" mode pictures can be sparse; years of other pictures would only confuse
+			if (($person !== '' && $before === '' && $after === '' && $res['items'] === []) || $this->sensitive->mode($this->uid()) === 'only') {
 				return $res + ['years' => []];
 			}
 			return $res + ['years' => $person !== '' ? $this->assets->personYears($this->uid(), $person, $seenYear) : $this->assets->years($this->uid(), $seenYear)];

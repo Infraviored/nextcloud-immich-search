@@ -294,7 +294,7 @@ class AssetSearch {
 		// A video found by several of its stills (or by its own) is listed once, at its best place
 		$seen = [];
 		for ($i = 0; $i < $maxPages && $next !== null && count($items) < $want; $i++) {
-			if ($onlyFiles !== null && $page <= 1 && count($items) >= count($onlyFiles)) {
+			if ($onlyFiles !== null && count($items) >= count($onlyFiles)) {
 				break;
 			}
 			$assets = $fetch($next, $fetchSize);
@@ -310,8 +310,9 @@ class AssetSearch {
 			}
 			$next = isset($assets['nextPage']) ? (int)$assets['nextPage'] : null;
 		}
-		// A search from the start that found every tagged file has nothing more to look for
-		if ($onlyFiles !== null && $page <= 1 && count(array_unique(array_column($items, 'fileId'))) >= count($onlyFiles)) {
+		// A search with onlyFiles that found nothing across all pages has no more to look for,
+		// and one that already found every target file covers the set
+		if ($onlyFiles !== null && ($items === [] || count($items) >= count($onlyFiles))) {
 			$next = null;
 		}
 		return ['items' => $items, 'nextPage' => $next];

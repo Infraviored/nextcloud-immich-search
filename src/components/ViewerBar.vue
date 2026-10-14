@@ -433,7 +433,7 @@ body:has(.modal-mask:not(.viewer)) .viewer-bar {
 
 		// Marked as sensitive: the icon in the app's accent
 		&--on svg {
-			fill: #ffb27a;
+			fill: var(--g-accent, #ffb27a);
 		}
 	}
 }

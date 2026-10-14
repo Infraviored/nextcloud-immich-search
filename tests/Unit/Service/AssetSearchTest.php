@@ -471,4 +471,35 @@ class AssetSearchTest extends TestCase {
 		$this->assertCount(1, $items);
 		$this->assertSame(11, $items[0]['fileId']);
 	}
+
+	public function testTimelineOnlyFilesCascadeTerminatesWithNextPageNullWhenEmpty(): void {
+		$calls = 0;
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$calls) {
+			$calls++;
+			return ['assets' => [
+				'items' => [$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg')],
+				'nextPage' => $calls + 1,
+			]];
+		});
+
+		// Looking for file 11, but Immich only returns file 10 across all pages
+		$res = $this->search->timeline('alice', null, 1, 4, '', null, '', [11 => true]);
+		$this->assertSame([], $res['items']);
+		$this->assertNull($res['nextPage'], 'ends with nextPage null when nothing found across all pages');
+		$this->assertSame(10, $calls, 'probes up to MAX_PAGES_PER_CALL_FILTERED pages, then stops');
+	}
+
+	public function testTimelineOnlyFilesCompletesEvenOnSubsequentPages(): void {
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) {
+			return ['assets' => [
+				'items' => [$this->asset('a2', '/mnt/nextcloud/alice/Private/secret.jpg')],
+				'nextPage' => 12,
+			]];
+		});
+
+		// Page cursor is 5 (subsequent page); file 11 is the only target file
+		$res = $this->search->timeline('alice', null, 5, 4, '', null, '', [11 => true]);
+		$this->assertCount(1, $res['items']);
+		$this->assertNull($res['nextPage'], 'all files in onlyFiles found, ends with nextPage null even on subsequent pages');
+	}
 }
