@@ -206,50 +206,29 @@ watch(info, async (open) => {
 })
 
 /**
- * While the sheet is open, Escape closes it and the arrows do not page the viewer behind it.
- * While any modal dialog is open, stop ArrowLeft/ArrowRight/Escape from reaching the viewer,
- * letting the modal or its inputs handle the keys.
+ * The viewer pages on the arrows and closes on Escape wherever focus is. While the sheet or
+ * one of our dialogs is open, those keys belong to it: Escape closes just that, the arrows do
+ * not page behind it. In a text field they stay with the field (the viewer ignores fields).
+ * Caught on window before anyone else, so stopping a key here stops it everywhere.
  *
- * @param e
+ * @param {KeyboardEvent} e
  */
 function onKey(e) {
-	if (info.value) {
-		if (e.key === 'Escape') {
-			info.value = false
-		} else if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) {
-			return
-		}
-		e.stopImmediatePropagation()
-		e.preventDefault()
+	if (!['ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key) || !(info.value || dialog.value)) {
 		return
 	}
-
-	const modal = document.querySelector('.modal-mask:not(.viewer)')
-	if (!modal || !['ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) {
+	if (e.key !== 'Escape' && e.target?.closest?.('input, textarea, [contenteditable="true"]')) {
 		return
 	}
-	const inInput = e.target?.matches?.('input, textarea, [contenteditable="true"]')
-	if (e.key !== 'Escape' && !inInput) {
-		e.preventDefault()
+	if (e.key === 'Escape') {
+		info.value = false
+		dialog.value = null
 	}
-	if (!modal.contains(e.target)) {
-		e.stopImmediatePropagation()
-	}
+	e.stopImmediatePropagation()
+	e.preventDefault()
 }
-
-function onKeyBubble(e) {
-	const modal = document.querySelector('.modal-mask:not(.viewer)')
-	if (modal && ['ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) {
-		e.stopImmediatePropagation()
-	}
-}
-
 window.addEventListener('keydown', onKey, true)
-window.addEventListener('keydown', onKeyBubble, false)
-onBeforeUnmount(() => {
-	window.removeEventListener('keydown', onKey, true)
-	window.removeEventListener('keydown', onKeyBubble, false)
-})
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
 
 function openDialog(name) {
 	info.value = false
