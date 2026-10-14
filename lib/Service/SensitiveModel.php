@@ -15,24 +15,31 @@ namespace OCA\Glimpse\Service;
  * w · x + b, which Postgres computes for the whole library (`-(embedding <#> w) + b`).
  * Above 0 is on the sensitive side; how far tells how sure.
  *
- * Trained with Pegasos (stochastic sub-gradient on the hinge loss with L2), the classes
- * weighted to count equally, in a fixed order: the same marks give the same model.
+ * Solved to the end with dual coordinate descent (Hsieh et al. 2008, what LIBLINEAR and
+ * scikit-learn's LinearSVC use), squared hinge loss, the classes weighted to count equally.
+ * The problem has one optimum, so the same marks give the same model whatever the order,
+ * and a few new marks move it a little. (Stochastic training that stops after a fixed number
+ * of steps did not: reshuffled, the same marks gave 860 or 1,700 sensitive pictures.)
  */
 class SensitiveModel {
 	/** Marks as sensitive needed before there is a model; below, only terms and marks count. */
 	public const MIN_POSITIVE = 20;
+	/** Part of the key of a trained model: a new solver trains again from the same marks. */
+	public const VERSION = 2;
 	/** Weight of the background sample, pictures taken as "probably not" (a few are). */
 	public const BACKGROUND_WEIGHT = 0.1;
 	public const BACKGROUND_SIZE = 1000;
-	private const EPOCHS = 12;
-	/** Regularisation per example: λ = 1 / (C · n). */
-	private const C = 10.0;
+	/** Cost of a mistake against a wide margin, as LinearSVC's C. Checked on real marks: 0.1 to 1 differ little. */
+	private const C = 0.3;
+	/** Done when the projected gradients lie this close together (LIBLINEAR's stopping rule). */
+	private const EPS = 0.01;
+	private const MAX_PASSES = 200;
 
 	/**
 	 * @param list<list<float>> $x
 	 * @param list<int> $y 1 sensitive, 0 not
 	 * @param list<float> $weight per example
-	 * @return array{w: list<float>, b: float}
+	 * @return array{w: list<float>, b: float, passes?: int, gap?: float}
 	 */
 	public static function train(array $x, array $y, array $weight): array {
 		$n = count($x);
@@ -46,53 +53,59 @@ class SensitiveModel {
 		foreach ($y as $i => $label) {
 			$sum[$label] += $weight[$i];
 		}
-		$c = [];
+		$diag = $q = $s = [];
 		foreach ($y as $i => $label) {
-			$c[$i] = $weight[$i] * ($sum[0] + $sum[1]) / (2 * $sum[$label]);
+			$x[$i][] = 1.0;
+			// Squared hinge: the cost enters as a term on the diagonal
+			$diag[$i] = 1 / (2 * self::C * $weight[$i] * ($sum[0] + $sum[1]) / (2 * $sum[$label]));
+			$norm = 0.0;
+			foreach ($x[$i] as $v) {
+				$norm += $v * $v;
+			}
+			$q[$i] = $norm + $diag[$i];
+			$s[$i] = $label === 1 ? 1.0 : -1.0;
 		}
-		$lambda = 1.0 / (self::C * $n);
-		// w = $scale · $v, so shrinking w is one multiplication instead of d
-		$v = array_fill(0, $d, 0.0);
-		$scale = 1.0;
-		$t = 0;
+		$alpha = array_fill(0, $n, 0.0);
+		$w = array_fill(0, $d, 0.0);
 		$order = range(0, $n - 1);
 		$seed = 12345;
-		for ($epoch = 0; $epoch < self::EPOCHS; $epoch++) {
-			// Fisher–Yates with a small LCG: a fixed order, without touching PHP's global RNG
+		$gap = INF;
+		for ($pass = 1; $pass <= self::MAX_PASSES; $pass++) {
+			// A new order each pass converges much faster than a fixed one; a small LCG keeps
+			// it reproducible without touching PHP's global RNG
 			for ($i = $n - 1; $i > 0; $i--) {
 				$seed = ($seed * 1103515245 + 12345) & 0x7fffffff;
 				$j = $seed % ($i + 1);
 				[$order[$i], $order[$j]] = [$order[$j], $order[$i]];
 			}
+			$max = -INF;
+			$min = INF;
 			foreach ($order as $i) {
-				$t++;
-				$eta = 1.0 / ($lambda * ($t + 100));
-				$s = $y[$i] === 1 ? 1.0 : -1.0;
 				$xi = $x[$i];
-				$xi[] = 1.0;
 				$dot = 0.0;
 				for ($k = 0; $k < $d; $k++) {
-					$dot += $v[$k] * $xi[$k];
+					$dot += $w[$k] * $xi[$k];
 				}
-				$margin = $s * $scale * $dot;
-				$scale *= 1 - $eta * $lambda;
-				if ($margin < 1) {
-					$step = $eta * $c[$i] * $s / $scale;
+				$g = $s[$i] * $dot - 1 + $diag[$i] * $alpha[$i];
+				$pg = $alpha[$i] == 0.0 ? min($g, 0.0) : $g;
+				$max = max($max, $pg);
+				$min = min($min, $pg);
+				if ($pg != 0.0) {
+					$old = $alpha[$i];
+					$alpha[$i] = max($old - $g / $q[$i], 0.0);
+					$step = ($alpha[$i] - $old) * $s[$i];
 					for ($k = 0; $k < $d; $k++) {
-						$v[$k] += $step * $xi[$k];
+						$w[$k] += $step * $xi[$k];
 					}
-				}
-				if ($scale < 1e-6) {
-					foreach ($v as $k => $val) {
-						$v[$k] = $val * $scale;
-					}
-					$scale = 1.0;
 				}
 			}
+			$gap = $max - $min;
+			if ($gap < self::EPS) {
+				break;
+			}
 		}
-		$w = array_map(static fn ($val) => $val * $scale, $v);
 		$b = array_pop($w);
-		return ['w' => $w, 'b' => $b];
+		return ['w' => $w, 'b' => $b, 'passes' => min($pass, self::MAX_PASSES), 'gap' => round($gap, 4)];
 	}
 
 	/** @param list<float> $v as Postgres takes a vector literal */

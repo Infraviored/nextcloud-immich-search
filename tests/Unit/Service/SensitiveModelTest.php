@@ -50,6 +50,19 @@ class SensitiveModelTest extends TestCase {
 		$this->assertSame(SensitiveModel::train($x, $y, $weight), SensitiveModel::train($x, $y, $weight));
 	}
 
+	public function testOrderDoesNotMatter(): void {
+		// Solved to the end: shuffled examples give the same model, not a new draw
+		[$x, $y] = $this->data(40, 120);
+		$weight = array_fill(0, count($x), 1.0);
+		$m = SensitiveModel::train($x, $y, $weight);
+		$order = range(count($x) - 1, 0, -1);
+		$r = SensitiveModel::train(array_map(fn ($i) => $x[$i], $order), array_map(fn ($i) => $y[$i], $order), $weight);
+		$this->assertEqualsWithDelta($m['b'], $r['b'], 0.02);
+		foreach ($m['w'] as $k => $v) {
+			$this->assertEqualsWithDelta($v, $r['w'][$k], 0.02);
+		}
+	}
+
 	public function testOneClassOnlyGivesNoModel(): void {
 		$this->assertSame(['w' => [], 'b' => 0.0], SensitiveModel::train([[1.0, 0.0]], [1], [1.0]));
 		$this->assertSame(['w' => [], 'b' => 0.0], SensitiveModel::train([], [], []));

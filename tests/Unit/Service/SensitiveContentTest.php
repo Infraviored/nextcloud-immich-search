@@ -26,6 +26,7 @@ use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\Http\Client\IClientService;
 use OCP\IConfig;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class SensitiveContentTest extends TestCase {
 	private array $files = [];
@@ -63,7 +64,8 @@ class SensitiveContentTest extends TestCase {
 		$root->method('getUserFolder')->willReturn($userFolder);
 
 		return new SensitiveContent($config, $prefs, $this->createMock(ImmichDb::class), $this->createMock(ImmichClient::class),
-			$this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class), $factory);
+			$this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class), $factory,
+			$this->createMock(LoggerInterface::class));
 	}
 
 	private function items(): array {

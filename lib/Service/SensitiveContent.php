@@ -17,6 +17,7 @@ use OCP\Files\NotFoundException;
 use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\Http\Client\IClientService;
 use OCP\IConfig;
+use Psr\Log\LoggerInterface;
 
 /**
  * Optional: each user says what counts as sensitive for them, and can show such pictures
@@ -31,6 +32,9 @@ use OCP\IConfig;
  * - Marks by hand always win for their own file. From MIN_POSITIVE marks as sensitive on, they
  *   also train a linear SVM per user (SensitiveModel); pictures it scores at or above the
  *   user's threshold count too. The review (the wizard) sorts by that score.
+ *
+ * What each build learned goes to the Nextcloud log at debug level ("Sensitive: ..."), to see
+ * whether the model learns from the marks and how far it moves.
  *
  * Stored per user in app data, `sensitive/<uid>.json`:
  * {"terms": [{"q", "min", "model"}], "marks": {fileId: bool}, "auto": [fileId],
@@ -66,6 +70,7 @@ class SensitiveContent {
 		private IClientService $clients,
 		private IConfig $ncConfig,
 		IAppDataFactory $appDataFactory,
+		private LoggerInterface $logger,
 	) {
 		$this->appData = $appDataFactory->get(Application::APP_ID);
 	}
@@ -227,6 +232,12 @@ class SensitiveContent {
 		}
 		$data['marksChanged'] = time();
 		$this->save($uid, $data);
+		$this->logger->debug('Sensitive: {uid} marked {n} files ({on} sensitive, {off} not, {cleared} cleared)', [
+			'app' => Application::APP_ID, 'uid' => $uid, 'n' => count($previous),
+			'on' => count(array_filter($marks, fn ($on) => $on === true)),
+			'off' => count(array_filter($marks, fn ($on) => $on === false)),
+			'cleared' => count(array_filter($marks, fn ($on) => $on === null)),
+		]);
 		$flagged = $this->flagged($uid);
 		$now = [];
 		foreach (array_keys($previous) as $id) {
@@ -331,6 +342,7 @@ class SensitiveContent {
 		$data = $this->get($uid);
 		$data['threshold'] = max(-2.0, min(2.0, round($threshold, 3)));
 		$this->save($uid, $data);
+		$this->logger->debug('Sensitive: {uid} set the threshold to {threshold}', ['app' => Application::APP_ID, 'uid' => $uid, 'threshold' => $data['threshold']]);
 	}
 
 	/** Has anything changed that the last build did not see (pictures, model, marks)? */
@@ -376,11 +388,16 @@ class SensitiveContent {
 			$time('marks');
 			$positives = count(array_filter($markAssets));
 			$data['learned'] = [$positives, count($markAssets) - $positives];
-			$key = md5($signature . '|' . json_encode($markAssets));
+			$key = md5(SensitiveModel::VERSION . '|' . $signature . '|' . json_encode($markAssets));
+			$before = $data['svm'];
+			$trained = null;
 			if ($positives < SensitiveModel::MIN_POSITIVE) {
 				$data['svm'] = null;
 			} elseif (($data['svm']['key'] ?? '') !== $key) {
-				$data['svm'] = $this->train($pdo, $markAssets) + ['key' => $key];
+				// Marks the last model did not learn from: how it and the new one score them
+				$newMarks = array_diff_key($markAssets, $before['scored'] ?? []);
+				$trained = $this->train($pdo, $markAssets, $before, $newMarks);
+				$data['svm'] = $trained['svm'] + ['key' => $key, 'scored' => array_fill_keys(array_keys($markAssets), true)];
 			}
 			$time('train');
 			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], (float)$data['threshold'], $rows) : [];
@@ -391,6 +408,7 @@ class SensitiveContent {
 			$data['fileOf'] = $fileOf;
 			$time('files');
 			$data['took'] = $took;
+			$this->logBuild($uid, $data, $auto, $byModel, $trained);
 			$data['auto'] = $auto;
 			$data['assets'] = $fileAssets;
 			$data['counts'] = $counts;
@@ -420,6 +438,17 @@ class SensitiveContent {
 	 * @return array{items: list<array>, nextPage: ?int}
 	 */
 	public function review(string $uid, string $step, string $q, int $offset, int $size): array {
+		$start = microtime(true);
+		$page = $this->reviewPage($uid, $step, $q, $offset, $size);
+		$this->logger->debug('Sensitive: {uid} review {step} from {offset}: {n} pictures in {took}s', [
+			'app' => Application::APP_ID, 'uid' => $uid, 'step' => $step, 'offset' => $offset,
+			'n' => count($page['items']), 'took' => round(microtime(true) - $start, 2),
+		]);
+		return $page;
+	}
+
+	/** @return array{items: list<array>, nextPage: ?int} */
+	private function reviewPage(string $uid, string $step, string $q, int $offset, int $size): array {
 		$data = $this->get($uid);
 		$svm = $data['svm'];
 		$model = $this->model();
@@ -637,20 +666,26 @@ class SensitiveContent {
 	}
 
 	/**
-	 * Train the SVM: the marks, and a fixed sample of the library as "probably not".
+	 * Train the SVM: the marks, and a fixed sample of the library as "probably not". Also what
+	 * the log needs: marks the model gets wrong, and how the last model and this one score
+	 * the marks that are new since the last one.
 	 *
 	 * @param array<string, bool> $markAssets
-	 * @return array{w: list<float>, b: float, positives: int, negatives: int}
+	 * @param ?array $before the last model
+	 * @param array<string, bool> $newMarks
+	 * @return array{svm: array, wrong: array{0: int, 1: int}, newMarks: list<array{0: bool, 1: ?float, 2: float}>}
 	 */
-	private function train(\PDO $pdo, array $markAssets): array {
-		$x = $y = $weight = [];
+	private function train(\PDO $pdo, array $markAssets, ?array $before, array $newMarks): array {
+		$x = $y = $weight = $ids = [];
 		$stmt = $pdo->prepare('SELECT "assetId", embedding::text FROM smart_search WHERE "assetId" = ANY(?::uuid[])');
 		$stmt->execute(['{' . implode(',', array_keys($markAssets)) . '}']);
 		while ($row = $stmt->fetch(\PDO::FETCH_NUM)) {
 			$x[] = array_map('floatval', json_decode($row[1], true));
 			$y[] = $markAssets[$row[0]] ? 1 : 0;
 			$weight[] = 1.0;
+			$ids[] = $row[0];
 		}
+		$marked = count($x);
 		// Pick the sample first: turning every embedding into text before sorting took seconds
 		$stmt = $pdo->prepare('SELECT s."assetId", s.embedding::text FROM smart_search s WHERE s."assetId" IN (
 			SELECT a.id FROM asset a JOIN smart_search x ON x."assetId" = a.id WHERE a."deletedAt" IS NULL ORDER BY md5(a.id::text) LIMIT ?)');
@@ -666,7 +701,59 @@ class SensitiveContent {
 			$background++;
 		}
 		$positives = array_sum($y);
-		return SensitiveModel::train($x, $y, $weight) + ['positives' => $positives, 'negatives' => count($y) - $positives - $background];
+		$model = SensitiveModel::train($x, $y, $weight);
+		$wrong = [0, 0];
+		$new = [];
+		for ($i = 0; $i < $marked; $i++) {
+			$score = SensitiveModel::score($model['w'], $model['b'], $x[$i]);
+			if (($score >= 0) !== ($y[$i] === 1)) {
+				$wrong[$y[$i]]++;
+			}
+			if (isset($newMarks[$ids[$i]])) {
+				$old = !empty($before['w']) ? SensitiveModel::score($before['w'], (float)$before['b'], $x[$i]) : null;
+				$new[] = [$y[$i] === 1, $old === null ? null : round($old, 2), round($score, 2)];
+			}
+		}
+		return [
+			'svm' => $model + ['positives' => $positives, 'negatives' => $marked - $positives],
+			'wrong' => $wrong,
+			'newMarks' => $new,
+		];
+	}
+
+	/**
+	 * One debug line per build: what the model learned from, whether it was trained again,
+	 * how it does on the marks and on the new ones, and what changed in the library.
+	 *
+	 * @param list<int> $auto
+	 */
+	private function logBuild(string $uid, array $data, array $auto, int $byModel, ?array $trained): void {
+		$was = array_flip($data['auto'] ?? []);
+		$now = array_flip($auto);
+		$context = [
+			'app' => Application::APP_ID, 'uid' => $uid,
+			'positives' => $data['learned'][0], 'negatives' => $data['learned'][1],
+			'auto' => count($auto), 'byModel' => $byModel,
+			'added' => count(array_diff_key($now, $was)), 'removed' => count(array_diff_key($was, $now)),
+			'threshold' => (float)$data['threshold'], 'took' => json_encode($data['took']),
+		];
+		if ($data['svm'] === null) {
+			$this->logger->debug('Sensitive: {uid} built without a model ({positives} marked sensitive, {negatives} not); {auto} files sensitive by terms, {added} new, {removed} gone; took {took}', $context);
+			return;
+		}
+		if ($trained === null) {
+			$this->logger->debug('Sensitive: {uid} built with the same model; {auto} files sensitive automatically ({byModel} by the model, threshold {threshold}), {added} new, {removed} gone; took {took}', $context);
+			return;
+		}
+		$svm = $trained['svm'];
+		$norm = sqrt(array_sum(array_map(static fn ($v) => $v * $v, $svm['w'])));
+		$this->logger->debug('Sensitive: {uid} trained on {positives} marked sensitive and {negatives} not ({passes} passes, gap {gap}, b {b}, |w| {norm}); '
+			. 'on its own marks it gets {wrongPos} sensitive and {wrongNeg} not wrong; new marks [sensitive?, score before, after]: {newMarks}; '
+			. '{auto} files sensitive automatically ({byModel} by the model, threshold {threshold}), {added} new, {removed} gone; took {took}', $context + [
+				'passes' => $svm['passes'] ?? null, 'gap' => $svm['gap'] ?? null, 'b' => round($svm['b'], 3), 'norm' => round($norm, 2),
+				'wrongPos' => $trained['wrong'][1], 'wrongNeg' => $trained['wrong'][0],
+				'newMarks' => json_encode(array_slice($trained['newMarks'], 0, 50)),
+			]);
 	}
 
 	/**

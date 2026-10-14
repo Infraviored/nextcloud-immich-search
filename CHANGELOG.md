@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.10.4] - unreleased
+## [4.10.5] - unreleased
 
 ### Added
 - **Sensitive pictures (optional).** Each user decides what counts:
@@ -12,6 +12,10 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), ve
   - *Marks* by hand always win for their picture. From 20 marks as sensitive on, a linear SVM
     is trained per user on them (plus a fixed sample of the library as "probably not"), and
     pictures it scores above the user's threshold count too, also new ones.
+    Solved to the end (dual coordinate descent, as LIBLINEAR), so the same marks always give
+    the same model and a few new marks move it a little. Each build logs at debug level what
+    it learned (`Sensitive: ...`): marks it gets wrong, how it scores the new marks before and
+    after, how many pictures came and went.
   - *Sort sensitive pictures* (`/sensitive`), a wizard: find by a term (only pictures not yet
     sensitive, best match first), check the least sure first, look at the ones the model finds
     most likely, set how strict it is for new pictures. A click selects, shift-click a range.
