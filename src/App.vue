@@ -21,24 +21,22 @@
 							@click.prevent="navigate(v.path)">{{ v.label }}</a>
 					</nav>
 					<LensSearch
-						v-if="!narrow && page.configured"
+						v-if="!narrow && page.configured && searchable"
 						v-model="searchText"
 						class="bar__search"
 						:placeholder="t('Search your photos')"
 						@submit="search"
 						@clear="route.name === 'search' && search()" />
 					<div class="bar__tools">
-						<!-- Sensitive content, when turned on: all, without, or only those; everywhere -->
+						<!-- Sensitive content, when turned on: all, without, or only those; everywhere.
+							 Only an icon, as quiet as the others: the eye says which -->
 						<NcActions
 							v-if="sensitiveOn"
-							class="bar__sensitive"
-							:class="{ 'bar__sensitive--on': userPrefs.sensitive_mode !== 'all' }"
 							variant="tertiary"
-							:menuName="sensitiveLabel"
-							:aria-label="t('Sensitive pictures')"
-							:title="t('Sensitive pictures')">
+							:aria-label="sensitiveLabel"
+							:title="sensitiveLabel">
 							<template #icon>
-								<NcIconSvgWrapper :path="sensitiveIcon" />
+								<NcIconSvgWrapper :path="sensitiveModeIcon" />
 							</template>
 							<NcActionButton
 								v-for="m in sensitiveModes"
@@ -126,7 +124,7 @@
 		<Teleport to="body">
 			<div v-if="narrow && !selectionActive" class="dock">
 				<LensSearch
-					v-if="page.configured"
+					v-if="page.configured && searchable"
 					v-model="searchText"
 					class="dock__search"
 					:placeholder="t('Search your photos')"
@@ -151,7 +149,7 @@
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiSort } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiEyeCheckOutline, mdiEyeOffOutline, mdiEyeOutline, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiSort } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
@@ -175,7 +173,6 @@ import SearchView from './views/SearchView.vue'
 import SettingsView from './views/SettingsView.vue'
 import TimelineView from './views/TimelineView.vue'
 import { t } from './l10n.js'
-import { sensitiveIcon } from './materialIcons.js'
 import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
@@ -212,7 +209,10 @@ watch(() => privateState.version, () => reloadPeople())
 const version = computed(() => privateState.version + '.' + sensitiveState.version)
 
 /** On the button while not everything is shown, so the filter is never forgotten. */
-const sensitiveLabel = computed(() => ({ hide: t('Without sensitive'), only: t('Only sensitive') })[userPrefs.sensitive_mode] ?? '')
+const sensitiveLabel = computed(() => ({ hide: t('Sensitive pictures: hidden'), only: t('Sensitive pictures: only those') })[userPrefs.sensitive_mode] ?? t('Sensitive pictures: shown'))
+const sensitiveModeIcon = computed(() => ({ hide: mdiEyeOffOutline, only: mdiEyeCheckOutline })[userPrefs.sensitive_mode] ?? mdiEyeOutline)
+/** Pages where searching makes no sense have no search pill */
+const searchable = computed(() => !['settings', 'sensitive', 'duplicates'].includes(route.name))
 
 /** The text in the search pill; it shows the current search while one is open. */
 const searchText = ref(route.name === 'search' ? (route.query.q || '') : '')
@@ -306,12 +306,6 @@ onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 			background: var(--g-raised);
 			color: var(--g-accent-text);
 		}
-	}
-
-	// A sensitive filter is on: the same apricot, with its name
-	&__sensitive--on :deep(.button-vue) {
-		background: var(--g-raised);
-		color: var(--g-accent-text);
 	}
 }
 

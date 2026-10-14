@@ -27,7 +27,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), ve
   them; "only" lists straight from the database, and marking takes a picture out of a filtered
   view at once. Applies to search, timeline, map, folders, people and memories; hiding also to
   the Nextcloud search bar and the dashboard. Off until the admin allows it
-  (`sensitive_detection`) and the user turns it on under *Settings → Display*. Needs read access
+  (`sensitive_detection`) and the user turns it on under *Settings → Sensitive pictures*. Needs read access
   to Immich's `smart_search` table and a few `asset` columns (README), and the machine-learning
   service's address. New: `occ glimpse:sensitive`, the hourly `UpdateSensitive` job.
 

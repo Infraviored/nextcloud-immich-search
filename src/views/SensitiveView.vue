@@ -58,7 +58,7 @@
 
 		<div v-if="items.length || selected.size" class="sort__bar">
 			<span class="sort__selected">
-				{{ selected.size ? n('{count} selected', '{count} selected', selected.size, { count: selected.size }) : t('Click to select, shift-click for a range') }}
+				{{ selected.size ? n('{count} selected', '{count} selected', selected.size, { count: selected.size }) : t('Click to enlarge; shift-click or the circle selects') }}
 			</span>
 			<NcButton
 				variant="primary"
@@ -80,7 +80,7 @@
 		<AssetGrid
 			:items="items"
 			:selected="selected"
-			:selectOnClick="true"
+			:clickOpens="true"
 			@toggle="toggle"
 			@open="open"
 			@update:selected="selected = $event" />
@@ -371,6 +371,7 @@ onBeforeUnmount(() => {
 
 .sort__sides {
 	display: inline-flex;
+	gap: 2px;
 	padding: 3px;
 	margin-bottom: 8px;
 	border: 1px solid var(--color-border);
@@ -378,6 +379,11 @@ onBeforeUnmount(() => {
 }
 
 .sort__side {
+	// Nextcloud's button styles (margin, min sizes) would push the pill out of its frame
+	box-sizing: border-box;
+	margin: 0;
+	min-width: 0;
+	min-height: 0;
 	padding: 6px 18px;
 	border: none;
 	border-radius: 999px;

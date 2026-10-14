@@ -333,7 +333,7 @@ Configuration:
 ### Sensitive pictures
 
 Optional, off by default, twice: the admin allows it (*Settings → What gets indexed*), then each
-user turns it on for themselves (*Settings → Display*). Whoever leaves it off sees Glimpse
+user turns it on for themselves (*Settings → Sensitive pictures*). Whoever leaves it off sees Glimpse
 exactly as before.
 
 Turned on, Glimpse recognises nudity and the user picks in the app bar what they see: *All

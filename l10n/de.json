@@ -486,8 +486,6 @@
         "All pictures": "Alle Bilder",
         "Without sensitive pictures": "Ohne heikle Bilder",
         "Only sensitive pictures": "Nur heikle Bilder",
-        "Without sensitive": "Ohne heikle",
-        "Only sensitive": "Nur heikle",
         "Sensitive pictures": "Heikle Bilder",
         "Mark as sensitive": "Als heikel markieren",
         "Mark as not sensitive": "Als nicht heikel markieren",
@@ -524,11 +522,9 @@
             "{count} Bilder von dir markiert."
         ],
         "Sensitive up to here": "Bis hierher heikel",
-        "You decide what counts as sensitive: search for it, select the last result that still counts and choose “Sensitive up to here”. Works with what Immich already knows about each picture; nothing leaves this server. Only you see your terms and marks.": "Du legst fest, was als heikel gilt: Such danach, wähl das letzte Ergebnis aus, das noch zählt, und wähl „Bis hierher heikel“. Das nutzt, was Immich ohnehin über jedes Bild weiß; nichts verlässt diesen Server. Nur du siehst deine Begriffe und Markierungen.",
         "Mark sensitive pictures": "Heikle Bilder kennzeichnen",
         "made with another search model, set it again": "mit einem anderen Suchmodell gesetzt, bitte neu setzen",
         "Remove “{q}”": "„{q}“ entfernen",
-        "No terms yet. Search for what you consider sensitive, select the last picture that still counts, and choose “Sensitive up to here” in the selection menu.": "Noch keine Begriffe. Such nach dem, was für dich heikel ist, wähl das letzte Bild aus, das noch zählt, und nimm im Auswahlmenü „Bis hierher heikel“.",
         "Review sensitive pictures": "Heikle Bilder durchsehen",
         "Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and the pictures most like it follow it.": "Einzelne Bilder markierst du im Viewer oder per Auswahl als heikel oder nicht. Deine Markierung gilt immer für das Bild, und die ähnlichsten Bilder folgen ihr.",
         "Pictures like your marks: {added} added, {removed} taken out.": "Ähnliche Bilder wie deine Markierungen: {added} dazu, {removed} heraus.",
@@ -541,9 +537,7 @@
             "{count} Bild gilt als heikel.",
             "{count} Bilder gelten als heikel."
         ],
-        "Click to select, shift-click for a range": "Klick wählt aus, Shift-Klick einen Bereich",
         "Nothing more for this term": "Zu diesem Begriff kommt nichts mehr",
-        "Look at it larger": "Größer ansehen",
         "Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and from 20 marks on Glimpse learns from them.": "Einzelne Bilder markierst du im Viewer oder per Auswahl als heikel oder nicht. Deine Markierung gilt immer für das Bild, und ab 20 Markierungen lernt Glimpse daraus.",
         "_{count} more by what Glimpse learned from your marks._::_{count} more by what Glimpse learned from your marks._": [
             "{count} weiteres nach dem, was Glimpse aus deinen Markierungen gelernt hat.",
@@ -574,7 +568,12 @@
         "What the filter hides that you did not mark yourself, the most harmless first. Select what should stay visible and bring it back.": "Was der Filter ausblendet und du nicht selbst markiert hast, das harmloseste zuerst. Wähl aus, was sichtbar bleiben soll, und hol es zurück.",
         "Most harmless first": "Harmloseste zuerst",
         "Most sensitive-looking first": "Heikelste zuerst",
-        "Closest to “{q}” first": "Am nächsten an „{q}“ zuerst"
+        "Closest to “{q}” first": "Am nächsten an „{q}“ zuerst",
+        "Click to enlarge; shift-click or the circle selects": "Klick vergrößert; Shift-Klick oder der Kreis wählt aus",
+        "Sensitive pictures: shown": "Heikle Bilder: sichtbar",
+        "Sensitive pictures: hidden": "Heikle Bilder: ausgeblendet",
+        "Sensitive pictures: only those": "Heikle Bilder: nur diese",
+        "A filter that hides the pictures you consider sensitive. You train it yourself: search for something, hide what matches, then check what it hides. Works with what Immich already knows about each picture; nothing leaves this server. Only you see your marks.": "Ein Filter, der die Bilder ausblendet, die du für heikel hältst. Du trainierst ihn selbst: nach etwas suchen, Passendes ausblenden, dann prüfen, was er ausblendet. Er nutzt, was Immich schon über jedes Bild weiß; nichts verlässt diesen Server. Deine Markierungen siehst nur du."
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }
