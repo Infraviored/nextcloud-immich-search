@@ -364,7 +364,9 @@ class SensitiveContent {
 				// Marks the last model did not learn from: how it and the new one score them
 				$newMarks = array_diff_key($markAssets, $before['scored'] ?? []);
 				$trained = $this->train($pdo, $markAssets, $before, $newMarks);
-				$data['svm'] = $trained['svm'] + ['key' => $key, 'scored' => array_fill_keys(array_keys($markAssets), true)];
+				$data['svm'] = !empty($trained['svm']['w'])
+					? $trained['svm'] + ['key' => $key, 'scored' => array_fill_keys(array_keys($markAssets), true)]
+					: null;
 			}
 			$time('train');
 			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], $rows) : [];
@@ -422,7 +424,7 @@ class SensitiveContent {
 	/** @return array{items: list<array>, nextPage: ?int} */
 	private function reviewPage(string $uid, string $side, string $q, int $offset, int $size): array {
 		$data = $this->get($uid);
-		$svm = $data['svm'];
+		$svm = !empty($data['svm']['w']) ? $data['svm'] : null;
 		$model = $this->model();
 		$flagged = $this->flagged($uid);
 		$marks = $this->bools($data['marks']);
@@ -736,6 +738,9 @@ class SensitiveContent {
 	 * @return array<string, true>
 	 */
 	private function modelHits(\PDO $pdo, array $svm, array &$rows): array {
+		if (empty($svm['w'])) {
+			return [];
+		}
 		$stmt = $pdo->prepare('SELECT a.id, a."originalPath", a."originalFileName", a.type FROM smart_search s JOIN asset a ON a.id = s."assetId"
 			WHERE a."deletedAt" IS NULL AND -(s.embedding <#> ?::vector) + ? >= ?');
 		$stmt->execute([SensitiveModel::vector($svm['w']), (float)$svm['b'], 0.0]);
