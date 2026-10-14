@@ -7,7 +7,8 @@
   Grid of search hits with multi-select.
     mouse:  checkbox on hover; once something is selected, a click toggles; shift-click selects a range
     touch:  long-press selects; once something is selected, a tap toggles
-  Otherwise a click opens the file (event "open").
+  Otherwise a click opens the file (event "open"). With selectOnClick (sorting sensitive
+  pictures) a click always selects, and a magnifier on the tile opens it.
 -->
 <template>
 	<div class="grid" :class="'grid--' + prefs.tileSize" role="list">
@@ -57,7 +58,17 @@
 				@click.stop="toggle(item, $event.shiftKey)">
 				<NcIconSvgWrapper :path="selected.has(item.fileId) ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
 			</button>
+			<button
+				v-if="selectOnClick"
+				class="tile__similar"
+				type="button"
+				:title="t('Look at it larger')"
+				:aria-label="t('Look at it larger')"
+				@click.stop="emit('open', item)">
+				<NcIconSvgWrapper :path="mdiMagnify" :size="18" />
+			</button>
 			<a
+				v-if="!selectOnClick"
 				class="tile__folder"
 				:href="fileUrl(item.fileId)"
 				:title="t('Show in folder')"
@@ -66,7 +77,7 @@
 				<NcIconSvgWrapper :path="mdiFolderOutline" :size="18" />
 			</a>
 			<button
-				v-if="item.id"
+				v-if="item.id && !selectOnClick"
 				class="tile__similar"
 				type="button"
 				:title="t('Similar pictures')"
@@ -79,7 +90,7 @@
 </template>
 
 <script setup>
-import { mdiCheckboxBlankCircleOutline, mdiCheckCircle, mdiFolderOutline, mdiImageMultipleOutline, mdiPlay } from '@mdi/js'
+import { mdiCheckboxBlankCircleOutline, mdiCheckCircle, mdiFolderOutline, mdiImageMultipleOutline, mdiMagnify, mdiPlay } from '@mdi/js'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import { fileUrl, previewUrl, thumbnailUrl } from '../api.js'
@@ -92,6 +103,8 @@ const props = defineProps({
 	items: { type: Array, required: true },
 	/** Set of selected file ids; the parent owns it (and the selection rules). */
 	selected: { type: Set, required: true },
+	/** A click selects (shift: a range), never opens; for sorting many pictures quickly */
+	selectOnClick: { type: Boolean, default: false },
 })
 
 /**
@@ -145,7 +158,7 @@ function onClick(item, event) {
 		pressed = false // the long-press already selected it
 		return
 	}
-	if (selecting.value || event.shiftKey || event.ctrlKey || event.metaKey) {
+	if (props.selectOnClick || selecting.value || event.shiftKey || event.ctrlKey || event.metaKey) {
 		toggle(item, event.shiftKey)
 	} else {
 		emit('open', item)

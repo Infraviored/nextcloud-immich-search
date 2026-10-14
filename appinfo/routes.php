@@ -19,6 +19,7 @@ return [
 		['name' => 'page#index', 'url' => '/map', 'verb' => 'GET', 'postfix' => 'map'],
 		['name' => 'page#index', 'url' => '/folders', 'verb' => 'GET', 'postfix' => 'folders'],
 		['name' => 'page#index', 'url' => '/duplicates', 'verb' => 'GET', 'postfix' => 'duplicates'],
+		['name' => 'page#index', 'url' => '/sensitive', 'verb' => 'GET', 'postfix' => 'sensitive'],
 
 		['name' => 'api#search',          'url' => '/api/search',                'verb' => 'GET'],
 		['name' => 'api#thumbnail',       'url' => '/api/assets/{id}/thumbnail', 'verb' => 'GET'],
@@ -69,6 +70,8 @@ return [
 		['name' => 'sensitive#rebuild', 'url' => '/api/sensitive/rebuild', 'verb' => 'POST'],
 		['name' => 'sensitive#setTerm', 'url' => '/api/sensitive/terms', 'verb' => 'POST'],
 		['name' => 'sensitive#removeTerm', 'url' => '/api/sensitive/terms/remove', 'verb' => 'POST'],
+		['name' => 'sensitive#review', 'url' => '/api/sensitive/review', 'verb' => 'GET'],
+		['name' => 'sensitive#setThreshold', 'url' => '/api/sensitive/threshold', 'verb' => 'POST'],
 
 		['name' => 'admin#settings', 'url' => '/api/admin/settings', 'verb' => 'GET'],
 		['name' => 'admin#saveSettings', 'url' => '/api/admin/settings', 'verb' => 'PUT'],

@@ -50,6 +50,13 @@
 								@click="setSensitiveMode(m.value)">
 								{{ m.label }}
 							</NcActionButton>
+							<NcActionSeparator />
+							<NcActionButton :closeAfterClick="true" @click="navigate('/sensitive')">
+								<template #icon>
+									<NcIconSvgWrapper :path="mdiSort" />
+								</template>
+								{{ t('Sort sensitive pictures') }}
+							</NcActionButton>
 						</NcActions>
 						<NcButton
 							variant="tertiary"
@@ -104,6 +111,7 @@
 				<PeopleView v-else-if="route.name === 'people'" :key="'p' + version" />
 				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + version" />
 				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + version" />
+				<SensitiveView v-else-if="route.name === 'sensitive' && sensitiveOn" :key="'s' + version" />
 				<SettingsView v-else-if="route.name === 'settings'" />
 				<!-- Opened from the Files sidebar: ?faces=<assetId>&name=<file name> -->
 				<FacesDialog
@@ -143,11 +151,12 @@
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiSort } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
@@ -157,6 +166,7 @@ import FacesDialog from './components/FacesDialog.vue'
 import LensSearch from './components/LensSearch.vue'
 import ViewerBar from './components/ViewerBar.vue'
 import DuplicatesView from './views/DuplicatesView.vue'
+import SensitiveView from './views/SensitiveView.vue'
 import FolderView from './views/FolderView.vue'
 import MapView from './views/MapView.vue'
 import PeopleView from './views/PeopleView.vue'

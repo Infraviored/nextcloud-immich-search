@@ -23,6 +23,8 @@ use OCP\IUserSession;
 
 /** The user's sensitive content: terms with their limits, marking pictures by hand, recomputing. */
 class SensitiveController extends Controller {
+	private const REVIEW_PAGE = 120;
+
 	public function __construct(
 		IRequest $request,
 		private IUserSession $userSession,
@@ -38,7 +40,8 @@ class SensitiveController extends Controller {
 		if (!$this->sensitive->isEnabled($uid)) {
 			return new JSONResponse(['available' => $this->sensitive->isAvailable(), 'enabled' => false]);
 		}
-		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => $this->queued($uid)] + $this->sensitive->status($uid));
+		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => $this->queued($uid)] + $this->sensitive->status($uid)
+			+ ['thresholdCounts' => $this->sensitive->thresholdCounts($uid)]);
 	}
 
 	/**
@@ -52,12 +55,9 @@ class SensitiveController extends Controller {
 		if (!$this->sensitive->isEnabled($uid)) {
 			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
 		}
+		// At once, no build: a file's own mark counts right away; what the model learns from it
+		// follows with the next build (sorting asks for one, or the hourly job)
 		$res = $this->sensitive->mark($uid, $marks);
-		// The pictures like the marked ones follow
-		try {
-			$this->sensitive->rebuild($uid);
-		} catch (\Throwable) {
-		}
 		// Objects also when empty (none of the files was the user's): [] would not decode as a map
 		return new JSONResponse(['previous' => (object)$res['previous'], 'sensitive' => (object)$res['sensitive']]);
 	}
@@ -98,6 +98,34 @@ class SensitiveController extends Controller {
 		return $this->rebuilt($uid);
 	}
 
+	/**
+	 * One page of the review (the wizard): $step find (with $q), check or missed. $page is where
+	 * the previous answer said the next page starts.
+	 */
+	#[NoAdminRequired]
+	public function review(string $step = 'find', string $q = '', int $page = 0): JSONResponse {
+		$uid = $this->uid();
+		if (!$this->sensitive->isEnabled($uid)) {
+			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
+		}
+		if (!in_array($step, SensitiveContent::STEPS, true)) {
+			return new JSONResponse(['error' => 'step'], Http::STATUS_BAD_REQUEST);
+		}
+		return new JSONResponse($this->sensitive->review($uid, $step, $q, $page, self::REVIEW_PAGE));
+	}
+
+	/** For new pictures: from which SVM score on a picture counts. */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function setThreshold(float $threshold = 0.0): JSONResponse {
+		$uid = $this->uid();
+		if (!$this->sensitive->isEnabled($uid)) {
+			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
+		}
+		$this->sensitive->setThreshold($uid, $threshold);
+		return $this->rebuilt($uid);
+	}
+
 	/** Build now (a second or a few) and answer with the new status. */
 	private function rebuilt(string $uid): JSONResponse {
 		if (!$this->sensitive->isEnabled($uid)) {
@@ -108,7 +136,8 @@ class SensitiveController extends Controller {
 		} catch (\Throwable) {
 			// The error is in the status
 		}
-		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => false] + $this->sensitive->status($uid));
+		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => false] + $this->sensitive->status($uid)
+			+ ['thresholdCounts' => $this->sensitive->thresholdCounts($uid)]);
 	}
 
 	private function queued(string $uid): bool {

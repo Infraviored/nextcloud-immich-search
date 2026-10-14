@@ -23,27 +23,27 @@ use OCP\IConfig;
  * marked, hide them or see only them. Off unless the admin allows it (`sensitive_detection`)
  * and the user turns it on.
  *
- * No extra model, nothing trained. Immich's search embeddings are read from its database:
+ * No extra model or service: Immich's search embeddings are read from its database.
  *
  * - Terms: the user searches, picks the last result that still counts ("Up to here") and
  *   the term is saved with that picture's similarity as its limit. A picture counts when it
  *   is at least that close to any of the user's terms.
- * - Marks by hand always win for their own file. They also move the limit locally: the
- *   pictures most like a marked one (NEIGHBOURS, at least NEIGHBOUR_MIN alike) follow the
- *   mark; when several marks are near, the closest decides.
+ * - Marks by hand always win for their own file. From MIN_POSITIVE marks as sensitive on, they
+ *   also train a linear SVM per user (SensitiveModel); pictures it scores at or above the
+ *   user's threshold count too. The review (the wizard) sorts by that score.
  *
  * Stored per user in app data, `sensitive/<uid>.json`:
  * {"terms": [{"q", "min", "model"}], "marks": {fileId: bool}, "auto": [fileId],
- *  "assets": {fileId: assetId}, "counts": {q: n}, "added": n, "removed": n,
- *  "near": {assetId: [[assetId, sim]]},
+ *  "assets": {fileId: assetId}, "counts": {q: n}, "byModel": n, "threshold": float,
+ *  "svm": {"w", "b", "key", "positives", "negatives"} or null, "learned": [positives, negatives],
  *  "signature": "...", "built": time, "error": null}
  */
 class SensitiveContent {
-	/** How many of the most similar pictures follow a hand mark. */
-	public const NEIGHBOURS = 12;
-	/** ... and only those this alike (cosine of the image embeddings; a series is ~0.95). */
-	public const NEIGHBOUR_MIN = 0.85;
 	public const MAX_TERMS = 30;
+	/** Thresholds offered for new pictures (the SVM's score; 0 is its boundary). */
+	public const THRESHOLDS = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0];
+	/** The steps of the review, see review(). */
+	public const STEPS = ['find', 'check', 'missed'];
 	private const FOLDER = 'sensitive';
 	/** Embedded terms per model, shared by all users (not a user's file name). */
 	private const TERMS_FOLDER = 'sensitive-terms';
@@ -94,8 +94,8 @@ class SensitiveContent {
 				$data = [];
 			}
 			// Files of the first version (scores of a trained model) keep only their marks
-			$this->cache[$uid] = $data + ['terms' => [], 'marks' => [], 'auto' => [], 'assets' => [], 'counts' => [], 'added' => 0, 'removed' => 0,
-				'near' => [], 'signature' => '', 'built' => 0, 'error' => null];
+			$this->cache[$uid] = $data + ['terms' => [], 'marks' => [], 'auto' => [], 'assets' => [], 'counts' => [], 'byModel' => 0,
+				'threshold' => 0.0, 'svm' => null, 'learned' => [0, 0], 'signature' => '', 'built' => 0, 'error' => null];
 		}
 		return $this->cache[$uid];
 	}
@@ -183,7 +183,7 @@ class SensitiveContent {
 		if (trim($q) !== '') {
 			$join = ' LEFT JOIN smart_search s ON s."assetId" = a.id';
 			$order = 's.embedding <=> ?::vector';
-			$params[] = self::vector($this->termEmbedding($this->model(), trim($q)));
+			$params[] = SensitiveModel::vector($this->termEmbedding($this->model(), trim($q)));
 		} else {
 			$order = 'a."fileCreatedAt" ' . ($after !== null ? 'ASC' : 'DESC');
 		}
@@ -246,7 +246,7 @@ class SensitiveContent {
 		}
 		$model = $this->model();
 		$stmt = $this->db->pdo('20s')->prepare('SELECT -(embedding <#> ?::vector) FROM smart_search WHERE "assetId" = ?');
-		$stmt->execute([self::vector($this->termEmbedding($model, $q)), $assetId]);
+		$stmt->execute([SensitiveModel::vector($this->termEmbedding($model, $q)), $assetId]);
 		$sim = $stmt->fetchColumn();
 		if ($sim === false) {
 			throw new \InvalidArgumentException('Immich has no search data for this picture');
@@ -289,9 +289,48 @@ class SensitiveContent {
 			'flagged' => count($this->flagged($uid)),
 			'marked' => count(array_filter($marks)),
 			'unmarked' => count($marks) - count(array_filter($marks)),
-			'added' => (int)$data['added'],
-			'removed' => (int)$data['removed'],
+			// What the SVM learns from, and what it brings in on top of the terms
+			// The marks as they are now (the model learns from them with the next build)
+			'learned' => ['positives' => count(array_filter($marks)), 'negatives' => count($marks) - count(array_filter($marks))],
+			'minPositive' => SensitiveModel::MIN_POSITIVE,
+			'model' => $data['svm'] !== null,
+			'byModel' => (int)$data['byModel'],
+			'threshold' => (float)$data['threshold'],
+			'thresholds' => self::THRESHOLDS,
 		];
+	}
+
+	/**
+	 * How many pictures the SVM puts at or above each of THRESHOLDS (pictures in Immich, stills
+	 * not counted: roughly what the user sees). Null without a model.
+	 *
+	 * @return ?array<string, int>
+	 */
+	public function thresholdCounts(string $uid): ?array {
+		$svm = $this->get($uid)['svm'];
+		if ($svm === null) {
+			return null;
+		}
+		$cols = implode(', ', array_map(fn ($i) => 'count(*) FILTER (WHERE sc >= ?) AS c' . $i, array_keys(self::THRESHOLDS)));
+		// Only the user's own pictures when that is all they see; with shares, all of Immich
+		$scope = $this->assets->ownScope($uid);
+		$stmt = $this->db->pdo('30s')->prepare('SELECT ' . $cols . ' FROM (SELECT -(s.embedding <#> ?::vector) + ? AS sc
+			FROM smart_search s JOIN asset a ON a.id = s."assetId"
+			WHERE a."deletedAt" IS NULL AND a."originalFileName" NOT LIKE \'glimpse-frame\\_%\'' . ($scope !== null ? ' AND starts_with(a."originalPath", ?)' : '') . ') x');
+		$stmt->execute([...self::THRESHOLDS, SensitiveModel::vector($svm['w']), (float)$svm['b'], ...($scope !== null ? [$scope] : [])]);
+		$row = $stmt->fetch(\PDO::FETCH_NUM);
+		$out = [];
+		foreach (self::THRESHOLDS as $i => $t) {
+			$out[(string)$t] = (int)$row[$i];
+		}
+		return $out;
+	}
+
+	/** For new pictures: where the SVM's score starts to count. */
+	public function setThreshold(string $uid, float $threshold): void {
+		$data = $this->get($uid);
+		$data['threshold'] = max(-2.0, min(2.0, round($threshold, 3)));
+		$this->save($uid, $data);
 	}
 
 	/** Has anything changed that the last build did not see (pictures, model, marks)? */
@@ -304,11 +343,11 @@ class SensitiveContent {
 	}
 
 	/**
-	 * Work out which files count: the terms, then the pictures near hand marks. A second or a
-	 * few; the neighbours of each mark are kept, so only new marks cost a search. Failures are
-	 * stored for the settings page and rethrown.
+	 * Work out which files count: the terms, and from enough marks the SVM trained on them. A
+	 * second or two; the model is trained again only when the marks changed. Failures are stored
+	 * for the settings page and rethrown.
 	 *
-	 * @return array{flagged: int, terms: int, added: int, removed: int}
+	 * @return array{flagged: int, terms: int, byModel: int, model: bool}
 	 */
 	public function rebuild(string $uid): array {
 		$data = $this->get($uid);
@@ -318,33 +357,44 @@ class SensitiveContent {
 			$pdo = $this->db->pdo('120s');
 			$terms = array_values(array_filter($data['terms'], fn ($t) => ($t['model'] ?? '') === $model));
 			$rows = [];
+			// Seconds per part, kept for finding what is slow
+			$took = [];
+			$lap = microtime(true);
+			$time = function (string $part) use (&$took, &$lap) {
+				$took[$part] = round(microtime(true) - $lap, 2);
+				$lap = microtime(true);
+			};
 			[$hits, $byTerm] = $this->termHits($pdo, $model, $terms, $rows);
+			$time('terms');
 
-			// Fresh neighbours once a day and when the pictures or the model change
-			$near = $data['signature'] === $signature && $data['built'] >= time() - self::MAX_AGE
-				&& ($data['nearOf'] ?? '') === self::NEIGHBOURS . '/' . self::NEIGHBOUR_MIN ? $data['near'] : [];
+			// What earlier builds found out about files and assets, while the pictures are the same
+			$fresh = $data['signature'] === $signature && $data['built'] >= time() - self::MAX_AGE;
+			$known = $data['markAssets'] ?? [];
+			$fileOf = $fresh ? ($data['fileOf'] ?? []) : [];
 			$fileAssets = [];
-			$markAssets = $this->markAssets($pdo, $uid, $this->bools($data['marks']), $fileAssets);
-			$near = array_intersect_key($near, $markAssets);
-			foreach ($this->neighbours($pdo, array_keys(array_diff_key($markAssets, $near))) as $mark => $list) {
-				$near[$mark] = $list;
+			$markAssets = $this->markAssets($pdo, $uid, $this->bools($data['marks']), $fileAssets, $known);
+			$time('marks');
+			$positives = count(array_filter($markAssets));
+			$data['learned'] = [$positives, count($markAssets) - $positives];
+			$key = md5($signature . '|' . json_encode($markAssets));
+			if ($positives < SensitiveModel::MIN_POSITIVE) {
+				$data['svm'] = null;
+			} elseif (($data['svm']['key'] ?? '') !== $key) {
+				$data['svm'] = $this->train($pdo, $markAssets) + ['key' => $key];
 			}
-			$verdicts = [];
-			foreach ($near as $mark => $list) {
-				foreach ($list as [$asset, $sim]) {
-					$verdicts[$asset][] = [$sim, $markAssets[$mark]];
-				}
-			}
-			$decided = self::decide($hits, $verdicts);
+			$time('train');
+			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], (float)$data['threshold'], $rows) : [];
+			$time('model');
 
-			[$auto, $counts, $added, $removed] = $this->toFiles($pdo, $uid, $decided, $hits, $byTerm, $terms, $rows, $fileAssets);
+			[$auto, $counts, $byModel] = $this->toFiles($pdo, $uid, $hits, $modelHits, $byTerm, $terms, $rows, $fileAssets, $fileOf);
+			$data['markAssets'] = $known;
+			$data['fileOf'] = $fileOf;
+			$time('files');
+			$data['took'] = $took;
 			$data['auto'] = $auto;
 			$data['assets'] = $fileAssets;
 			$data['counts'] = $counts;
-			$data['added'] = $added;
-			$data['removed'] = $removed;
-			$data['near'] = $near;
-			$data['nearOf'] = self::NEIGHBOURS . '/' . self::NEIGHBOUR_MIN;
+			$data['byModel'] = $byModel;
 			$data['signature'] = $signature;
 			$data['built'] = time();
 			$data['error'] = null;
@@ -355,28 +405,104 @@ class SensitiveContent {
 			throw $e;
 		}
 		$this->save($uid, $data);
-		return ['flagged' => count($this->flagged($uid)), 'terms' => count($terms), 'added' => $added, 'removed' => $removed];
+		return ['flagged' => count($this->flagged($uid)), 'terms' => count($terms), 'byModel' => $byModel, 'model' => $data['svm'] !== null];
 	}
 
 	/**
-	 * What the terms say and what nearby marks say, per Immich asset. A mark nearby wins over
-	 * the terms; of several, the most similar one.
+	 * One page of the review (the wizard), straight from Immich's database, only pictures $uid
+	 * can see. $offset counts rows of the query, so pictures the user cannot see do not cost a
+	 * page; the answer says where the next page starts.
 	 *
-	 * @param array<string, true> $hits assets at least as close to a term as its limit
-	 * @param array<string, list<array{0: float, 1: bool}>> $verdicts asset => [similarity to a mark, that mark]
-	 * @return array<string, true>
+	 * - find: not sensitive and not marked "not", most like $q first
+	 * - check: sensitive by the terms or the SVM, not marked by hand; least sure first
+	 * - missed: not sensitive and not marked, most likely sensitive first (needs the SVM)
+	 *
+	 * @return array{items: list<array>, nextPage: ?int}
 	 */
-	public static function decide(array $hits, array $verdicts): array {
-		$out = $hits;
-		foreach ($verdicts as $asset => $list) {
-			usort($list, static fn ($a, $b) => $b[0] <=> $a[0]);
-			if ($list[0][1]) {
-				$out[$asset] = true;
+	public function review(string $uid, string $step, string $q, int $offset, int $size): array {
+		$data = $this->get($uid);
+		$svm = $data['svm'];
+		$model = $this->model();
+		$flagged = $this->flagged($uid);
+		$marks = $this->bools($data['marks']);
+		$assetsOf = fn (array $fileIds) => array_values(array_unique(array_filter(array_map(fn ($id) => $data['assets'][$id] ?? null, $fileIds))));
+		$params = [];
+		$where = ['a."deletedAt" IS NULL', 'a."originalFileName" NOT LIKE \'glimpse-frame\\_%\''];
+		if (($scope = $this->assets->ownScope($uid)) !== null) {
+			$where[] = 'starts_with(a."originalPath", ?)';
+			$params[] = $scope;
+		}
+		$terms = array_values(array_filter($data['terms'], fn ($t) => ($t['model'] ?? '') === $model));
+		$score = $svm !== null ? '-(s.embedding <#> ?::vector) + ?' : null;
+		$scoreParams = $svm !== null ? [SensitiveModel::vector($svm['w']), (float)$svm['b']] : [];
+		if ($step === 'find') {
+			if (trim($q) === '') {
+				return ['items' => [], 'nextPage' => null];
+			}
+			$where[] = 'NOT (a.id = ANY(?::uuid[]))';
+			$params[] = '{' . implode(',', $assetsOf(array_merge(array_keys($flagged), array_keys(array_filter($marks, fn ($on) => !$on))))) . '}';
+			$order = 's.embedding <=> ?::vector';
+			$orderParams = [SensitiveModel::vector($this->termEmbedding($model, trim($q)))];
+		} elseif ($step === 'check') {
+			$auto = array_diff_key($flagged, array_filter($marks));
+			if ($auto === []) {
+				return ['items' => [], 'nextPage' => null];
+			}
+			$where[] = 'a.id = ANY(?::uuid[])';
+			$params[] = '{' . implode(',', $assetsOf(array_keys($auto))) . '}';
+			if ($score !== null) {
+				$order = $score . ' ASC';
+				$orderParams = $scoreParams;
+			} elseif ($terms !== []) {
+				// Without a model: how far past the limit of its closest term
+				$order = 'GREATEST(' . implode(', ', array_fill(0, count($terms), '-(s.embedding <#> ?::vector) - ?')) . ') ASC';
+				$orderParams = [];
+				foreach ($terms as $t) {
+					$orderParams[] = SensitiveModel::vector($this->termEmbedding($model, $t['q']));
+					$orderParams[] = (float)$t['min'];
+				}
 			} else {
-				unset($out[$asset]);
+				$order = 'a."fileCreatedAt" DESC';
+				$orderParams = [];
+			}
+		} elseif ($step === 'missed') {
+			if ($score === null) {
+				return ['items' => [], 'nextPage' => null];
+			}
+			$where[] = 'NOT (a.id = ANY(?::uuid[]))';
+			$params[] = '{' . implode(',', $assetsOf(array_merge(array_keys($flagged), array_keys($marks)))) . '}';
+			$order = $score . ' DESC';
+			$orderParams = $scoreParams;
+		} else {
+			throw new \InvalidArgumentException('Unknown step');
+		}
+		$sql = 'SELECT a.id, a."originalPath", a."originalFileName", a.type, '
+			. 'to_char(a."localDateTime" AT TIME ZONE \'UTC\', \'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"\') AS "localDateTime" '
+			. 'FROM asset a JOIN smart_search s ON s."assetId" = a.id WHERE ' . implode(' AND ', $where)
+			. ' ORDER BY ' . $order . ', a.id LIMIT ? OFFSET ?';
+		$stmt = $this->db->pdo('30s')->prepare($sql);
+		$items = [];
+		$offset = max(0, $offset);
+		$batch = max($size, 100);
+		// Fill the page: rows the user cannot see are skipped, a few batches at most
+		for ($round = 0; $round < 20 && count($items) < $size; $round++) {
+			$stmt->execute([...$params, ...$orderParams, $batch, $offset]);
+			$rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+			foreach ($rows as $row) {
+				$offset++;
+				$item = $this->assets->visibleItem($uid, $row);
+				if ($item !== null) {
+					$items[] = $item + (isset($flagged[$item['fileId']]) ? ['sensitive' => true] : []);
+					if (count($items) >= $size) {
+						return ['items' => $items, 'nextPage' => $offset];
+					}
+				}
+			}
+			if (count($rows) < $batch) {
+				return ['items' => $items, 'nextPage' => null];
 			}
 		}
-		return $out;
+		return ['items' => $items, 'nextPage' => $offset];
 	}
 
 	/**
@@ -426,11 +552,6 @@ class SensitiveContent {
 		return $this->ncConfig->getUsersForUserValue(Application::APP_ID, 'pref_sensitive_enabled', '1');
 	}
 
-	/** @param list<float> $v */
-	public static function vector(array $v): string {
-		return '[' . implode(',', array_map(static fn ($f) => sprintf('%.7g', $f), $v)) . ']';
-	}
-
 	/**
 	 * Assets at least as close to one of the terms as its limit; which terms brought each in.
 	 * Their rows (path, name, type) go to $rows for mapping to files.
@@ -445,7 +566,7 @@ class SensitiveContent {
 		$cols = [];
 		foreach ($terms as $i => $t) {
 			$cols[] = '-(s.embedding <#> ?::vector) - ? AS t' . $i;
-			$params[] = self::vector($this->termEmbedding($model, $t['q']));
+			$params[] = SensitiveModel::vector($this->termEmbedding($model, $t['q']));
 			$params[] = (float)$t['min'];
 		}
 		$sql = 'SELECT * FROM (SELECT a.id, a."originalPath", a."originalFileName", a.type, ' . implode(', ', $cols) . '
@@ -472,17 +593,36 @@ class SensitiveContent {
 	 *
 	 * @param array<int, bool> $marks
 	 * @param array<int, string> $fileAssets gets fileId => assetId
+	 * @param array<int, string> $known fileId => assetId from earlier builds; updated
 	 * @return array<string, bool> assetId => the mark
 	 */
-	private function markAssets(\PDO $pdo, string $uid, array $marks, array &$fileAssets): array {
+	private function markAssets(\PDO $pdo, string $uid, array $marks, array &$fileAssets, array &$known): array {
+		$out = [];
 		$paths = [];
+		// Known from earlier builds: only checked to be still there
+		$cached = array_intersect_key($known, $marks);
+		$known = [];
+		foreach (array_chunk($cached, 1000, true) as $chunk) {
+			$stmt = $pdo->prepare('SELECT id FROM asset WHERE "deletedAt" IS NULL AND id = ANY(?::uuid[])');
+			$stmt->execute(['{' . implode(',', $chunk) . '}']);
+			$alive = array_flip($stmt->fetchAll(\PDO::FETCH_COLUMN));
+			foreach ($chunk as $id => $asset) {
+				if (isset($alive[$asset])) {
+					$out[$asset] = $marks[$id];
+					$fileAssets[$id] = $asset;
+					$known[$id] = $asset;
+				}
+			}
+		}
 		foreach ($marks as $id => $on) {
+			if (isset($known[$id])) {
+				continue;
+			}
 			$path = $this->assets->immichPathOf($uid, $id);
 			if ($path !== null) {
 				$paths[$path] = [$id, $on];
 			}
 		}
-		$out = [];
 		foreach (array_chunk(array_keys($paths), 500) as $chunk) {
 			$stmt = $pdo->prepare('SELECT id, "originalPath" FROM asset WHERE "deletedAt" IS NULL AND "originalPath" IN (' . implode(',', array_fill(0, count($chunk), '?')) . ')');
 			$stmt->execute($chunk);
@@ -490,41 +630,74 @@ class SensitiveContent {
 				[$id, $on] = $paths[$row[1]];
 				$out[$row[0]] = $on;
 				$fileAssets[$id] = $row[0];
+				$known[$id] = $row[0];
 			}
 		}
 		return $out;
 	}
 
 	/**
-	 * The pictures most like each of $marks (itself not included), through Immich's vector index.
+	 * Train the SVM: the marks, and a fixed sample of the library as "probably not".
 	 *
-	 * @param list<string> $marks
-	 * @return array<string, list<array{0: string, 1: float}>>
+	 * @param array<string, bool> $markAssets
+	 * @return array{w: list<float>, b: float, positives: int, negatives: int}
 	 */
-	private function neighbours(\PDO $pdo, array $marks): array {
-		$out = [];
-		$stmt = $pdo->prepare('SELECT n."assetId", n.sim FROM smart_search m, LATERAL (
-				SELECT s."assetId", 1 - (s.embedding <=> m.embedding) AS sim FROM smart_search s
-				ORDER BY s.embedding <=> m.embedding LIMIT ' . (self::NEIGHBOURS + 1) . ') n
-			WHERE m."assetId" = ? AND n."assetId" <> m."assetId" AND n.sim >= ?');
-		foreach ($marks as $mark) {
-			$stmt->execute([$mark, self::NEIGHBOUR_MIN]);
-			$out[$mark] = array_map(fn ($r) => [$r[0], round((float)$r[1], 4)], $stmt->fetchAll(\PDO::FETCH_NUM));
+	private function train(\PDO $pdo, array $markAssets): array {
+		$x = $y = $weight = [];
+		$stmt = $pdo->prepare('SELECT "assetId", embedding::text FROM smart_search WHERE "assetId" = ANY(?::uuid[])');
+		$stmt->execute(['{' . implode(',', array_keys($markAssets)) . '}']);
+		while ($row = $stmt->fetch(\PDO::FETCH_NUM)) {
+			$x[] = array_map('floatval', json_decode($row[1], true));
+			$y[] = $markAssets[$row[0]] ? 1 : 0;
+			$weight[] = 1.0;
 		}
-		return $out;
+		// Pick the sample first: turning every embedding into text before sorting took seconds
+		$stmt = $pdo->prepare('SELECT s."assetId", s.embedding::text FROM smart_search s WHERE s."assetId" IN (
+			SELECT a.id FROM asset a JOIN smart_search x ON x."assetId" = a.id WHERE a."deletedAt" IS NULL ORDER BY md5(a.id::text) LIMIT ?)');
+		$stmt->execute([SensitiveModel::BACKGROUND_SIZE + count($markAssets)]);
+		$background = 0;
+		while (($row = $stmt->fetch(\PDO::FETCH_NUM)) && $background < SensitiveModel::BACKGROUND_SIZE) {
+			if (isset($markAssets[$row[0]])) {
+				continue;
+			}
+			$x[] = array_map('floatval', json_decode($row[1], true));
+			$y[] = 0;
+			$weight[] = SensitiveModel::BACKGROUND_WEIGHT;
+			$background++;
+		}
+		$positives = array_sum($y);
+		return SensitiveModel::train($x, $y, $weight) + ['positives' => $positives, 'negatives' => count($y) - $positives - $background];
+	}
+
+	/**
+	 * Assets the SVM scores at or above $threshold. Rows go to $rows for mapping to files.
+	 *
+	 * @return array<string, true>
+	 */
+	private function modelHits(\PDO $pdo, array $svm, float $threshold, array &$rows): array {
+		$stmt = $pdo->prepare('SELECT a.id, a."originalPath", a."originalFileName", a.type FROM smart_search s JOIN asset a ON a.id = s."assetId"
+			WHERE a."deletedAt" IS NULL AND -(s.embedding <#> ?::vector) + ? >= ?');
+		$stmt->execute([SensitiveModel::vector($svm['w']), (float)$svm['b'], $threshold]);
+		$hits = [];
+		while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+			$hits[$row['id']] = true;
+			$rows[$row['id']] = $row;
+		}
+		return $hits;
 	}
 
 	/**
 	 * Assets to the user's files: a still from a video counts for the video. Also how many files
-	 * each term brings in, and how many the marks nearby added and took out.
+	 * each term brings in, and how many only the SVM brings in.
 	 *
-	 * @param array<string, true> $decided
-	 * @param array<string, true> $hits
+	 * @param array<string, true> $hits from the terms
+	 * @param array<string, true> $modelHits from the SVM
 	 * @param array<int, string> $fileAssets gets fileId => assetId (the video's for a still)
-	 * @return array{0: list<int>, 1: array<string, int>, 2: int, 3: int}
+	 * @param array<string, int> $fileOf assetId => fileId (0: not the user's), known ones are not looked up again
+	 * @return array{0: list<int>, 1: array<string, int>, 2: int}
 	 */
-	private function toFiles(\PDO $pdo, string $uid, array $decided, array $hits, array $byTerm, array $terms, array $rows, array &$fileAssets): array {
-		$all = array_keys($decided + $hits);
+	private function toFiles(\PDO $pdo, string $uid, array $hits, array $modelHits, array $byTerm, array $terms, array $rows, array &$fileAssets, array &$fileOf): array {
+		$all = array_keys($hits + $modelHits);
 		$this->loadRows($pdo, array_values(array_diff($all, array_keys($rows))), $rows);
 		// Stills stand for their video
 		$owner = [];
@@ -539,10 +712,14 @@ class SensitiveContent {
 		$this->loadRows($pdo, array_values(array_unique($videos)), $rows);
 		$file = [];
 		foreach (array_unique($owner) as $asset) {
-			$item = isset($rows[$asset]) ? $this->assets->visibleItem($uid, $rows[$asset], false) : null;
-			if ($item !== null) {
-				$file[$asset] = (int)$item['fileId'];
-				$fileAssets[(int)$item['fileId']] ??= $asset;
+			// Which file an asset is, for this user, from the last build when it still holds
+			if (!isset($fileOf[$asset])) {
+				$item = isset($rows[$asset]) ? $this->assets->visibleItem($uid, $rows[$asset], false) : null;
+				$fileOf[$asset] = $item !== null ? (int)$item['fileId'] : 0;
+			}
+			if ($fileOf[$asset] > 0) {
+				$file[$asset] = $fileOf[$asset];
+				$fileAssets[$fileOf[$asset]] ??= $asset;
 			}
 		}
 		$auto = [];
@@ -553,9 +730,7 @@ class SensitiveContent {
 			if ($id === null) {
 				continue;
 			}
-			if (isset($decided[$asset])) {
-				$auto[$id] = true;
-			}
+			$auto[$id] = true;
 			if (isset($hits[$asset])) {
 				$byHit[$id] = true;
 				foreach ($byTerm[$asset] ?? [] as $i) {
@@ -563,12 +738,7 @@ class SensitiveContent {
 				}
 			}
 		}
-		return [
-			array_keys($auto),
-			array_map('count', $counts),
-			count(array_diff_key($auto, $byHit)),
-			count(array_diff_key($byHit, $auto)),
-		];
+		return [array_keys($auto), array_map('count', $counts), count(array_diff_key($auto, $byHit))];
 	}
 
 	/** @param list<string> $ids */
@@ -643,7 +813,7 @@ class SensitiveContent {
 	}
 
 	private function save(string $uid, array $data): void {
-		unset($data['scores'], $data['examples']);
+		unset($data['scores'], $data['examples'], $data['near'], $data['nearOf'], $data['added'], $data['removed'], $data['model']);
 		$this->folder(self::FOLDER)->newFile($uid . '.json', json_encode($data));
 		$this->cache[$uid] = $data;
 	}

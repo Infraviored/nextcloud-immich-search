@@ -95,10 +95,12 @@ import { usePictureActions } from '../composables/usePictureActions.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
 import { peopleState, reloadPeople } from '../people.js'
+import { userPrefs } from '../prefs.js'
 import { privateState, setPrivateFiles } from '../private.js'
 import { navigate } from '../router.js'
 import { pruneSelection, selectionActive, toggleSelection } from '../selection.js'
 import { markItems, sensitiveUpToHere } from '../sensitive.js'
+import { leavingView } from '../sensitiveRules.js'
 import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
@@ -246,14 +248,24 @@ async function doPrivate(on) {
 }
 
 /**
- * By hand, as sensitive or not; the tiles change, the pictures stay until the view reloads.
+ * By hand, as sensitive or not; the tiles change, and pictures the sensitive filter no longer
+ * lets through leave the view.
  *
  * @param {boolean} on
  */
 async function doSensitive(on) {
 	const ids = selected.value
 	selected.value = new Set()
-	await markItems(allItems.value.filter((i) => ids.has(i.fileId)), on)
+	let gone = []
+	const res = await markItems(allItems.value.filter((i) => ids.has(i.fileId)), on, {
+		// Undo brings back what the filter took out
+		onUndo: () => gone.length && emit('refresh'),
+	})
+	// "Without sensitive" or "only sensitive": what no longer fits leaves the view at once
+	gone = leavingView(res?.sensitive, userPrefs.sensitive_mode)
+	if (gone.length) {
+		emit('removed', gone)
+	}
 }
 
 async function doUpToHere() {

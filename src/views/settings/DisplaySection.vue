@@ -68,6 +68,9 @@
 					{{ t('Mark them on the tiles') }}
 				</NcCheckboxRadioSwitch>
 				<div class="sensitive__actions">
+					<NcButton variant="primary" @click="navigate('/sensitive')">
+						{{ t('Sort sensitive pictures') }}
+					</NcButton>
 					<NcButton @click="review">
 						{{ t('Review sensitive pictures') }}
 					</NcButton>
@@ -76,7 +79,7 @@
 					</NcButton>
 				</div>
 				<p class="hint">
-					{{ t('Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and the pictures most like it follow it.') }}
+					{{ t('Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and from 20 marks on Glimpse learns from them.') }}
 				</p>
 			</template>
 		</template>
@@ -130,8 +133,8 @@ const sensitiveLine = computed(() => {
 	if (s.marked + s.unmarked) {
 		parts.push(n('{count} picture marked by you.', '{count} pictures marked by you.', s.marked + s.unmarked, { count: s.marked + s.unmarked }))
 	}
-	if (s.added || s.removed) {
-		parts.push(t('Pictures like your marks: {added} added, {removed} taken out.', { added: s.added, removed: s.removed }))
+	if (s.model) {
+		parts.push(n('{count} more by what Glimpse learned from your marks.', '{count} more by what Glimpse learned from your marks.', s.byModel ?? 0, { count: s.byModel ?? 0 }))
 	}
 	if (s.built) {
 		parts.push(t('Last computed {date}.', { date: dateFormat.format(new Date(s.built * 1000)) }))

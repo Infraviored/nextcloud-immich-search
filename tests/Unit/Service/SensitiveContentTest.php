@@ -125,20 +125,6 @@ class SensitiveContentTest extends TestCase {
 		$this->assertSame([1 => true], $this->service()->flagged('u'));
 	}
 
-	public function testANearbyMarkWinsOverTheTerms(): void {
-		$hits = ['a' => true, 'b' => true];
-		$verdicts = [
-			// b is near a "not" mark
-			'b' => [[0.9, false]],
-			// c is near a "sensitive" mark
-			'c' => [[0.85, true]],
-			// d is near both; the closer one decides
-			'd' => [[0.83, false], [0.95, true]],
-			'e' => [[0.95, false], [0.83, true]],
-		];
-		$this->assertSame(['a' => true, 'c' => true, 'd' => true], SensitiveContent::decide($hits, $verdicts));
-	}
-
 	public function testOwnMarkWinsOverEverything(): void {
 		$this->assertSame([1 => true, 3 => true], SensitiveContent::withMarks([1, 2], [2 => false, 3 => true]));
 	}
@@ -148,7 +134,4 @@ class SensitiveContentTest extends TestCase {
 		$this->assertSame([4 => true], $this->service()->flagged('u'));
 	}
 
-	public function testVector(): void {
-		$this->assertSame('[0.5,-0.25]', SensitiveContent::vector([0.5, -0.25]));
-	}
 }

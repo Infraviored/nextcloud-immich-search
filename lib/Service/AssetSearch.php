@@ -250,7 +250,7 @@ class AssetSearch {
 	 * shared with them: Immich can then skip everyone else's pictures itself instead of
 	 * this app paging through them. Null when the user may see files of others.
 	 */
-	private function ownScope(string $uid): ?string {
+	public function ownScope(string $uid): ?string {
 		if (array_key_exists($uid, $this->scopes)) {
 			return $this->scopes[$uid];
 		}

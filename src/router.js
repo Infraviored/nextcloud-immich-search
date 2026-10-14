@@ -41,7 +41,7 @@ function parse() {
 	if (section === 'people' && id) {
 		return { name: 'person', id, query }
 	}
-	if (['timeline', 'map', 'folders', 'duplicates'].includes(section)) {
+	if (['timeline', 'map', 'folders', 'duplicates', 'sensitive'].includes(section)) {
 		return { name: section, id: null, query }
 	}
 	if (section === 'settings') {

@@ -541,6 +541,51 @@ OC.L10N.register(
         "_{count} picture counts as sensitive._::_{count} pictures count as sensitive._": [
             "{count} Bild gilt als heikel.",
             "{count} Bilder gelten als heikel."
-        ]
+        ],
+        "Sort sensitive pictures": "Heikle Bilder sortieren",
+        "Steps": "Schritte",
+        "Type something you want to sort out, for example “nude breasts”. English words usually work better. Only pictures that do not count as sensitive yet are shown, the best matches first. Select the ones that are sensitive and mark them; leave out the rest.": "Geben Sie etwas ein, das Sie aussortieren möchten, zum Beispiel „nude breasts“. Englische Begriffe funktionieren meist besser. Es erscheinen nur Bilder, die noch nicht als heikel gelten, die besten Treffer zuerst. Wählen Sie die heiklen aus und markieren Sie sie; den Rest lassen Sie stehen.",
+        "What should be sorted out?": "Was soll aussortiert werden?",
+        "Everything that counts as sensitive and that you did not mark yourself, the least sure first. Select what is not sensitive. Once only sensitive ones come, you are done here.": "Alles, was als heikel gilt und nicht von Ihnen selbst markiert ist, die unsichersten zuerst. Wählen Sie aus, was nicht heikel ist. Sobald nur noch heikle kommen, sind Sie hier fertig.",
+        "Pictures that do not count as sensitive yet, but that Glimpse finds most likely to be. Select the sensitive ones and mark them.": "Bilder, die noch nicht als heikel gelten, die Glimpse aber am ehesten dafür hält. Wählen Sie die heiklen aus und markieren Sie sie.",
+        "New pictures are judged by what Glimpse learned from your marks. Choose how strict that is. Your terms and your marks keep counting either way.": "Neue Bilder beurteilt Glimpse nach dem, was es aus Ihren Markierungen gelernt hat. Wählen Sie, wie streng das sein soll. Ihre Begriffe und Markierungen gelten in jedem Fall weiter.",
+        "Stricter": "Strenger",
+        "More generous": "Großzügiger",
+        "Done": "Fertig",
+        "Click to select, shift-click for a range": "Klick wählt aus, Shift-Klick einen Bereich",
+        "Sort again by what was learned": "Neu sortieren nach dem Gelernten",
+        "Another term": "Noch ein Begriff",
+        "Next: {step}": "Weiter: {step}",
+        "Find": "Finden",
+        "Check": "Prüfen",
+        "Missed ones": "Übersehene",
+        "New pictures": "Neue Bilder",
+        "Glimpse learns from {positives} pictures you marked as sensitive and {negatives} you marked as not.": "Glimpse lernt aus {positives} Bildern, die Sie als heikel markiert haben, und {negatives}, die Sie als nicht heikel markiert haben.",
+        "Nothing more for this term": "Zu diesem Begriff kommt nichts mehr",
+        "Nothing that counts as sensitive by itself": "Nichts, was von selbst als heikel gilt",
+        "Nothing more that looks sensitive": "Nichts mehr, was heikel aussieht",
+        "Look at it larger": "Größer ansehen",
+        "Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and from 20 marks on Glimpse learns from them.": "Einzelne Bilder markieren Sie im Viewer oder per Auswahl als heikel oder nicht. Ihre Markierung gilt immer für das Bild, und ab 20 Markierungen lernt Glimpse daraus.",
+        "_Glimpse learns from your marks once you marked {count} picture as sensitive. Go back to step 1._::_Glimpse learns from your marks once you marked {count} pictures as sensitive. Go back to step 1._": [
+            "Glimpse lernt aus Ihren Markierungen, sobald Sie {count} Bild als heikel markiert haben. Gehen Sie zurück zu Schritt 1.",
+            "Glimpse lernt aus Ihren Markierungen, sobald Sie {count} Bilder als heikel markiert haben. Gehen Sie zurück zu Schritt 1."
+        ],
+        "_About {count} picture counts as sensitive by what Glimpse learned._::_About {count} pictures count as sensitive by what Glimpse learned._": [
+            "Etwa {count} Bild gilt nach dem Gelernten als heikel.",
+            "Etwa {count} Bilder gelten nach dem Gelernten als heikel."
+        ],
+        "_This needs {count} pictures marked as sensitive first._::_This needs {count} pictures marked as sensitive first._": [
+            "Dafür braucht es zuerst {count} als heikel markierte Bilder.",
+            "Dafür braucht es zuerst {count} als heikel markierte Bilder."
+        ],
+        "_Glimpse starts learning once {count} picture is marked as sensitive; {have} so far._::_Glimpse starts learning once {count} pictures are marked as sensitive; {have} so far._": [
+            "Glimpse lernt, sobald {count} Bild als heikel markiert ist; bisher {have}.",
+            "Glimpse lernt, sobald {count} Bilder als heikel markiert sind; bisher {have}."
+        ],
+        "_{count} more by what Glimpse learned from your marks._::_{count} more by what Glimpse learned from your marks._": [
+            "{count} weiteres nach dem, was Glimpse aus Ihren Markierungen gelernt hat.",
+            "{count} weitere nach dem, was Glimpse aus Ihren Markierungen gelernt hat."
+        ],
+        "Learning from your marks …": "Lerne aus Ihren Markierungen …"
     },
 "nplurals=2; plural=(n != 1);");

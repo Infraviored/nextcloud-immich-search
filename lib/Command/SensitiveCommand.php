@@ -45,8 +45,9 @@ class SensitiveCommand extends Command {
 			$start = microtime(true);
 			try {
 				$r = $this->sensitive->rebuild($uid);
-				$output->writeln(sprintf('%s: %d terms; marks nearby added %d, took out %d; %d flagged now (%.1fs)',
-					$uid, $r['terms'], $r['added'], $r['removed'], $r['flagged'], microtime(true) - $start));
+				$learned = $this->sensitive->status($uid)['learned'];
+				$output->writeln(sprintf('%s: %d terms; %s (%d marked sensitive, %d not), %d more from it; %d flagged now (%.1fs)',
+					$uid, $r['terms'], $r['model'] ? 'model trained' : 'no model yet', $learned['positives'], $learned['negatives'], $r['byModel'], $r['flagged'], microtime(true) - $start));
 				foreach ($this->sensitive->status($uid)['terms'] as $t) {
 					$output->writeln(sprintf('  "%s": %d%s', $t['q'], $t['count'], $t['stale'] ? ' (made with another search model, set again)' : ''));
 				}

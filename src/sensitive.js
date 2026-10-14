@@ -47,15 +47,16 @@ export async function setSensitiveMode(mode) {
 
 /**
  * Mark pictures by hand, with undo in the toast. The items' `sensitive` follows, so their
- * tiles change right away; they stay in the view until it reloads (reviewing a list stays
- * calm that way).
+ * tiles change right away. Returns the server's answer (null on failure); `onUndo` runs after
+ * an undo went through.
  *
  * @param {object[]} items
  * @param {boolean} on
+ * @param {{onUndo?: Function}} [options]
  */
-export async function markItems(items, on) {
+export async function markItems(items, on, { onUndo = null } = {}) {
 	if (!items.length) {
-		return
+		return null
 	}
 	try {
 		const res = await markSensitive(Object.fromEntries(items.map((i) => [i.fileId, on])))
@@ -67,12 +68,15 @@ export async function markItems(items, on) {
 			: n('{count} picture marked as not sensitive', '{count} pictures marked as not sensitive', count, { count }), async () => {
 			try {
 				apply(items, (await markSensitive(res.previous)).sensitive)
+				onUndo?.()
 			} catch (e) {
 				showError(errorMessage(e))
 			}
 		})
+		return res
 	} catch (e) {
 		showError(errorMessage(e))
+		return null
 	}
 }
 

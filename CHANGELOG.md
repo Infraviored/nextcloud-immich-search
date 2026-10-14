@@ -3,21 +3,26 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.9.4] - unreleased
+## [4.10.4] - unreleased
 
 ### Added
-- **Sensitive pictures (optional).** Each user decides what counts: search for it, select the
-  last result that still counts and choose *Sensitive up to here*; the search is saved as a term
-  with that picture's similarity as its limit. Marks by hand always win for their picture, and
-  the pictures most like a marked one follow it. No extra model, no extra container: Immich's
-  search embeddings are read from its database. Each user can show all pictures (sensitive ones
-  marked on their tile), hide them, or see only them; "only" lists straight from the database
-  instead of paging through the library. Applies to search, timeline, map, folders, people and
-  memories; hiding also to the Nextcloud search bar and the dashboard. Off until the admin allows
-  it (`sensitive_detection`) and the user turns it on under *Settings → Display*, where the terms
-  are listed with how many pictures each brings in. Needs read access to Immich's
-  `smart_search` table and a few `asset` columns (README), and the machine-learning service's
-  address. New: `occ glimpse:sensitive`, the hourly `UpdateSensitive` job.
+- **Sensitive pictures (optional).** Each user decides what counts:
+  - *Terms*: search, select the last result that still counts, *Sensitive up to here*; the
+    search is saved with that picture's similarity as its limit.
+  - *Marks* by hand always win for their picture. From 20 marks as sensitive on, a linear SVM
+    is trained per user on them (plus a fixed sample of the library as "probably not"), and
+    pictures it scores above the user's threshold count too, also new ones.
+  - *Sort sensitive pictures* (`/sensitive`), a wizard: find by a term (only pictures not yet
+    sensitive, best match first), check the least sure first, look at the ones the model finds
+    most likely, set how strict it is for new pictures. A click selects, shift-click a range.
+  No extra model, no extra container: Immich's search embeddings are read from its database.
+  Each user can show all pictures (sensitive ones marked on their tile), hide them, or see only
+  them; "only" lists straight from the database, and marking takes a picture out of a filtered
+  view at once. Applies to search, timeline, map, folders, people and memories; hiding also to
+  the Nextcloud search bar and the dashboard. Off until the admin allows it
+  (`sensitive_detection`) and the user turns it on under *Settings → Display*. Needs read access
+  to Immich's `smart_search` table and a few `asset` columns (README), and the machine-learning
+  service's address. New: `occ glimpse:sensitive`, the hourly `UpdateSensitive` job.
 
 ### Changed
 - The Immich database connection moved out of `MoveTracker` into `ImmichDb`, shared by moves
