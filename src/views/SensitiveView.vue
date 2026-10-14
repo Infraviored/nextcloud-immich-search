@@ -28,6 +28,9 @@
 				{{ s.label }}
 			</button>
 		</div>
+		<p v-if="orderLine" class="sort__order">
+			{{ orderLine }}
+		</p>
 		<p class="sort__learned" aria-live="polite">
 			<strong v-if="training">{{ t('Learning …') }}</strong>
 			<strong v-else-if="trainedLine">{{ trainedLine }}</strong>
@@ -49,7 +52,7 @@
 		</template>
 		<p v-else class="sort__hint">
 			{{ model
-				? t('What the filter hides that you did not mark yourself, the least sensitive-looking first. Select what should stay visible and bring it back.')
+				? t('What the filter hides that you did not mark yourself, the most harmless first. Select what should stay visible and bring it back.')
 				: n('The filter learns once you hid {count} picture; {left} to go. Start on “Visible” with a term.', 'The filter learns once you hid {count} pictures; {left} to go. Start on “Visible” with a term.', minPositive, { count: minPositive, left: Math.max(0, minPositive - (status?.learned?.positives ?? 0)) }) }}
 		</p>
 
@@ -114,15 +117,18 @@ import { toggleSelection } from '../selection.js'
 import { markItems } from '../sensitive.js'
 import { openInViewer } from '../viewer.js'
 
+/** Visible first: one starts by hiding something */
 const sides = [
-	{ id: 'hidden', label: t('Hidden') },
 	{ id: 'visible', label: t('Visible') },
+	{ id: 'hidden', label: t('Hidden') },
 ]
 /** Wait this long after the last mark before learning, so a few marks in a row train once */
 const TRAIN_DELAY = 1500
 
-const side = ref(sides.some((s) => s.id === route.query.side) ? route.query.side : null)
+const side = ref(sides.some((s) => s.id === route.query.side) ? route.query.side : 'visible')
 const q = ref('')
+/** The term the list is sorted by (what was submitted, not what is being typed) */
+const searched = ref('')
 const items = ref([])
 const selected = ref(new Set())
 let anchor = null
@@ -156,6 +162,17 @@ const learnedLine = computed(() => {
 		parts.push(t('It learns from {positives} pictures you hid and {negatives} you brought back.', s.learned))
 	}
 	return parts.join(' ')
+})
+
+/** How the list is sorted, right under the switch */
+const orderLine = computed(() => {
+	if (side.value === 'hidden') {
+		return model.value ? t('Most harmless first') : ''
+	}
+	if (q.value.trim() && searched.value) {
+		return t('Closest to “{q}” first', { q: searched.value })
+	}
+	return model.value ? t('Most sensitive-looking first') : ''
 })
 
 const trainedLine = computed(() => {
@@ -204,12 +221,14 @@ async function load(fresh) {
 	loading.value = true
 	error.value = ''
 	try {
-		const res = await reviewSensitive({ side: side.value, q: side.value === 'visible' ? q.value.trim() : '', page: next }, ctrl.signal)
+		const term = side.value === 'visible' ? q.value.trim() : ''
+		const res = await reviewSensitive({ side: side.value, q: term, page: next }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}
 		const shown = new Set(items.value.map((i) => i.fileId))
 		items.value = items.value.concat(res.items.filter((i) => !shown.has(i.fileId)))
+		searched.value = term
 		next = res.nextPage ?? 0
 		done.value = res.nextPage === null || res.nextPage === undefined
 	} catch (e) {
@@ -324,11 +343,6 @@ watch(side, () => more.check())
 onMounted(async () => {
 	document.addEventListener('keydown', onKey)
 	await loadStatus()
-	// The first time there is nothing to check yet: start with a term
-	if (!side.value) {
-		side.value = model.value ? 'hidden' : 'visible'
-		replaceQuery({ side: side.value })
-	}
 	load(true)
 	if (side.value === 'visible') {
 		focusSearch()
@@ -376,6 +390,11 @@ onBeforeUnmount(() => {
 		background: var(--g-accent, var(--color-primary-element));
 		color: var(--color-main-background);
 	}
+}
+
+.sort__order {
+	margin: 0 0 4px;
+	font-weight: 600;
 }
 
 .sort__learned, .sort__hint {

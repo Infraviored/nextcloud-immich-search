@@ -565,13 +565,16 @@ OC.L10N.register(
         "Sort again": "Neu sortieren",
         "What the filter lets through, the most sensitive-looking first. Select what it should hide. To look at a new topic, search for it.": "Was der Filter durchlässt, das heikelste zuerst. Wähl aus, was er ausblenden soll. Für ein neues Thema such danach.",
         "Type something the filter should hide, for example “nude breasts”. English words usually work better. Select the matching pictures and hide them.": "Gib etwas ein, das der Filter ausblenden soll, zum Beispiel „nude breasts“. Englische Begriffe funktionieren meist besser. Wähl die passenden Bilder aus und blende sie aus.",
-        "What the filter hides that you did not mark yourself, the least sensitive-looking first. Select what should stay visible and bring it back.": "Was der Filter ausblendet und du nicht selbst markiert hast, das am wenigsten heikle zuerst. Wähl aus, was sichtbar bleiben soll, und hol es zurück.",
         "_The filter learns once you hid {count} picture; {left} to go. Start on “Visible” with a term._::_The filter learns once you hid {count} pictures; {left} to go. Start on “Visible” with a term._": [
             "Der Filter lernt, sobald du {count} Bild ausgeblendet hast; es fehlen noch {left}. Fang bei „Sichtbar“ mit einem Begriff an.",
             "Der Filter lernt, sobald du {count} Bilder ausgeblendet hast; es fehlen noch {left}. Fang bei „Sichtbar“ mit einem Begriff an."
         ],
         "It learns from {positives} pictures you hid and {negatives} you brought back.": "Er lernt aus {positives} Bildern, die du ausgeblendet, und {negatives}, die du zurückgeholt hast.",
         "Learned: {added} more hidden, {removed} fewer.": "Gelernt: {added} mehr ausgeblendet, {removed} weniger.",
-        "Nothing more that looks sensitive": "Nichts mehr, was heikel aussieht"
+        "Nothing more that looks sensitive": "Nichts mehr, was heikel aussieht",
+        "What the filter hides that you did not mark yourself, the most harmless first. Select what should stay visible and bring it back.": "Was der Filter ausblendet und du nicht selbst markiert hast, das harmloseste zuerst. Wähl aus, was sichtbar bleiben soll, und hol es zurück.",
+        "Most harmless first": "Harmloseste zuerst",
+        "Most sensitive-looking first": "Heikelste zuerst",
+        "Closest to “{q}” first": "Am nächsten an „{q}“ zuerst"
     },
 "nplurals=2; plural=(n != 1);");
