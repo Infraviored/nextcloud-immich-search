@@ -542,49 +542,36 @@ OC.L10N.register(
             "{count} Bild gilt als heikel.",
             "{count} Bilder gelten als heikel."
         ],
-        "Steps": "Schritte",
-        "New pictures are judged by what Glimpse learned from your marks. Choose how strict that is. Your terms and your marks keep counting either way.": "Neue Bilder beurteilt Glimpse nach dem, was es aus Ihren Markierungen gelernt hat. Wählen Sie, wie streng das sein soll. Ihre Begriffe und Markierungen gelten in jedem Fall weiter.",
-        "Stricter": "Strenger",
-        "More generous": "Großzügiger",
-        "Done": "Fertig",
         "Click to select, shift-click for a range": "Klick wählt aus, Shift-Klick einen Bereich",
-        "Another term": "Noch ein Begriff",
-        "Next: {step}": "Weiter: {step}",
-        "New pictures": "Neue Bilder",
-        "Glimpse learns from {positives} pictures you marked as sensitive and {negatives} you marked as not.": "Glimpse lernt aus {positives} Bildern, die Sie als heikel markiert haben, und {negatives}, die Sie als nicht heikel markiert haben.",
         "Nothing more for this term": "Zu diesem Begriff kommt nichts mehr",
         "Look at it larger": "Größer ansehen",
         "Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and from 20 marks on Glimpse learns from them.": "Einzelne Bilder markieren Sie im Viewer oder per Auswahl als heikel oder nicht. Ihre Markierung gilt immer für das Bild, und ab 20 Markierungen lernt Glimpse daraus.",
-        "_About {count} picture counts as sensitive by what Glimpse learned._::_About {count} pictures count as sensitive by what Glimpse learned._": [
-            "Etwa {count} Bild gilt nach dem Gelernten als heikel.",
-            "Etwa {count} Bilder gelten nach dem Gelernten als heikel."
-        ],
-        "_This needs {count} pictures marked as sensitive first._::_This needs {count} pictures marked as sensitive first._": [
-            "Dafür braucht es zuerst {count} als heikel markierte Bilder.",
-            "Dafür braucht es zuerst {count} als heikel markierte Bilder."
-        ],
-        "_Glimpse starts learning once {count} picture is marked as sensitive; {have} so far._::_Glimpse starts learning once {count} pictures are marked as sensitive; {have} so far._": [
-            "Glimpse lernt, sobald {count} Bild als heikel markiert ist; bisher {have}.",
-            "Glimpse lernt, sobald {count} Bilder als heikel markiert sind; bisher {have}."
-        ],
         "_{count} more by what Glimpse learned from your marks._::_{count} more by what Glimpse learned from your marks._": [
             "{count} weiteres nach dem, was Glimpse aus Ihren Markierungen gelernt hat.",
             "{count} weitere nach dem, was Glimpse aus Ihren Markierungen gelernt hat."
         ],
         "Train the sensitive filter": "Filter trainieren",
-        "Check what is hidden": "Ausgeblendete prüfen",
-        "Search for something the filter should hide, for example “nude breasts”. English words usually work better. Pictures the filter already hides are left out, the best matches first. Select the ones that should be hidden and mark them as sensitive, then train the filter.": "Suchen Sie nach etwas, das der Filter ausblenden soll, zum Beispiel „nude breasts“. Englische Begriffe funktionieren meist besser. Was der Filter schon ausblendet, fehlt hier, die besten Treffer kommen zuerst. Wählen Sie aus, was ausgeblendet werden soll, markieren Sie es als heikel und trainieren Sie dann den Filter.",
         "What should be hidden?": "Was soll ausgeblendet werden?",
-        "Everything the filter hides now that you did not mark yourself, the least sensitive-looking first. A filter often hides too much at first: select what should stay visible, mark it as not sensitive and train again. Go back and forth until only pictures that belong here come first.": "Alles, was der Filter jetzt ausblendet und Sie nicht selbst markiert haben, das am wenigsten heikle zuerst. Anfangs blendet ein Filter oft zu viel aus: Wählen Sie aus, was sichtbar bleiben soll, markieren Sie es als nicht heikel und trainieren Sie nochmal. So geht es hin und her, bis oben nur noch Bilder stehen, die hierher gehören.",
-        "Search for another term": "Anderen Begriff suchen",
-        "Train and check": "Trainieren und prüfen",
-        "Train again": "Nochmal trainieren",
         "_The filter hides {count} picture._::_The filter hides {count} pictures._": [
             "Der Filter blendet {count} Bild aus.",
             "Der Filter blendet {count} Bilder aus."
         ],
-        "Trained: {added} more hidden, {removed} fewer.": "Trainiert: {added} mehr ausgeblendet, {removed} weniger.",
         "The filter hides nothing but what you marked yourself": "Der Filter blendet nur aus, was Sie selbst markiert haben",
-        "Training the filter …": "Trainiere den Filter …"
+        "Side": "Seite",
+        "Hidden": "Ausgeblendet",
+        "Visible": "Sichtbar",
+        "Learning …": "Lernt …",
+        "Bring back": "Zurückholen",
+        "Sort again": "Neu sortieren",
+        "What the filter lets through, the most sensitive-looking first. Select what it should hide. To look at a new topic, search for it.": "Was der Filter durchlässt, das heikelste zuerst. Wählen Sie aus, was er ausblenden soll. Für ein neues Thema suchen Sie danach.",
+        "Type something the filter should hide, for example “nude breasts”. English words usually work better. Select the matching pictures and hide them.": "Geben Sie etwas ein, das der Filter ausblenden soll, zum Beispiel „nude breasts“. Englische Begriffe funktionieren meist besser. Wählen Sie die passenden Bilder aus und blenden Sie sie aus.",
+        "What the filter hides that you did not mark yourself, the least sensitive-looking first. Select what should stay visible and bring it back.": "Was der Filter ausblendet und Sie nicht selbst markiert haben, das am wenigsten heikle zuerst. Wählen Sie aus, was sichtbar bleiben soll, und holen Sie es zurück.",
+        "_The filter learns once you hid {count} picture; {left} to go. Start on “Visible” with a term._::_The filter learns once you hid {count} pictures; {left} to go. Start on “Visible” with a term._": [
+            "Der Filter lernt, sobald Sie {count} Bild ausgeblendet haben; es fehlen noch {left}. Beginnen Sie bei „Sichtbar“ mit einem Begriff.",
+            "Der Filter lernt, sobald Sie {count} Bilder ausgeblendet haben; es fehlen noch {left}. Beginnen Sie bei „Sichtbar“ mit einem Begriff."
+        ],
+        "It learns from {positives} pictures you hid and {negatives} you brought back.": "Er lernt aus {positives} Bildern, die Sie ausgeblendet, und {negatives}, die Sie zurückgeholt haben.",
+        "Learned: {added} more hidden, {removed} fewer.": "Gelernt: {added} mehr ausgeblendet, {removed} weniger.",
+        "Nothing more that looks sensitive": "Nichts mehr, was heikel aussieht"
     },
 "nplurals=2; plural=(n != 1);");

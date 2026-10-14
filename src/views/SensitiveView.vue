@@ -4,138 +4,95 @@
 -->
 
 <!--
-  Training the sensitive filter, back and forth: search for something and mark what should be
-  hidden, train, then check what the filter hides now, the least sensitive-looking first (a
-  filter learned from a few terms tends to hide too much), bring back what should stay, train
-  again. Last, how strict it is for new pictures. Lists are sorted by how well a picture fits,
-  never by date. A click selects, shift-click a range; the buttons above the grid act on it.
+  Training the sensitive filter on one page with two sides, back and forth: "Hidden" shows what
+  the filter hides, the least sensitive-looking first (bring back what it hides too much),
+  "Visible" what it lets through, the most sensitive-looking first (hide what it misses), or
+  sorted by a search term to start or for a new topic. Each mark is saved at once and the
+  filter learns again in the background; the list keeps its order until asked, so pictures
+  do not jump away under the pointer. A click selects, shift-click a range.
 -->
 <template>
 	<div class="sort">
 		<h2 class="g-display sort__title">
 			{{ t('Train the sensitive filter') }}
 		</h2>
-		<nav class="sort__steps" :aria-label="t('Steps')">
+		<div class="sort__sides" role="group" :aria-label="t('Side')">
 			<button
-				v-for="(s, i) in steps"
+				v-for="s in sides"
 				:key="s.id"
 				type="button"
-				class="sort__step"
-				:class="{ 'sort__step--on': step === s.id }"
-				:aria-current="step === s.id ? 'step' : undefined"
+				class="sort__side"
+				:class="{ 'sort__side--on': side === s.id }"
+				:aria-pressed="side === s.id"
 				@click="go(s.id)">
-				<span class="sort__num">{{ i + 1 }}</span>
 				{{ s.label }}
 			</button>
-		</nav>
+		</div>
 		<p class="sort__learned" aria-live="polite">
-			<strong v-if="trainedLine">{{ trainedLine }}</strong>
+			<strong v-if="training">{{ t('Learning …') }}</strong>
+			<strong v-else-if="trainedLine">{{ trainedLine }}</strong>
 			{{ learnedLine }}
 		</p>
 
-		<template v-if="step === 'find'">
+		<template v-if="side === 'visible'">
 			<p class="sort__hint">
-				{{ t('Search for something the filter should hide, for example “nude breasts”. English words usually work better. Pictures the filter already hides are left out, the best matches first. Select the ones that should be hidden and mark them as sensitive, then train the filter.') }}
+				{{ model
+					? t('What the filter lets through, the most sensitive-looking first. Select what it should hide. To look at a new topic, search for it.')
+					: t('Type something the filter should hide, for example “nude breasts”. English words usually work better. Select the matching pictures and hide them.') }}
 			</p>
 			<LensSearch
 				v-model="q"
 				class="sort__search"
 				:placeholder="t('What should be hidden?')"
 				@submit="load(true)"
-				@clear="q = ''; items = []; done = false" />
+				@clear="q = ''; load(true)" />
 		</template>
-		<p v-else-if="step === 'check'" class="sort__hint">
-			{{ t('Everything the filter hides now that you did not mark yourself, the least sensitive-looking first. A filter often hides too much at first: select what should stay visible, mark it as not sensitive and train again. Go back and forth until only pictures that belong here come first.') }}
+		<p v-else class="sort__hint">
+			{{ model
+				? t('What the filter hides that you did not mark yourself, the least sensitive-looking first. Select what should stay visible and bring it back.')
+				: n('The filter learns once you hid {count} picture; {left} to go. Start on “Visible” with a term.', 'The filter learns once you hid {count} pictures; {left} to go. Start on “Visible” with a term.', minPositive, { count: minPositive, left: Math.max(0, minPositive - (status?.learned?.positives ?? 0)) }) }}
 		</p>
 
-		<section v-if="step === 'limit'" class="sort__limit">
-			<p class="sort__hint">
-				{{ t('New pictures are judged by what Glimpse learned from your marks. Choose how strict that is. Your terms and your marks keep counting either way.') }}
-			</p>
-			<template v-if="model && counts">
-				<label class="sort__slider">
-					<span>{{ t('Stricter') }}</span>
-					<input
-						v-model.number="limitIndex"
-						type="range"
-						min="0"
-						:max="thresholds.length - 1"
-						step="1"
-						@change="saveThreshold">
-					<span>{{ t('More generous') }}</span>
-				</label>
-				<p class="sort__count">
-					{{ n('About {count} picture counts as sensitive by what Glimpse learned.', 'About {count} pictures count as sensitive by what Glimpse learned.', limitCount, { count: limitCount }) }}
-				</p>
+		<div v-if="items.length || selected.size" class="sort__bar">
+			<span class="sort__selected">
+				{{ selected.size ? n('{count} selected', '{count} selected', selected.size, { count: selected.size }) : t('Click to select, shift-click for a range') }}
+			</span>
+			<NcButton
+				variant="primary"
+				:disabled="!selected.size || busy"
+				@click="act">
+				{{ side === 'hidden' ? t('Bring back') : t('Hide') }}
+			</NcButton>
+			<NcButton variant="tertiary" :disabled="!items.length" @click="selectAll">
+				{{ t('Select all') }}
+			</NcButton>
+			<NcButton variant="tertiary" :disabled="!selected.size" @click="clear">
+				{{ t('Clear selection') }}
+			</NcButton>
+			<NcButton v-if="resort && !training" variant="secondary" @click="load(true)">
+				{{ t('Sort again') }}
+			</NcButton>
+		</div>
+
+		<AssetGrid
+			:items="items"
+			:selected="selected"
+			:selectOnClick="true"
+			@toggle="toggle"
+			@open="open"
+			@update:selected="selected = $event" />
+
+		<NcEmptyContent v-if="emptyText" :name="emptyText">
+			<template #icon>
+				<NcIconSvgWrapper :path="sensitiveIcon" />
 			</template>
-			<p v-else class="sort__hint">
-				{{ n('This needs {count} pictures marked as sensitive first.', 'This needs {count} pictures marked as sensitive first.', minPositive, { count: minPositive }) }}
-			</p>
-			<div class="sort__next">
-				<NcButton variant="primary" @click="finish">
-					{{ t('Done') }}
-				</NcButton>
-			</div>
-		</section>
-
-		<template v-else>
-			<div v-if="items.length || selected.size" class="sort__bar">
-				<span class="sort__selected">
-					{{ selected.size ? n('{count} selected', '{count} selected', selected.size, { count: selected.size }) : t('Click to select, shift-click for a range') }}
-				</span>
-				<NcButton
-					variant="primary"
-					:disabled="!selected.size || busy"
-					@click="act">
-					{{ step === 'check' ? t('Not sensitive') : t('Sensitive') }}
-				</NcButton>
-				<NcButton variant="tertiary" :disabled="!items.length" @click="selectAll">
-					{{ t('Select all') }}
-				</NcButton>
-				<NcButton variant="tertiary" :disabled="!selected.size" @click="clear">
-					{{ t('Clear selection') }}
-				</NcButton>
-				<NcButton v-if="marked" :disabled="learning" @click="train">
-					{{ trainLabel }}
-				</NcButton>
-			</div>
-
-			<AssetGrid
-				:items="items"
-				:selected="selected"
-				:selectOnClick="true"
-				@toggle="toggle"
-				@open="open"
-				@update:selected="selected = $event" />
-
-			<NcEmptyContent v-if="emptyText" :name="emptyText">
-				<template #icon>
-					<NcIconSvgWrapper :path="sensitiveIcon" />
-				</template>
-			</NcEmptyContent>
-			<p v-if="error" class="sort__error">
-				{{ error }}
-			</p>
-			<div ref="sentinel" class="sort__more">
-				<NcLoadingIcon v-if="loading" :size="32" />
-				<span v-if="learning" class="sort__hint">{{ t('Training the filter …') }}</span>
-			</div>
-
-			<div class="sort__next">
-				<NcButton v-if="step === 'find'" @click="q = ''; items = []; done = false; focusSearch()">
-					{{ t('Another term') }}
-				</NcButton>
-				<NcButton v-else @click="go('find')">
-					{{ t('Search for another term') }}
-				</NcButton>
-				<NcButton variant="primary" :disabled="learning" @click="train">
-					{{ trainLabel }}
-				</NcButton>
-				<NcButton v-if="step === 'check'" variant="tertiary" @click="go('limit')">
-					{{ t('Next: {step}', { step: steps[2].label }) }}
-				</NcButton>
-			</div>
-		</template>
+		</NcEmptyContent>
+		<p v-if="error" class="sort__error">
+			{{ error }}
+		</p>
+		<div ref="sentinel" class="sort__more">
+			<NcLoadingIcon v-if="loading" :size="32" />
+		</div>
 	</div>
 </template>
 
@@ -148,50 +105,46 @@ import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import AssetGrid from '../components/AssetGrid.vue'
 import LensSearch from '../components/LensSearch.vue'
-import { errorMessage, getSensitive, rebuildSensitive, reviewSensitive, setSensitiveThreshold } from '../api.js'
+import { errorMessage, getSensitive, rebuildSensitive, reviewSensitive } from '../api.js'
 import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { n, t } from '../l10n.js'
 import { sensitiveIcon } from '../materialIcons.js'
-import { navigate, replaceQuery, route } from '../router.js'
+import { replaceQuery, route } from '../router.js'
 import { toggleSelection } from '../selection.js'
 import { markItems } from '../sensitive.js'
 import { openInViewer } from '../viewer.js'
 
-/** Search and check go back and forth; the last step sets the threshold for new pictures. */
-const steps = [
-	{ id: 'find', label: t('Search') },
-	{ id: 'check', label: t('Check what is hidden') },
-	{ id: 'limit', label: t('New pictures') },
+const sides = [
+	{ id: 'hidden', label: t('Hidden') },
+	{ id: 'visible', label: t('Visible') },
 ]
+/** Wait this long after the last mark before learning, so a few marks in a row train once */
+const TRAIN_DELAY = 1500
 
-const step = ref(steps.some((s) => s.id === route.query.step) ? route.query.step : 'find')
+const side = ref(sides.some((s) => s.id === route.query.side) ? route.query.side : null)
 const q = ref('')
 const items = ref([])
 const selected = ref(new Set())
 let anchor = null
 let next = 0
-/** Something was marked since the filter last learned */
-const marked = ref(false)
-/** The filter was trained in this visit: show what that changed */
-const trained = ref(false)
 const loading = ref(false)
 const busy = ref(false)
 const done = ref(false)
 const error = ref('')
 const status = ref(null)
-/** Training on the marks (a few seconds) */
-const learning = ref(false)
-const limitIndex = ref(4)
+/** Learning from the marks in the background */
+const training = ref(false)
+/** Learned at least once on this page: show what that changed */
+const trained = ref(false)
+/** The filter learned since the list was loaded: its order may be different now */
+const resort = ref(false)
+let trainTimer = null
+/** Marked again while learning: learn once more afterwards */
+let trainAgain = false
 let controller = null
 
 const model = computed(() => !!status.value?.model)
 const minPositive = computed(() => status.value?.minPositive ?? 20)
-const thresholds = computed(() => status.value?.thresholds ?? [])
-const counts = computed(() => status.value?.thresholdCounts ?? null)
-const trainLabel = computed(() => step.value === 'find' ? t('Train and check') : t('Train again'))
-/** The slider runs from strict (left, high threshold) to generous (right) */
-const limitValue = computed(() => thresholds.value[thresholds.value.length - 1 - limitIndex.value] ?? 0)
-const limitCount = computed(() => counts.value?.[String(limitValue.value)] ?? 0)
 
 const learnedLine = computed(() => {
 	const s = status.value
@@ -200,29 +153,24 @@ const learnedLine = computed(() => {
 	}
 	const parts = [n('The filter hides {count} picture.', 'The filter hides {count} pictures.', s.flagged ?? 0, { count: s.flagged ?? 0 })]
 	if (s.model) {
-		parts.push(t('Glimpse learns from {positives} pictures you marked as sensitive and {negatives} you marked as not.', s.learned))
-	} else {
-		parts.push(n('Glimpse starts learning once {count} picture is marked as sensitive; {have} so far.', 'Glimpse starts learning once {count} pictures are marked as sensitive; {have} so far.', minPositive.value, { count: minPositive.value, have: s.learned?.positives ?? 0 }))
+		parts.push(t('It learns from {positives} pictures you hid and {negatives} you brought back.', s.learned))
 	}
 	return parts.join(' ')
 })
 
 const trainedLine = computed(() => {
 	const c = status.value?.change
-	if (!trained.value || !c) {
-		return ''
-	}
-	return t('Trained: {added} more hidden, {removed} fewer.', c)
+	return trained.value && c ? t('Learned: {added} more hidden, {removed} fewer.', c) : ''
 })
 
 const emptyText = computed(() => {
 	if (loading.value || error.value || items.value.length || !done.value) {
 		return ''
 	}
-	if (step.value === 'find') {
-		return t('Nothing more for this term')
+	if (side.value === 'hidden') {
+		return model.value ? t('The filter hides nothing but what you marked yourself') : ''
 	}
-	return t('The filter hides nothing but what you marked yourself')
+	return q.value.trim() ? t('Nothing more for this term') : (model.value ? t('Nothing more that looks sensitive') : '')
 })
 
 const sentinel = ref(null)
@@ -231,26 +179,23 @@ const more = useInfiniteScroll(sentinel, () => !done.value && !error.value && it
 async function loadStatus() {
 	try {
 		status.value = await getSensitive()
-		const i = thresholds.value.indexOf(status.value.threshold ?? 0)
-		limitIndex.value = i < 0 ? 4 : thresholds.value.length - 1 - i
 	} catch (e) {
 		error.value = errorMessage(e)
 	}
 }
 
 /**
- * @param {boolean} fresh from the top (a new term or step) or the next page
+ * @param {boolean} fresh from the top (a new term or side) or the next page
  */
 async function load(fresh) {
-	if (step.value === 'limit' || (step.value === 'find' && !q.value.trim())) {
-		return
-	}
 	if (fresh) {
 		controller?.abort()
 		items.value = []
 		selected.value = new Set()
+		anchor = null
 		next = 0
 		done.value = false
+		resort.value = false
 	} else if (loading.value || done.value) {
 		return
 	}
@@ -259,7 +204,7 @@ async function load(fresh) {
 	loading.value = true
 	error.value = ''
 	try {
-		const res = await reviewSensitive({ step: step.value, q: q.value.trim(), page: next }, ctrl.signal)
+		const res = await reviewSensitive({ side: side.value, q: side.value === 'visible' ? q.value.trim() : '', page: next }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}
@@ -297,17 +242,17 @@ function open(item) {
 	openInViewer(item, items.value)
 }
 
-/** Mark the selection (sensitive, or not in "check"); the pictures leave the list at once. */
+/** Hide the selection, or bring it back on "Hidden"; it leaves the list at once, the filter learns. */
 async function act() {
 	const chosen = items.value.filter((i) => selected.value.has(i.fileId))
 	if (!chosen.length) {
 		return
 	}
 	busy.value = true
-	const res = await markItems(chosen, step.value !== 'check', {
+	const res = await markItems(chosen, side.value === 'visible', {
 		onUndo: () => {
 			load(true)
-			loadStatus()
+			scheduleTrain()
 		},
 	})
 	busy.value = false
@@ -317,77 +262,50 @@ async function act() {
 	const gone = new Set(chosen.map((i) => i.fileId))
 	items.value = items.value.filter((i) => !gone.has(i.fileId))
 	clear()
-	marked.value = true
-	await loadStatus()
+	scheduleTrain()
+	loadStatus()
 	more.check()
 }
 
-/**
- * Learn from the marks made since the last time (the server trains only when asked: marking
- * stays instant), then sort the list again.
- */
-async function relearn() {
-	learning.value = true
-	loading.value = true
-	items.value = []
+function scheduleTrain() {
+	clearTimeout(trainTimer)
+	trainTimer = setTimeout(train, TRAIN_DELAY)
+}
+
+/** Learn from the marks (the server trains only when asked: marking stays instant). */
+async function train() {
+	trainTimer = null
+	if (training.value) {
+		trainAgain = true
+		return
+	}
+	training.value = true
 	try {
 		status.value = await rebuildSensitive()
-		marked.value = false
 		trained.value = true
+		resort.value = true
 	} catch (e) {
 		showError(errorMessage(e))
 	} finally {
-		learning.value = false
-		loading.value = false
+		training.value = false
 	}
-	await load(true)
-}
-
-/** Train on what was marked, then check what the filter hides now */
-function train() {
-	if (step.value === 'check') {
-		relearn()
-	} else {
-		go('check', true)
+	if (trainAgain) {
+		trainAgain = false
+		train()
 	}
 }
 
-/**
- * @param {string} id the step
- * @param {boolean} learn train first even when nothing was marked
- */
-function go(id, learn = false) {
-	if (id === step.value) {
+function go(id) {
+	if (id === side.value) {
 		return
 	}
-	const changed = marked.value || learn
-	step.value = id
-	replaceQuery({ step: id })
-	items.value = []
-	selected.value = new Set()
-	done.value = false
+	side.value = id
+	replaceQuery({ side: id })
 	error.value = ''
-	if (id === 'find') {
+	load(true)
+	if (id === 'visible') {
 		focusSearch()
-		load(true)
-	} else if (changed) {
-		// What was marked in the step before changes what the filter hides
-		relearn()
-	} else {
-		load(true)
 	}
-}
-
-async function saveThreshold() {
-	try {
-		status.value = await setSensitiveThreshold(limitValue.value)
-	} catch (e) {
-		showError(errorMessage(e))
-	}
-}
-
-function finish() {
-	navigate('/settings/display')
 }
 
 function focusSearch() {
@@ -402,18 +320,28 @@ function onKey(event) {
 	}
 }
 
-watch(step, () => more.check())
-onMounted(() => {
-	loadStatus()
+watch(side, () => more.check())
+onMounted(async () => {
+	document.addEventListener('keydown', onKey)
+	await loadStatus()
+	// The first time there is nothing to check yet: start with a term
+	if (!side.value) {
+		side.value = model.value ? 'hidden' : 'visible'
+		replaceQuery({ side: side.value })
+	}
 	load(true)
-	if (step.value === 'find') {
+	if (side.value === 'visible') {
 		focusSearch()
 	}
-	document.addEventListener('keydown', onKey)
 })
 onBeforeUnmount(() => {
 	controller?.abort()
 	document.removeEventListener('keydown', onKey)
+	// Marked just before leaving: still learn from it
+	if (trainTimer) {
+		clearTimeout(trainTimer)
+		rebuildSensitive().catch(() => {})
+	}
 })
 </script>
 
@@ -427,44 +355,27 @@ onBeforeUnmount(() => {
 	margin: 8px 0 12px;
 }
 
-.sort__steps {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
+.sort__sides {
+	display: inline-flex;
+	padding: 3px;
 	margin-bottom: 8px;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
 }
 
-.sort__step {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	padding: 6px 14px 6px 6px;
-	border: 1px solid var(--color-border);
+.sort__side {
+	padding: 6px 18px;
+	border: none;
 	border-radius: 999px;
 	background: none;
 	color: var(--color-main-text);
+	font-weight: 600;
 	cursor: pointer;
 
 	&--on {
-		border-color: var(--g-accent, var(--color-primary-element));
-		color: var(--g-accent, var(--color-primary-element));
+		background: var(--g-accent, var(--color-primary-element));
+		color: var(--color-main-background);
 	}
-}
-
-.sort__num {
-	display: inline-grid;
-	place-items: center;
-	width: 24px;
-	height: 24px;
-	border-radius: 50%;
-	background: var(--color-background-dark);
-	font-size: 13px;
-	font-weight: 600;
-}
-
-.sort__step--on .sort__num {
-	background: var(--g-accent, var(--color-primary-element));
-	color: var(--color-main-background);
 }
 
 .sort__learned, .sort__hint {
@@ -505,31 +416,7 @@ onBeforeUnmount(() => {
 	min-height: 48px;
 }
 
-.sort__next {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 16px;
-}
-
 .sort__error {
 	color: var(--color-error-text);
-}
-
-.sort__slider {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px 16px;
-	margin: 12px 0 4px;
-
-	input {
-		flex: 0 1 320px;
-		accent-color: var(--g-accent, var(--color-primary-element));
-	}
-}
-
-.sort__count {
-	font-weight: 600;
 }
 </style>

@@ -40,8 +40,7 @@ class SensitiveController extends Controller {
 		if (!$this->sensitive->isEnabled($uid)) {
 			return new JSONResponse(['available' => $this->sensitive->isAvailable(), 'enabled' => false]);
 		}
-		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => $this->queued($uid)] + $this->sensitive->status($uid)
-			+ ['thresholdCounts' => $this->sensitive->thresholdCounts($uid)]);
+		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => $this->queued($uid)] + $this->sensitive->status($uid));
 	}
 
 	/**
@@ -63,7 +62,7 @@ class SensitiveController extends Controller {
 	}
 
 	#[NoAdminRequired]
-	#[UserRateLimit(limit: 30, period: 300)]
+	#[UserRateLimit(limit: 120, period: 300)]
 	public function rebuild(): JSONResponse {
 		return $this->rebuilt($this->uid());
 	}
@@ -99,34 +98,21 @@ class SensitiveController extends Controller {
 	}
 
 	/**
-	 * One page of the review (the wizard): $step find (with $q) or check. $page is where
-	 * the previous answer said the next page starts.
+	 * One page of the review (training the filter): $side hidden or visible (sorted by $q if
+	 * given). $page is where the previous answer said the next page starts.
 	 */
 	#[NoAdminRequired]
-	public function review(string $step = 'find', string $q = '', int $page = 0): JSONResponse {
+	public function review(string $side = 'hidden', string $q = '', int $page = 0): JSONResponse {
 		$uid = $this->uid();
 		if (!$this->sensitive->isEnabled($uid)) {
 			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
 		}
-		if (!in_array($step, SensitiveContent::STEPS, true)) {
-			return new JSONResponse(['error' => 'step'], Http::STATUS_BAD_REQUEST);
+		if (!in_array($side, SensitiveContent::SIDES, true)) {
+			return new JSONResponse(['error' => 'side'], Http::STATUS_BAD_REQUEST);
 		}
-		return new JSONResponse($this->sensitive->review($uid, $step, $q, $page, self::REVIEW_PAGE));
+		return new JSONResponse($this->sensitive->review($uid, $side, $q, $page, self::REVIEW_PAGE));
 	}
 
-	/** For new pictures: from which SVM score on a picture counts. */
-	#[NoAdminRequired]
-	#[UserRateLimit(limit: 60, period: 300)]
-	public function setThreshold(float $threshold = 0.0): JSONResponse {
-		$uid = $this->uid();
-		if (!$this->sensitive->isEnabled($uid)) {
-			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
-		}
-		$this->sensitive->setThreshold($uid, $threshold);
-		return $this->rebuilt($uid);
-	}
-
-	/** Build now (a second or a few) and answer with the new status. */
 	private function rebuilt(string $uid): JSONResponse {
 		if (!$this->sensitive->isEnabled($uid)) {
 			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
@@ -136,8 +122,7 @@ class SensitiveController extends Controller {
 		} catch (\Throwable) {
 			// The error is in the status
 		}
-		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => false] + $this->sensitive->status($uid)
-			+ ['thresholdCounts' => $this->sensitive->thresholdCounts($uid)]);
+		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => false] + $this->sensitive->status($uid));
 	}
 
 	private function queued(string $uid): bool {

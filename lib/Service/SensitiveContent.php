@@ -30,24 +30,23 @@ use Psr\Log\LoggerInterface;
  *   the term is saved with that picture's similarity as its limit. A picture counts when it
  *   is at least that close to any of the user's terms.
  * - Marks by hand always win for their own file. From MIN_POSITIVE marks as sensitive on, they
- *   also train a linear SVM per user (SensitiveModel); pictures it scores at or above the
- *   user's threshold count too. The review (the wizard) sorts by that score.
+ *   also train a linear SVM per user (SensitiveModel); pictures on its sensitive side count
+ *   too. The boundary is the one it learned: the marks are the user's way to move it. The
+ *   review (training the filter) sorts by its score.
  *
  * What each build learned goes to the Nextcloud log at debug level ("Sensitive: ..."), to see
  * whether the model learns from the marks and how far it moves.
  *
  * Stored per user in app data, `sensitive/<uid>.json`:
  * {"terms": [{"q", "min", "model"}], "marks": {fileId: bool}, "auto": [fileId],
- *  "assets": {fileId: assetId}, "counts": {q: n}, "byModel": n, "threshold": float,
+ *  "assets": {fileId: assetId}, "counts": {q: n}, "byModel": n, "change": {added, removed},
  *  "svm": {"w", "b", "key", "positives", "negatives"} or null, "learned": [positives, negatives],
  *  "signature": "...", "built": time, "error": null}
  */
 class SensitiveContent {
 	public const MAX_TERMS = 30;
-	/** Thresholds offered for new pictures (the SVM's score; 0 is its boundary). */
-	public const THRESHOLDS = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0];
-	/** The steps of the review, see review(). */
-	public const STEPS = ['find', 'check'];
+	/** The two sides of the review, see review(). */
+	public const SIDES = ['hidden', 'visible'];
 	private const FOLDER = 'sensitive';
 	/** Embedded terms per model, shared by all users (not a user's file name). */
 	private const TERMS_FOLDER = 'sensitive-terms';
@@ -100,7 +99,7 @@ class SensitiveContent {
 			}
 			// Files of the first version (scores of a trained model) keep only their marks
 			$this->cache[$uid] = $data + ['terms' => [], 'marks' => [], 'auto' => [], 'assets' => [], 'counts' => [], 'byModel' => 0,
-				'threshold' => 0.0, 'svm' => null, 'learned' => [0, 0], 'signature' => '', 'built' => 0, 'error' => null];
+				'svm' => null, 'learned' => [0, 0], 'signature' => '', 'built' => 0, 'error' => null];
 		}
 		return $this->cache[$uid];
 	}
@@ -307,43 +306,7 @@ class SensitiveContent {
 			'minPositive' => SensitiveModel::MIN_POSITIVE,
 			'model' => $data['svm'] !== null,
 			'byModel' => (int)$data['byModel'],
-			'threshold' => (float)$data['threshold'],
-			'thresholds' => self::THRESHOLDS,
 		];
-	}
-
-	/**
-	 * How many pictures the SVM puts at or above each of THRESHOLDS (pictures in Immich, stills
-	 * not counted: roughly what the user sees). Null without a model.
-	 *
-	 * @return ?array<string, int>
-	 */
-	public function thresholdCounts(string $uid): ?array {
-		$svm = $this->get($uid)['svm'];
-		if ($svm === null) {
-			return null;
-		}
-		$cols = implode(', ', array_map(fn ($i) => 'count(*) FILTER (WHERE sc >= ?) AS c' . $i, array_keys(self::THRESHOLDS)));
-		// Only the user's own pictures when that is all they see; with shares, all of Immich
-		$scope = $this->assets->ownScope($uid);
-		$stmt = $this->db->pdo('30s')->prepare('SELECT ' . $cols . ' FROM (SELECT -(s.embedding <#> ?::vector) + ? AS sc
-			FROM smart_search s JOIN asset a ON a.id = s."assetId"
-			WHERE a."deletedAt" IS NULL AND a."originalFileName" NOT LIKE \'glimpse-frame\\_%\'' . ($scope !== null ? ' AND starts_with(a."originalPath", ?)' : '') . ') x');
-		$stmt->execute([...self::THRESHOLDS, SensitiveModel::vector($svm['w']), (float)$svm['b'], ...($scope !== null ? [$scope] : [])]);
-		$row = $stmt->fetch(\PDO::FETCH_NUM);
-		$out = [];
-		foreach (self::THRESHOLDS as $i => $t) {
-			$out[(string)$t] = (int)$row[$i];
-		}
-		return $out;
-	}
-
-	/** For new pictures: where the SVM's score starts to count. */
-	public function setThreshold(string $uid, float $threshold): void {
-		$data = $this->get($uid);
-		$data['threshold'] = max(-2.0, min(2.0, round($threshold, 3)));
-		$this->save($uid, $data);
-		$this->logger->debug('Sensitive: {uid} set the threshold to {threshold}', ['app' => Application::APP_ID, 'uid' => $uid, 'threshold' => $data['threshold']]);
 	}
 
 	/** Has anything changed that the last build did not see (pictures, model, marks)? */
@@ -401,7 +364,7 @@ class SensitiveContent {
 				$data['svm'] = $trained['svm'] + ['key' => $key, 'scored' => array_fill_keys(array_keys($markAssets), true)];
 			}
 			$time('train');
-			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], (float)$data['threshold'], $rows) : [];
+			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], $rows) : [];
 			$time('model');
 
 			[$auto, $counts, $byModel] = $this->toFiles($pdo, $uid, $hits, $modelHits, $byTerm, $terms, $rows, $fileAssets, $fileOf);
@@ -432,27 +395,29 @@ class SensitiveContent {
 	}
 
 	/**
-	 * One page of the review (the wizard), straight from Immich's database, only pictures $uid
-	 * can see. $offset counts rows of the query, so pictures the user cannot see do not cost a
-	 * page; the answer says where the next page starts.
+	 * One page of the review (training the filter), straight from Immich's database, only
+	 * pictures $uid can see. $offset counts rows of the query, so pictures the user cannot see
+	 * do not cost a page; the answer says where the next page starts.
 	 *
-	 * - find: not sensitive and not marked "not", most like $q first
-	 * - check: sensitive by the terms or the SVM, not marked by hand; least sure first
+	 * - hidden: what the filter hides and the user did not mark, the least sensitive-looking
+	 *   first (where it hides too much)
+	 * - visible: what it does not hide, not marked "not"; the most sensitive-looking first
+	 *   (where it misses), or with $q the closest to $q (to start, or for a new topic)
 	 *
 	 * @return array{items: list<array>, nextPage: ?int}
 	 */
-	public function review(string $uid, string $step, string $q, int $offset, int $size): array {
+	public function review(string $uid, string $side, string $q, int $offset, int $size): array {
 		$start = microtime(true);
-		$page = $this->reviewPage($uid, $step, $q, $offset, $size);
-		$this->logger->debug('Sensitive: {uid} review {step} from {offset}: {n} pictures in {took}s', [
-			'app' => Application::APP_ID, 'uid' => $uid, 'step' => $step, 'offset' => $offset,
+		$page = $this->reviewPage($uid, $side, $q, $offset, $size);
+		$this->logger->debug('Sensitive: {uid} review {side} from {offset}: {n} pictures in {took}s', [
+			'app' => Application::APP_ID, 'uid' => $uid, 'side' => $side, 'offset' => $offset,
 			'n' => count($page['items']), 'took' => round(microtime(true) - $start, 2),
 		]);
 		return $page;
 	}
 
 	/** @return array{items: list<array>, nextPage: ?int} */
-	private function reviewPage(string $uid, string $step, string $q, int $offset, int $size): array {
+	private function reviewPage(string $uid, string $side, string $q, int $offset, int $size): array {
 		$data = $this->get($uid);
 		$svm = $data['svm'];
 		$model = $this->model();
@@ -468,15 +433,20 @@ class SensitiveContent {
 		$terms = array_values(array_filter($data['terms'], fn ($t) => ($t['model'] ?? '') === $model));
 		$score = $svm !== null ? '-(s.embedding <#> ?::vector) + ?' : null;
 		$scoreParams = $svm !== null ? [SensitiveModel::vector($svm['w']), (float)$svm['b']] : [];
-		if ($step === 'find') {
-			if (trim($q) === '') {
-				return ['items' => [], 'nextPage' => null];
-			}
+		if ($side === 'visible') {
 			$where[] = 'NOT (a.id = ANY(?::uuid[]))';
 			$params[] = '{' . implode(',', $assetsOf(array_merge(array_keys($flagged), array_keys(array_filter($marks, fn ($on) => !$on))))) . '}';
-			$order = 's.embedding <=> ?::vector';
-			$orderParams = [SensitiveModel::vector($this->termEmbedding($model, trim($q)))];
-		} elseif ($step === 'check') {
+			if (trim($q) !== '') {
+				$order = 's.embedding <=> ?::vector';
+				$orderParams = [SensitiveModel::vector($this->termEmbedding($model, trim($q)))];
+			} elseif ($score !== null) {
+				$order = $score . ' DESC';
+				$orderParams = $scoreParams;
+			} else {
+				// No filter yet: the user starts with a term
+				return ['items' => [], 'nextPage' => null];
+			}
+		} elseif ($side === 'hidden') {
 			$auto = array_diff_key($flagged, array_filter($marks));
 			if ($auto === []) {
 				return ['items' => [], 'nextPage' => null];
@@ -499,7 +469,7 @@ class SensitiveContent {
 				$orderParams = [];
 			}
 		} else {
-			throw new \InvalidArgumentException('Unknown step');
+			throw new \InvalidArgumentException('Unknown side');
 		}
 		$sql = 'SELECT a.id, a."originalPath", a."originalFileName", a.type, '
 			. 'to_char(a."localDateTime" AT TIME ZONE \'UTC\', \'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"\') AS "localDateTime" '
@@ -729,21 +699,21 @@ class SensitiveContent {
 			'positives' => $data['learned'][0], 'negatives' => $data['learned'][1],
 			'auto' => count($auto), 'byModel' => $byModel,
 			'added' => $data['change']['added'], 'removed' => $data['change']['removed'],
-			'threshold' => (float)$data['threshold'], 'took' => json_encode($data['took']),
+			'took' => json_encode($data['took']),
 		];
 		if ($data['svm'] === null) {
 			$this->logger->debug('Sensitive: {uid} built without a model ({positives} marked sensitive, {negatives} not); {auto} files sensitive by terms, {added} new, {removed} gone; took {took}', $context);
 			return;
 		}
 		if ($trained === null) {
-			$this->logger->debug('Sensitive: {uid} built with the same model; {auto} files sensitive automatically ({byModel} by the model, threshold {threshold}), {added} new, {removed} gone; took {took}', $context);
+			$this->logger->debug('Sensitive: {uid} built with the same model; {auto} files sensitive automatically ({byModel} by the model), {added} new, {removed} gone; took {took}', $context);
 			return;
 		}
 		$svm = $trained['svm'];
 		$norm = sqrt(array_sum(array_map(static fn ($v) => $v * $v, $svm['w'])));
 		$this->logger->debug('Sensitive: {uid} trained on {positives} marked sensitive and {negatives} not ({passes} passes, gap {gap}, b {b}, |w| {norm}); '
 			. 'on its own marks it gets {wrongPos} sensitive and {wrongNeg} not wrong; new marks [sensitive?, score before, after]: {newMarks}; '
-			. '{auto} files sensitive automatically ({byModel} by the model, threshold {threshold}), {added} new, {removed} gone; took {took}', $context + [
+			. '{auto} files sensitive automatically ({byModel} by the model), {added} new, {removed} gone; took {took}', $context + [
 				'passes' => $svm['passes'] ?? null, 'gap' => $svm['gap'] ?? null, 'b' => round($svm['b'], 3), 'norm' => round($norm, 2),
 				'wrongPos' => $trained['wrong'][1], 'wrongNeg' => $trained['wrong'][0],
 				'newMarks' => json_encode(array_slice($trained['newMarks'], 0, 50)),
@@ -751,14 +721,14 @@ class SensitiveContent {
 	}
 
 	/**
-	 * Assets the SVM scores at or above $threshold. Rows go to $rows for mapping to files.
+	 * Assets on the SVM's sensitive side (score 0 and up). Rows go to $rows for mapping to files.
 	 *
 	 * @return array<string, true>
 	 */
-	private function modelHits(\PDO $pdo, array $svm, float $threshold, array &$rows): array {
+	private function modelHits(\PDO $pdo, array $svm, array &$rows): array {
 		$stmt = $pdo->prepare('SELECT a.id, a."originalPath", a."originalFileName", a.type FROM smart_search s JOIN asset a ON a.id = s."assetId"
 			WHERE a."deletedAt" IS NULL AND -(s.embedding <#> ?::vector) + ? >= ?');
-		$stmt->execute([SensitiveModel::vector($svm['w']), (float)$svm['b'], $threshold]);
+		$stmt->execute([SensitiveModel::vector($svm['w']), (float)$svm['b'], 0.0]);
 		$hits = [];
 		while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
 			$hits[$row['id']] = true;

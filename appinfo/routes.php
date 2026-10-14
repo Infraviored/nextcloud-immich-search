@@ -71,7 +71,6 @@ return [
 		['name' => 'sensitive#setTerm', 'url' => '/api/sensitive/terms', 'verb' => 'POST'],
 		['name' => 'sensitive#removeTerm', 'url' => '/api/sensitive/terms/remove', 'verb' => 'POST'],
 		['name' => 'sensitive#review', 'url' => '/api/sensitive/review', 'verb' => 'GET'],
-		['name' => 'sensitive#setThreshold', 'url' => '/api/sensitive/threshold', 'verb' => 'POST'],
 
 		['name' => 'admin#settings', 'url' => '/api/admin/settings', 'verb' => 'GET'],
 		['name' => 'admin#saveSettings', 'url' => '/api/admin/settings', 'verb' => 'PUT'],

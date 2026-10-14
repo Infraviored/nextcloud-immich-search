@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.10.6] - unreleased
+## [4.10.8] - unreleased
 
 ### Added
 - **Sensitive pictures (optional).** Each user decides what counts:
@@ -11,16 +11,17 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), ve
     search is saved with that picture's similarity as its limit.
   - *Marks* by hand always win for their picture. From 20 marks as sensitive on, a linear SVM
     is trained per user on them (plus a fixed sample of the library as "probably not"), and
-    pictures it scores above the user's threshold count too, also new ones.
+    pictures on its sensitive side count too, also new ones.
     Solved to the end (dual coordinate descent, as LIBLINEAR), so the same marks always give
     the same model and a few new marks move it a little. Each build logs at debug level what
     it learned (`Sensitive: ...`): marks it gets wrong, how it scores the new marks before and
     after, how many pictures came and went.
-  - *Train the sensitive filter* (`/sensitive`), back and forth: search for a term (only
-    pictures not hidden yet, best match first) and mark what should be hidden, train, check
-    what the filter hides now with the least sensitive-looking first, bring back what should
-    stay, train again. Last, how strict it is for new pictures. A click selects, shift-click a
-    range.
+  - *Train the sensitive filter* (`/sensitive`), one page with two sides, back and forth:
+    *Hidden* shows what the filter hides, the least sensitive-looking first, to bring back
+    what it hides too much; *Visible* what it lets through, the most sensitive-looking first,
+    or sorted by a search term to start or for a new topic. Each mark is saved at once and the
+    filter learns again in the background; no steps, no threshold to set: the boundary is the
+    one learned from the marks. A click selects, shift-click a range.
   No extra model, no extra container: Immich's search embeddings are read from its database.
   Each user can show all pictures (sensitive ones marked on their tile), hide them, or see only
   them; "only" lists straight from the database, and marking takes a picture out of a filtered

@@ -293,20 +293,13 @@ export async function removeSensitiveTerm(q) {
 }
 
 /**
- * One page of sorting sensitive pictures.
+ * One page of training the sensitive filter.
  *
- * @param {{step: 'find'|'check', q?: string, page?: number}} params page: where the previous answer said the next starts
+ * @param {{side: 'hidden'|'visible', q?: string, page?: number}} params page: where the previous answer said the next starts
  * @param {AbortSignal} [signal]
  */
-export async function reviewSensitive({ step, q = '', page = 0 }, signal) {
-	return (await axios.get(url('/api/sensitive/review'), { params: { step, q, page }, signal })).data
-}
-
-/**
- * @param {number} threshold from which score of the learned model a picture counts
- */
-export async function setSensitiveThreshold(threshold) {
-	return (await axios.post(url('/api/sensitive/threshold'), { threshold })).data
+export async function reviewSensitive({ side, q = '', page = 0 }, signal) {
+	return (await axios.get(url('/api/sensitive/review'), { params: { side, q, page }, signal })).data
 }
 
 export async function rebuildSensitive() {
