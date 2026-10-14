@@ -160,11 +160,11 @@ const barActions = computed(() => [
 	{ key: 'favorite', icon: favoriteIcon, label: t('Favorite'), run: () => setFavorite([item.value.fileId], true) },
 	{ key: 'similar', icon: similarIcon, label: t('Similar'), run: similar, disabled: !item.value.id },
 	{ key: 'info', icon: infoIcon, label: t('Info'), run: () => { info.value = true } },
-	// Only with sensitive content turned on; one tap marks it the other way
+	// Only with sensitive content turned on: a toggle, lit while the picture counts as sensitive
 	sensitiveOn.value && {
 		key: 'sensitive',
 		icon: sensitiveIcon,
-		label: item.value.sensitive ? t('Not sensitive') : t('Sensitive'),
+		label: t('Sensitive'),
 		pressed: !!item.value.sensitive,
 		run: () => markItems([item.value], !item.value.sensitive),
 	},
