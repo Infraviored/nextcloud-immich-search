@@ -173,9 +173,10 @@ The photos themselves stay in Nextcloud. Immich only reads them and keeps thumbn
 
 **Which search model.** Immich's default, `ViT-B-32__openai`, is small, fast on a CPU and
 understands English. A large model such as `ViT-SO400M-16-SigLIP2-384__webli` finds noticeably
-better and understands other languages too, but is about 20 times slower without a GPU. You
-pick it in Immich under *Administration → Settings → Machine Learning → Smart Search*, then run
-*Administration → Queues → Smart Search → All* once.
+better and understands other languages too, but is about 4 times slower to index than the default
+on a CPU, and 30 times slower than on a GPU. You pick it in Immich under *Administration →
+Settings → Machine Learning → Smart Search*, then run *Administration → Job Queues → Smart Search →
+All* once.
 
 **Measured** with Immich 3.2, one 1024×768 picture, models already loaded. "Per picture" is
 search model plus face detection and recognition (`buffalo_l`), Immich's machine learning only:

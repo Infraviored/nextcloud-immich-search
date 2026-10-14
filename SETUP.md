@@ -19,8 +19,8 @@ Decide from this, and tell the user what you picked and why:
 | Machine | Immich image | Search model |
 |---|---|---|
 | No NVIDIA GPU, under 12 GB RAM | `immich-machine-learning:<version>` | `ViT-B-32__openai` (default, English) |
-| No NVIDIA GPU, 12 GB RAM or more | `immich-machine-learning:<version>` | default, or `ViT-SO400M-16-SigLIP2-384__webli` if the user accepts indexing about 20 times slower |
-| NVIDIA GPU with 8 GB VRAM or more | `immich-machine-learning:<version>-cuda` | `ViT-SO400M-16-SigLIP2-384__webli` (better, multilingual) |
+| No NVIDIA GPU, 12 GB RAM or more | `immich-machine-learning:<version>` | default, or `ViT-SO400M-16-SigLIP2-384__webli` if the user accepts indexing about 4 times slower than the default on a CPU (7 s vs 1.9 s per picture) |
+| NVIDIA GPU with 8 GB VRAM or more | `immich-machine-learning:<version>-cuda` | `ViT-SO400M-16-SigLIP2-384__webli` (better, multilingual; needs GPU reservation in compose) |
 
 Ask the user before you:
 - install Docker, drivers or the NVIDIA container toolkit,
@@ -30,7 +30,7 @@ Ask the user before you:
 Find `occ`. For Nextcloud AIO:
 
 ```bash
-occ() { docker exec --user www-data nextcloud-aio-nextcloud php occ "$@"; }
+occ() { docker exec -i --user www-data nextcloud-aio-nextcloud php occ "$@"; }
 ```
 
 Otherwise it is `sudo -u www-data php /var/www/nextcloud/occ` or the equivalent. The steps
@@ -59,8 +59,11 @@ Things that matter for Glimpse:
 Find the Nextcloud data directory:
 
 ```bash
-occ config:system:get datadirectory    # inside the container; for AIO the host path is
+# For Nextcloud AIO (host mountpoint):
 docker volume inspect nextcloud_aio_nextcloud_datadir --format '{{.Mountpoint}}'
+
+# Otherwise (bare-metal or standard Nextcloud):
+occ config:system:get datadirectory
 ```
 
 (For AIO with `NEXTCLOUD_DATADIR` set, use that host path instead.)
@@ -80,7 +83,7 @@ Always `:ro`. Glimpse never needs Immich to write there. Then `docker compose up
 
 In Immich: *Administration → Settings → Machine Learning → Smart Search → model*, set
 `ViT-SO400M-16-SigLIP2-384__webli`, save. If pictures were indexed before, run *Administration →
-Queues → Smart Search → All*.
+Job Queues → Smart Search → All*.
 
 ## 4. API key
 
@@ -118,7 +121,7 @@ takes hours for a large collection (README → Hardware has measured rates).
   it). Enable under *Settings → What gets indexed*. Runs at night by default; to start now:
   `occ glimpse:video-scenes --minutes=30`, progress with `occ glimpse:video-scenes --status`.
 - **Keep pictures when they are moved:** README → *Install* → step 5 (a Postgres role that may
-  only update asset paths, then `occ glimpse:configure --db-host … --db-user … --db-password-stdin`).
+  only update asset paths, then `occ glimpse:configure --db-host … --db-user … --db-password-stdin < /path/to/password`).
 
 ## 8. Final check
 
@@ -126,9 +129,10 @@ takes hours for a large collection (README → Hardware has measured rates).
 occ glimpse:people-index        # builds people and map now instead of in an hour
 ```
 
-Then log in as one of the users, open Glimpse and search for something that is surely in the
-photos ("tree", "car"). Results mean everything works. Report to the user: which model, how
-many pictures are queued, and roughly how long indexing will take.
+Check *Settings → Status* to see that Immich is actively draining its queues. Once initial
+pictures are indexed, log in as one of the users, open Glimpse and search for something that is
+surely in the photos ("tree", "car"). Results mean everything works. Report to the user: which
+model, how many pictures are queued, and roughly how long indexing will take.
 
 ## Pitfalls
 
