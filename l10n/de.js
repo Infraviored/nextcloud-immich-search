@@ -468,6 +468,19 @@ OC.L10N.register(
         "Nightly 2:00 – 7:00": "Nachts 2:00 – 7:00",
         "Nightly 0:00 – 6:00": "Nachts 0:00 – 6:00",
         "Nightly 23:00 – 6:00": "Nachts 23:00 – 6:00",
-        "Always": "Immer"
+        "Always": "Immer",
+        "Picture actions": "Bildaktionen",
+        "Info": "Info",
+        "In this photo": "Auf diesem Foto",
+        "Show in Files": "In Dateien zeigen",
+        "Share": "Teilen",
+        "Favorite": "Favorit",
+        "Similar": "Ähnliche",
+        "Show similar photos": "Ähnliche Fotos zeigen",
+        "Download": "Herunterladen",
+        "Move to folder …": "In Ordner verschieben …",
+        "Copy to folder …": "In Ordner kopieren …",
+        "Link copied": "Link kopiert",
+        "Could not share: {error}": "Teilen fehlgeschlagen: {error}"
     },
 "nplurals=2; plural=(n != 1);");

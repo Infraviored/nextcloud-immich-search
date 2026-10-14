@@ -114,21 +114,13 @@
 			</div>
 		</Teleport>
 
-		<!-- Over the Nextcloud viewer: jump to the picture in its folder -->
-		<Teleport to="body">
-			<a
-				v-if="viewerState.current"
-				class="viewer-folder"
-				:href="folderUrl(viewerState.current)">
-				<NcIconSvgWrapper :path="mdiFolderOpenOutline" :size="20" />
-				{{ t('Show in folder') }}
-			</a>
-		</Teleport>
+		<!-- Over the Nextcloud viewer: what the app's viewer offers for the picture -->
+		<ViewerBar />
 	</NcContent>
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiFolderOpenOutline, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
@@ -138,6 +130,7 @@ import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import FacesDialog from './components/FacesDialog.vue'
 import LensSearch from './components/LensSearch.vue'
+import ViewerBar from './components/ViewerBar.vue'
 import DuplicatesView from './views/DuplicatesView.vue'
 import FolderView from './views/FolderView.vue'
 import MapView from './views/MapView.vue'
@@ -152,7 +145,7 @@ import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
-import { folderUrl, viewerState } from './viewer.js'
+import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
 
@@ -171,6 +164,9 @@ const startPath = computed(() => {
 })
 
 const isActive = (v) => route.name === v.name || (v.also ?? []).includes(route.name)
+
+// The viewer's action bar needs room below the picture
+watch(() => !!viewerState.current, (open) => document.body.classList.toggle('glimpse-viewer-bar', open))
 
 // Private people come and go with the lock
 watch(() => privateState.version, () => reloadPeople())
@@ -336,27 +332,6 @@ onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 	gap: 6px;
 	padding: 24px 16px max(6px, env(safe-area-inset-bottom));
 	background: linear-gradient(transparent, var(--g-bg) 28px);
-}
-
-.viewer-folder {
-	position: fixed;
-	z-index: 10002;
-	inset-block-end: max(16px, env(safe-area-inset-bottom));
-	inset-inline-start: 50%;
-	transform: translateX(-50%);
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 8px 16px;
-	border-radius: var(--border-radius-pill, 20px);
-	background: rgba(0, 0, 0, 0.6);
-	color: #fff;
-	font-weight: bold;
-	white-space: nowrap;
-
-	&:hover, &:focus-visible {
-		background: rgba(0, 0, 0, 0.8);
-	}
 }
 </style>
 

@@ -4,7 +4,7 @@
  */
 
 import axios from '@nextcloud/axios'
-import { generateUrl } from '@nextcloud/router'
+import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 
 export const url = (path) => generateUrl('/apps/glimpse' + path)
 
@@ -244,4 +244,24 @@ export async function assetForFile(fileId) {
 
 export async function personSamples(id) {
 	return (await axios.get(url(`/api/people/${seg(id)}/samples`))).data
+}
+
+/**
+ * A public link to one of the user's files: the link it already has, or a new one.
+ *
+ * @param {string} path the file, relative to the user's files
+ * @return {Promise<string>} the link
+ */
+export async function publicLink(path) {
+	const shares = generateOcsUrl('apps/files_sharing/api/v1/shares')
+	try {
+		const { data } = await axios.get(shares, { params: { path, reshares: false, format: 'json' } })
+		const existing = (data.ocs.data ?? []).find((s) => Number(s.share_type) === 3 && s.url)
+		if (existing) {
+			return existing.url
+		}
+		return (await axios.post(shares, { path, shareType: 3 }, { params: { format: 'json' } })).data.ocs.data.url
+	} catch (e) {
+		throw new Error(e?.response?.data?.ocs?.meta?.message || errorMessage(e), { cause: e })
+	}
 }

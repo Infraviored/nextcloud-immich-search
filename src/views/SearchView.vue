@@ -33,7 +33,7 @@
 				:placeholder="t('All people')"
 				label="name"
 				:clearable="true"
-				@update:modelValue="run(true)" />
+				@update:modelValue="pickPerson" />
 			<NcSelect
 				v-if="tagOptions.length"
 				v-model="tagOption"
@@ -194,12 +194,34 @@ const personTimeline = computed(() => !!props.person && runQ.value === '' && !si
 const idle = computed(() => !q.value.trim() && !personId.value && !similar.value && !tagId.value)
 /** Named people, the most pictured first */
 const faces = computed(() => peopleOptions.value.filter((p) => !p.hidden).toSorted((a, b) => (b.count ?? 0) - (a.count ?? 0)).slice(0, 24))
+/** The person filter shows the picked person, or the one recognized in the text ("Tara coffee"). */
 const personOption = computed({
-	get: () => peopleOptions.value.find((p) => p.id === personId.value) ?? null,
+	get: () => {
+		const id = personId.value || resolved.value?.id
+		return id ? peopleOptions.value.find((p) => p.id === id) ?? (resolved.value ? { id, name: resolved.value.name } : null) : null
+	},
 	set: (p) => {
 		personId.value = p?.id ?? ''
 	},
 })
+
+/**
+ * A person picked in the filter. If the text named one, the name leaves the text: picking
+ * someone else or "All people" keeps only the other words.
+ *
+ * @param {object|null} p the person, or null when cleared
+ */
+function pickPerson(p) {
+	const named = resolved.value
+	if (named && p?.id === named.id) {
+		personId.value = '' // the recognized person, chosen again: stays recognized
+		return
+	}
+	if (named) {
+		q.value = named.rest
+	}
+	run(true)
+}
 
 const tagOption = computed({
 	get: () => tagOptions.value.find((o) => String(o.id) === String(tagId.value)) ?? null,

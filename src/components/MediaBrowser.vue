@@ -87,9 +87,8 @@ import FacesDialog from './FacesDialog.vue'
 import NotPersonDialog from './NotPersonDialog.vue'
 import SelectionBar from './SelectionBar.vue'
 import TagDialog from './TagDialog.vue'
-import { addToAlbum, createAlbum, shareAlbum } from '../albums.js'
-import { deleteFiles, favorite, moveFaces, tagFiles } from '../api.js'
-import { useAction } from '../composables/useAction.js'
+import { moveFaces } from '../api.js'
+import { usePictureActions } from '../composables/usePictureActions.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
 import { peopleState, reloadPeople } from '../people.js'
@@ -117,7 +116,7 @@ const selected = ref(new Set())
 let anchor = null
 const dialog = ref(null)
 const { busy: transferBusy, run: runTransfer } = useTransfer(() => emit('refresh'))
-const { busy: actionBusy, act } = useAction()
+const { busy: actionBusy, act, setFavorite, tag, album, remove } = usePictureActions()
 
 const allItems = computed(() => props.groups.flatMap((g) => g.items))
 const singleSelected = computed(() => (selected.value.size === 1 ? allItems.value.find((i) => selected.value.has(i.fileId)) ?? null : null))
@@ -140,7 +139,10 @@ function toggle(item, range) {
 }
 
 function open(item) {
-	openInViewer(item, allItems.value)
+	openInViewer(item, allItems.value, {
+		onRemoved: (fileIds) => emit('removed', fileIds),
+		onRefresh: () => emit('refresh'),
+	})
 }
 
 /**
@@ -157,17 +159,6 @@ function settle(failedIds) {
 	}
 }
 
-function report(res, success) {
-	if (!res) {
-		return
-	}
-	if (res.failed?.length) {
-		showWarning(success + ' · ' + n('{count} not allowed', '{count} not allowed', res.failed.length, { count: res.failed.length }))
-	} else {
-		showSuccess(success)
-	}
-}
-
 async function doTransfer(mode, target = null) {
 	const res = await runTransfer([...selected.value], mode, target)
 	if (res) {
@@ -180,40 +171,18 @@ async function doTransfer(mode, target = null) {
 	}
 }
 
-async function doFavorite(on) {
-	const res = await act(() => favorite([...selected.value], on))
-	const count = res?.done ?? 0
-	report(res, on
-		? n('{count} file added to favorites', '{count} files added to favorites', count, { count })
-		: n('{count} file removed from favorites', '{count} files removed from favorites', count, { count }))
+function doFavorite(on) {
+	setFavorite([...selected.value], on)
 }
 
-async function doTag(tagIds, newTags) {
+function doTag(tagIds, newTags) {
 	dialog.value = null
-	const res = await act(() => tagFiles([...selected.value], tagIds, newTags))
-	const count = res?.done ?? 0
-	report(res, n('{count} file tagged', '{count} files tagged', count, { count }))
+	tag([...selected.value], tagIds, newTags)
 }
 
-async function doAlbum(name, isNew, recipients = []) {
+function doAlbum(name, isNew, recipients = []) {
 	dialog.value = null
-	const chosen = allItems.value.filter((i) => selected.value.has(i.fileId))
-	const added = await act(async () => {
-		if (isNew) {
-			await createAlbum(name)
-		}
-		return addToAlbum(name, chosen)
-	})
-	if (added === null) {
-		return
-	}
-	showSuccess(n('{count} picture added to {album}', '{count} pictures added to {album}', added, { count: added, album: name }))
-	if (recipients.length) {
-		const shared = await act(() => shareAlbum(name, recipients))
-		if (shared) {
-			showSuccess(n('{album}: shared with {count} more recipient', '{album}: shared with {count} more recipients', shared, { count: shared, album: name }))
-		}
-	}
+	album(allItems.value.filter((i) => selected.value.has(i.fileId)), name, isNew, recipients)
 }
 
 /**
@@ -272,9 +241,8 @@ async function doPrivate(on) {
 
 async function doDelete() {
 	dialog.value = null
-	const res = await act(() => deleteFiles([...selected.value]))
+	const res = await remove([...selected.value])
 	if (res) {
-		report(res, n('{count} file moved to the trash bin', '{count} files moved to the trash bin', res.done, { count: res.done }))
 		settle(res.failed.map((f) => f.fileId))
 	}
 }
