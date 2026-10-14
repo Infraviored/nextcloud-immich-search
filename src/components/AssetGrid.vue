@@ -42,6 +42,13 @@
 					<NcIconSvgWrapper :path="mdiPlay" :size="18" />
 					<span v-if="item.at" class="tile__at">{{ clock(item.at) }}</span>
 				</span>
+				<span
+					v-if="item.sensitive && sensitiveBadge"
+					class="tile__sensitive"
+					:title="t('Sensitive')">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="sensitiveIcon" /></svg>
+					<span class="hidden-visually">{{ t('Sensitive') }}</span>
+				</span>
 			</button>
 			<button
 				class="tile__check"
@@ -77,7 +84,9 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import { fileUrl, previewUrl, thumbnailUrl } from '../api.js'
 import { t } from '../l10n.js'
+import { sensitiveIcon } from '../materialIcons.js'
 import { prefs } from '../prefs.js'
+import { sensitiveBadge } from '../sensitive.js'
 
 const props = defineProps({
 	items: { type: Array, required: true },
@@ -290,6 +299,25 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 		font-size: 12px;
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
+	}
+
+	// Counted as sensitive: small and in the corner nothing else uses
+	&__sensitive {
+		position: absolute;
+		bottom: 6px;
+		left: 6px;
+		display: flex;
+		padding: 2px;
+		border-radius: 6px;
+		background: rgba(20, 22, 43, 0.72);
+		color: #fff;
+		pointer-events: none;
+
+		svg {
+			width: 16px;
+			height: 16px;
+			fill: currentColor;
+		}
 	}
 
 	&__check, &__folder, &__similar {

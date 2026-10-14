@@ -84,15 +84,16 @@ class AssetSearch {
 	 *                                                   fetching Immich pages until half a page is filled, so a user who may see little
 	 *                                                   does not get a string of empty pages.
 	 */
-	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = '', ?array $onlyFiles = null): array {
-		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar, $onlyFiles, true);
+	public function search(string $uid, string $q, int $page, int $size, string $person = '', string $type = '', string $similar = '', ?array $onlyFiles = null, int $seen = 0): array {
+		return $this->collect($uid, $page, $size, fn (int $p, int $s) => $this->immichPage($q, $p, $s, $person, $type, $similar), $similar, $onlyFiles, true, $seen);
 	}
 
 	/**
 	 * Everything the user may see, newest first, taken before $before (ISO date) if given.
 	 * The cursor is the Immich page within that window.
 	 */
-	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = ''): array {
+	/** @param ?array<int, true> $onlyFiles as in search(), with $seen */
+	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = '', ?array $onlyFiles = null, int $seen = 0): array {
 		if ($person !== '' && !preg_match(self::UUID, $person)) {
 			return ['items' => [], 'nextPage' => null];
 		}
@@ -117,7 +118,7 @@ class AssetSearch {
 				$body['personIds'] = [$person];
 			}
 			return $this->immich->json('POST', '/search/metadata', $body)['assets'] ?? [];
-		});
+		}, '', $onlyFiles, false, $seen);
 	}
 
 	/**
@@ -279,7 +280,7 @@ class AssetSearch {
 	 * @param ?array<int, true> $onlyFiles keep only these file ids, null for all
 	 * @param bool $stills a still taken from a video stands for the video (searches only)
 	 */
-	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = '', ?array $onlyFiles = null, bool $stills = false): array {
+	private function collect(string $uid, int $page, int $size, callable $fetch, string $skipId = '', ?array $onlyFiles = null, bool $stills = false, int $shown = 0): array {
 		$size = max(1, min(200, $size));
 		$items = [];
 		$next = max(1, $page);
@@ -293,7 +294,7 @@ class AssetSearch {
 		// A video found by several of its stills (or by its own) is listed once, at its best place
 		$seen = [];
 		for ($i = 0; $i < $maxPages && $next !== null && count($items) < $want; $i++) {
-			if ($onlyFiles !== null && $page <= 1 && count($items) >= count($onlyFiles)) {
+			if ($onlyFiles !== null && $shown + count($items) >= count($onlyFiles)) {
 				break;
 			}
 			$assets = $fetch($next, $fetchSize);
@@ -309,8 +310,10 @@ class AssetSearch {
 			}
 			$next = isset($assets['nextPage']) ? (int)$assets['nextPage'] : null;
 		}
-		// A search from the start that found every tagged file has nothing more to look for
-		if ($onlyFiles !== null && $page <= 1 && count(array_unique(array_column($items, 'fileId'))) >= count($onlyFiles)) {
+		// Every file of the set found, in this call and before it ($shown, from the client): nothing
+		// more to look for. Without that, paging goes on until Immich has no more pages; a call
+		// that found nothing does not end it, the rest of the set can still be further back.
+		if ($onlyFiles !== null && $shown + count($items) >= count($onlyFiles)) {
 			$next = null;
 		}
 		return ['items' => $items, 'nextPage' => $next];
@@ -321,6 +324,16 @@ class AssetSearch {
 	 * owner's path, then to the path Immich sees (the reverse of nodeFor()).
 	 */
 	public function assetForFile(string $uid, int $fileId): ?array {
+		$path = $this->immichPathOf($uid, $fileId);
+		if ($path === null) {
+			return null;
+		}
+		$hit = $this->immich->json('POST', '/search/metadata', ['originalPath' => $path, 'size' => 1])['assets']['items'][0] ?? null;
+		return $hit !== null && ($hit['originalPath'] ?? '') === $path ? $this->visibleItem($uid, $hit) : null;
+	}
+
+	/** Where Immich sees a file $uid can reach, or null if they cannot. */
+	public function immichPathOf(string $uid, int $fileId): ?string {
 		$node = $this->userFolder($uid)?->getFirstNodeById($fileId);
 		$owner = $node?->getOwner()?->getUID();
 		$ownerNode = $owner !== null ? $this->userFolder($owner)?->getFirstNodeById($fileId) : null;
@@ -328,9 +341,7 @@ class AssetSearch {
 			return null;
 		}
 		$rel = ltrim($this->userFolder($owner)->getRelativePath($ownerNode->getPath()), '/');
-		$path = str_replace(Config::USER_PLACEHOLDER, $owner, $this->config->getPathPattern()) . $rel;
-		$hit = $this->immich->json('POST', '/search/metadata', ['originalPath' => $path, 'size' => 1])['assets']['items'][0] ?? null;
-		return $hit !== null && ($hit['originalPath'] ?? '') === $path ? $this->visibleItem($uid, $hit) : null;
+		return str_replace(Config::USER_PLACEHOLDER, $owner, $this->config->getPathPattern()) . $rel;
 	}
 
 	/** May $uid see this asset? Asks Immich for its path if the user has not been shown it yet. */

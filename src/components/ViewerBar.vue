@@ -22,7 +22,9 @@
 						:key="a.key"
 						type="button"
 						class="viewer-bar__action"
+						:class="{ 'viewer-bar__action--on': a.pressed }"
 						:disabled="a.disabled"
+						:aria-pressed="a.pressed ?? undefined"
 						@click="a.run">
 						<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="a.icon" /></svg>
 						<span>{{ a.label }}</span>
@@ -127,8 +129,9 @@ import { faceUrl, getFaces, publicLink } from '../api.js'
 import { usePictureActions } from '../composables/usePictureActions.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
-import { albumIcon, copyIcon, deleteIcon, downloadIcon, favoriteIcon, folderIcon, infoIcon, moveIcon, shareIcon, similarIcon, tagIcon } from '../materialIcons.js'
+import { albumIcon, copyIcon, deleteIcon, downloadIcon, favoriteIcon, folderIcon, infoIcon, moveIcon, sensitiveIcon, shareIcon, similarIcon, tagIcon } from '../materialIcons.js'
 import { navigate } from '../router.js'
+import { markItems, sensitiveOn } from '../sensitive.js'
 import { closeViewer, downloadUrl, folderUrl, viewerState } from '../viewer.js'
 
 const page = loadState('glimpse', 'page', { photosEnabled: false })
@@ -157,8 +160,16 @@ const barActions = computed(() => [
 	{ key: 'favorite', icon: favoriteIcon, label: t('Favorite'), run: () => setFavorite([item.value.fileId], true) },
 	{ key: 'similar', icon: similarIcon, label: t('Similar'), run: similar, disabled: !item.value.id },
 	{ key: 'info', icon: infoIcon, label: t('Info'), run: () => { info.value = true } },
+	// Only with sensitive content turned on: a toggle, lit while the picture counts as sensitive
+	sensitiveOn.value && {
+		key: 'sensitive',
+		icon: sensitiveIcon,
+		label: t('Sensitive'),
+		pressed: !!item.value.sensitive,
+		run: () => markItems([item.value], !item.value.sensitive),
+	},
 	{ key: 'delete', icon: deleteIcon, label: t('Delete'), run: () => { dialog.value = 'delete' } },
-])
+].filter(Boolean))
 
 const sheetRows = computed(() => [
 	item.value.id && { key: 'similar', icon: similarIcon, label: t('Show similar photos'), run: similar },
@@ -418,6 +429,11 @@ body:has(.modal-mask:not(.viewer)) .viewer-bar {
 		&:disabled {
 			opacity: 0.4;
 			cursor: default;
+		}
+
+		// Marked as sensitive: the icon in the app's accent
+		&--on svg {
+			fill: var(--g-accent, #ffb27a);
 		}
 	}
 }

@@ -197,7 +197,7 @@ async function load() {
 	const ctrl = controller = new AbortController()
 	loading.value = true
 	try {
-		const res = await timeline({ page: nextPage.value, before: before.value, type: props.type, person: props.person?.id ?? '' }, ctrl.signal)
+		const res = await timeline({ page: nextPage.value, before: before.value, type: props.type, person: props.person?.id ?? '', seen: items.value.length }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}

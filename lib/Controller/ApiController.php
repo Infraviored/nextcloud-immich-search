@@ -16,6 +16,7 @@ use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\PeopleNames;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\TagFilter;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -41,6 +42,7 @@ class ApiController extends Controller {
 		private AssetSearch $search,
 		private PeopleNames $names,
 		private PrivateArea $privateArea,
+		private SensitiveContent $sensitive,
 		private ImmichClient $immich,
 		private TagFilter $tagFilter,
 		private IL10N $l,
@@ -57,16 +59,18 @@ class ApiController extends Controller {
 	 *                    all, newest first, straight from Nextcloud.
 	 */
 	#[UserRateLimit(limit: 300, period: 60)]
-	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false, string $similar = '', string $tag = ''): JSONResponse {
+	public function search(string $q = '', int $page = 1, string $person = '', string $type = '', bool $literal = false, string $similar = '', string $tag = '', int $seen = 0): JSONResponse {
+		// How many results the client already has: with a filter set, the search ends once all are found
+		$seen = max(0, $seen);
 		$q = trim($q);
 		if ($similar !== '') {
-			return $this->guard(function () use ($page, $type, $similar, $tag) {
+			return $this->guard(function () use ($page, $type, $similar, $tag, $seen) {
 				$uid = $this->uid();
 				// Only from a picture the user may see: its embedding says something about it.
 				if (!$this->search->maySee($uid, $similar)) {
 					throw new ImmichException($this->l->t('Not found'), Http::STATUS_NOT_FOUND);
 				}
-				return new JSONResponse($this->private($uid, $this->search->search($uid, '', $page, self::PAGE_SIZE, '', $type, $similar, $this->tagged($uid, $tag, $type))) + ['person' => null]);
+				return new JSONResponse($this->private($uid, $this->search->search($uid, '', $page, self::PAGE_SIZE, '', $type, $similar, $this->tagged($uid, $tag, $type), $seen)) + ['person' => null]);
 			});
 		}
 		if ($q === '' && $person === '' && $tag === '') {
@@ -83,7 +87,7 @@ class ApiController extends Controller {
 				return new JSONResponse($this->private($uid, ['items' => $res['items'], 'nextPage' => null]) + ['person' => null, 'truncated' => $res['truncated']]);
 			});
 		}
-		return $this->guard(function () use ($q, $page, $person, $type, $literal, $tag) {
+		return $this->guard(function () use ($q, $page, $person, $type, $literal, $tag, $seen) {
 			$uid = $this->uid();
 			$only = $this->tagged($uid, $tag, $type);
 			$resolved = null;
@@ -99,20 +103,25 @@ class ApiController extends Controller {
 					[$person, $q] = [$found, $rest];
 				}
 			}
-			return new JSONResponse($this->private($uid, $this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type, '', $only)) + ['person' => $resolved]);
+			return new JSONResponse($this->private($uid, $this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type, '', $only, $seen)) + ['person' => $resolved]);
 		});
 	}
 
-	/** @return ?array<int, true> file ids with the tag, null without a tag */
+	/**
+	 * @return ?array<int, true> file ids with the tag, null without a tag; with "only
+	 *                           sensitive" just those (and with the tag)
+	 */
 	private function tagged(string $uid, string $tag, string $type): ?array {
+		$only = $this->sensitive->onlyFiles($uid);
 		if ($tag === '') {
-			return null;
+			return $only;
 		}
 		try {
-			return $this->tagFilter->mediaIds($uid, $tag, in_array($type, ['IMAGE', 'VIDEO'], true) ? $type : '');
+			$ids = $this->tagFilter->mediaIds($uid, $tag, in_array($type, ['IMAGE', 'VIDEO'], true) ? $type : '');
 		} catch (\InvalidArgumentException) {
 			throw new ImmichException($this->l->t('Tag not found'), Http::STATUS_NOT_FOUND);
 		}
+		return $only === null ? $ids : array_intersect_key($ids, $only);
 	}
 
 	/**
@@ -149,9 +158,9 @@ class ApiController extends Controller {
 		});
 	}
 
-	/** Leave out what the user marked private, unless unlocked. */
+	/** Leave out what the user marked private, unless unlocked; sensitive pictures by their mode. */
 	private function private(string $uid, array $res): array {
-		$res['items'] = $this->privateArea->filter($uid, $res['items']);
+		$res['items'] = $this->sensitive->apply($uid, $this->privateArea->filter($uid, $res['items']));
 		return $res;
 	}
 

@@ -13,6 +13,7 @@ use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\Discover;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCP\Dashboard\IAPIWidgetV2;
 use OCP\Dashboard\IIconWidget;
 use OCP\Dashboard\Model\WidgetItem;
@@ -29,6 +30,7 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 	public function __construct(
 		private Discover $discover,
 		private PrivateArea $privateArea,
+		private SensitiveContent $sensitive,
 		private Config $config,
 		private IURLGenerator $url,
 		private IConfig $serverConfig,
@@ -74,8 +76,8 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 			// The user's today, not the server's: around midnight they differ by a day
 			$today = new \DateTimeImmutable('now', $this->timezone($userId));
 			foreach ($this->discover->onThisDay($userId, $today->format('Y-m-d')) as $memory) {
-				// Never private pictures on the dashboard
-				foreach ($this->privateArea->filter($userId, $memory['items'], false) as $a) {
+				// Never private pictures on the dashboard; sensitive ones not when the user hides them
+				foreach ($this->sensitive->apply($userId, $this->privateArea->filter($userId, $memory['items'], false), true) as $a) {
 					$years = (int)$today->format('Y') - $memory['year'];
 					$items[] = new WidgetItem(
 						$a['name'],

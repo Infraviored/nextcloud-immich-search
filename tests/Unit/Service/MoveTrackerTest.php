@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace OCA\Glimpse\Tests\Unit\Service;
 
 use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\ImmichDb;
 use OCA\Glimpse\Service\MoveTracker;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -38,7 +39,7 @@ class MoveTrackerTest extends TestCase {
 		// Port 1 on loopback: refused at once (or no pgsql driver at all), both a PDOException.
 		$config->method('getDatabase')->willReturn(['host' => '127.0.0.1', 'port' => 1, 'name' => 'immich', 'user' => 'u', 'password' => 'secret-pw']);
 		$config->method('getPathPattern')->willReturn('/m/{user}/');
-		$tracker = new MoveTracker($config, $this->createMock(LoggerInterface::class));
+		$tracker = new MoveTracker($config, new ImmichDb($config), $this->createMock(LoggerInterface::class));
 
 		$this->assertTrue($tracker->isEnabled());
 		try {

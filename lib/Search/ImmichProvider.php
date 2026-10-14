@@ -14,6 +14,7 @@ use OCA\Glimpse\Service\AssetSearch;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\PeopleNames;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\UserPrefs;
 use OCP\IL10N;
 use OCP\IURLGenerator;
@@ -40,6 +41,7 @@ class ImmichProvider implements IProvider {
 		private UserPrefs $prefs,
 		private PeopleNames $names,
 		private PrivateArea $privateArea,
+		private SensitiveContent $sensitive,
 		private IURLGenerator $url,
 		IFactory $l10nFactory,
 		private LoggerInterface $logger,
@@ -92,8 +94,9 @@ class ImmichProvider implements IProvider {
 			return SearchResult::complete($this->getName(), []);
 		}
 
-		// Private pictures never show up here, not even when unlocked in the app.
-		$entries = array_map(fn (array $a) => $this->entry($a), $this->privateArea->filter($uid, $res['items'], false));
+		// Private pictures never show up here, not even when unlocked in the app; sensitive ones
+		// not when the user hides them.
+		$entries = array_map(fn (array $a) => $this->entry($a), $this->sensitive->apply($uid, $this->privateArea->filter($uid, $res['items'], false), true));
 		if ($query->getCursor() === null && $entries !== [] && $this->config->get('search_open_all')) {
 			// The search bar cannot select or move; this hands the search over to the app.
 			array_unshift($entries, new SearchResultEntry(

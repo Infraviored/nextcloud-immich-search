@@ -471,4 +471,41 @@ class AssetSearchTest extends TestCase {
 		$this->assertCount(1, $items);
 		$this->assertSame(11, $items[0]['fileId']);
 	}
+
+	public function testOnlyFilesKeepsPagingPastEmptyCallsUntilTheClientHasThemAll(): void {
+		$calls = 0;
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) use (&$calls) {
+			$calls++;
+			return ['assets' => [
+				'items' => [$this->asset('a1', '/mnt/nextcloud/alice/Photos/beach.jpg')],
+				'nextPage' => $calls + 1,
+			]];
+		});
+
+		// File 11 not in these pages: the rest of the set can be further back, paging goes on
+		$res = $this->search->timeline('alice', null, 1, 4, '', null, '', [11 => true]);
+		$this->assertSame([], $res['items']);
+		$this->assertNotNull($res['nextPage']);
+		$this->assertSame(10, $calls, 'probes up to MAX_PAGES_PER_CALL_FILTERED pages per call');
+
+		// The client already shows the one file of the set: nothing more to look for
+		$calls = 0;
+		$res = $this->search->timeline('alice', null, 11, 4, '', null, '', [11 => true], 1);
+		$this->assertNull($res['nextPage']);
+		$this->assertSame(0, $calls);
+	}
+
+	public function testTimelineOnlyFilesCompletesEvenOnSubsequentPages(): void {
+		$this->immich->method('json')->willReturnCallback(function ($m, $e, $b) {
+			return ['assets' => [
+				'items' => [$this->asset('a2', '/mnt/nextcloud/alice/Private/secret.jpg')],
+				'nextPage' => 12,
+			]];
+		});
+
+		// Page cursor is 5 (subsequent page); file 11 is the only target file
+		$res = $this->search->timeline('alice', null, 5, 4, '', null, '', [11 => true]);
+		$this->assertCount(1, $res['items']);
+		$this->assertNull($res['nextPage'], 'all files in onlyFiles found, ends with nextPage null even on subsequent pages');
+	}
 }

@@ -28,6 +28,29 @@
 						@submit="search"
 						@clear="route.name === 'search' && search()" />
 					<div class="bar__tools">
+						<!-- Sensitive content, when turned on: all, without, or only those; everywhere -->
+						<NcActions
+							v-if="sensitiveOn"
+							class="bar__sensitive"
+							:class="{ 'bar__sensitive--on': userPrefs.sensitive_mode !== 'all' }"
+							variant="tertiary"
+							:menuName="sensitiveLabel"
+							:aria-label="t('Sensitive pictures')"
+							:title="t('Sensitive pictures')">
+							<template #icon>
+								<NcIconSvgWrapper :path="sensitiveIcon" />
+							</template>
+							<NcActionButton
+								v-for="m in sensitiveModes"
+								:key="m.value"
+								type="radio"
+								:modelValue="userPrefs.sensitive_mode"
+								:value="m.value"
+								:closeAfterClick="true"
+								@click="setSensitiveMode(m.value)">
+								{{ m.label }}
+							</NcActionButton>
+						</NcActions>
 						<NcButton
 							variant="tertiary"
 							:aria-label="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
@@ -74,13 +97,13 @@
 						</NcButton>
 					</template>
 				</NcEmptyContent>
-				<SearchView v-else-if="route.name === 'search'" :key="searchKey + privateState.version" :people="peopleState.people" />
-				<TimelineView v-else-if="route.name === 'timeline'" :key="'t' + (route.query.at || '') + privateState.version" />
-				<MapView v-else-if="route.name === 'map'" :key="'m' + privateState.version" />
-				<FolderView v-else-if="route.name === 'folders'" :key="'f' + privateState.version" />
-				<PeopleView v-else-if="route.name === 'people'" :key="'p' + privateState.version" />
-				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + privateState.version" />
-				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + privateState.version" />
+				<SearchView v-else-if="route.name === 'search'" :key="searchKey + version" :people="peopleState.people" />
+				<TimelineView v-else-if="route.name === 'timeline'" :key="'t' + (route.query.at || '') + version" />
+				<MapView v-else-if="route.name === 'map'" :key="'m' + version" />
+				<FolderView v-else-if="route.name === 'folders'" :key="'f' + version" />
+				<PeopleView v-else-if="route.name === 'people'" :key="'p' + version" />
+				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + version" />
+				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + version" />
 				<SettingsView v-else-if="route.name === 'settings'" />
 				<!-- Opened from the Files sidebar: ?faces=<assetId>&name=<file name> -->
 				<FacesDialog
@@ -123,6 +146,8 @@
 import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
@@ -140,11 +165,13 @@ import SearchView from './views/SearchView.vue'
 import SettingsView from './views/SettingsView.vue'
 import TimelineView from './views/TimelineView.vue'
 import { t } from './l10n.js'
+import { sensitiveIcon } from './materialIcons.js'
 import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
+import { sensitiveModes, sensitiveOn, sensitiveState, setSensitiveMode } from './sensitive.js'
 import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
@@ -170,6 +197,12 @@ watch(() => !!viewerState.current, (open) => document.body.classList.toggle('gli
 
 // Private people come and go with the lock
 watch(() => privateState.version, () => reloadPeople())
+
+/** Views load again when locking or the sensitive mode changes what they may show. */
+const version = computed(() => privateState.version + '.' + sensitiveState.version)
+
+/** On the button while not everything is shown, so the filter is never forgotten. */
+const sensitiveLabel = computed(() => ({ hide: t('Without sensitive'), only: t('Only sensitive') })[userPrefs.sensitive_mode] ?? '')
 
 /** The text in the search pill; it shows the current search while one is open. */
 const searchText = ref(route.name === 'search' ? (route.query.q || '') : '')
@@ -263,6 +296,12 @@ onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 			background: var(--g-raised);
 			color: var(--g-accent-text);
 		}
+	}
+
+	// A sensitive filter is on: the same apricot, with its name
+	&__sensitive--on :deep(.button-vue) {
+		background: var(--g-raised);
+		color: var(--g-accent-text);
 	}
 }
 

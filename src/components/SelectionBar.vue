@@ -93,6 +93,20 @@
 					</template>
 					{{ t('No longer private') }}
 				</NcActionButton>
+				<template v-if="sensitiveOn">
+					<NcActionButton :closeAfterClick="true" @click="$emit('sensitive', true)">
+						<template #icon>
+							<NcIconSvgWrapper :path="sensitiveIcon" />
+						</template>
+						{{ t('Mark as sensitive') }}
+					</NcActionButton>
+					<NcActionButton :closeAfterClick="true" @click="$emit('sensitive', false)">
+						<template #icon>
+							<NcIconSvgWrapper :path="sensitiveIcon" />
+						</template>
+						{{ t('Mark as not sensitive') }}
+					</NcActionButton>
+				</template>
 				<NcActionButton :closeAfterClick="true" @click="downloadZip(fileIds)">
 					<template #icon>
 						<NcIconSvgWrapper :path="mdiDownload" />
@@ -193,6 +207,8 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { fileUrl, inMemories, memoriesUrl } from '../api.js'
 import { recentTargets as recent } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
+import { sensitiveIcon } from '../materialIcons.js'
+import { sensitiveOn } from '../sensitive.js'
 import { downloadZip } from '../zip.js'
 
 const props = defineProps({
@@ -208,7 +224,7 @@ const props = defineProps({
 	/** {id, name}: the pictures are listed for this person, offer "Not {name}" */
 	person: { type: Object, default: null },
 })
-defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'delete', 'notPerson', 'timeline'])
+defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'sensitive', 'delete', 'notPerson', 'timeline'])
 
 const shareHref = computed(() => {
 	const dir = props.single.path.slice(0, props.single.path.lastIndexOf('/')) || '/'

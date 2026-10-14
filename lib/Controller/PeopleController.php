@@ -18,6 +18,7 @@ use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\PeopleIndex;
 use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -49,6 +50,7 @@ class PeopleController extends Controller {
 		private Permissions $permissions,
 		private AssetSearch $assets,
 		private PrivateArea $privateArea,
+		private SensitiveContent $sensitive,
 		private Config $config,
 		private IL10N $l,
 		private LoggerInterface $logger,
@@ -150,8 +152,11 @@ class PeopleController extends Controller {
 			$this->visible($id);
 			$res = $this->immich->json('POST', '/search/metadata', ['personIds' => [$id], 'size' => 60, 'order' => 'desc'])['assets'] ?? [];
 			$ids = [];
+			// Hidden sensitive pictures are not offered as samples either
+			$hide = $this->sensitive->mode($this->uid()) === 'hide' ? $this->sensitive->flagged($this->uid()) : [];
 			foreach ($res['items'] ?? [] as $a) {
-				if ($this->assets->visibleItem($this->uid(), $a) !== null) {
+				$item = $this->assets->visibleItem($this->uid(), $a);
+				if ($item !== null && !isset($hide[$item['fileId']])) {
 					$ids[] = $a['id'];
 				}
 			}

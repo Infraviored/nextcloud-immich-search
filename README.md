@@ -285,6 +285,14 @@ are lost. Glimpse can carry each move in Nextcloud over to Immich's database. To
 If the database cannot be reached, moving still works. Immich just analyses the picture again
 at its next scan.
 
+The same role also serves *Sensitive pictures* (below), which reads Immich's search embeddings.
+For that, give it read access to them as well:
+
+```sql
+GRANT SELECT ON smart_search TO nextcloud_moves;
+GRANT SELECT ("originalFileName", "deletedAt", type) ON asset TO nextcloud_moves;
+```
+
 ## Configuration
 
 Admins configure everything in the app under *Settings*:
@@ -292,7 +300,7 @@ Admins configure everything in the app under *Settings*:
 | Section | What you set |
 |---|---|
 | Connection | Immich address, API key, path pattern; optional health check of the machine-learning service |
-| What gets indexed | File types and folders Immich should skip (with suggestions for icon and cache folders); minimum picture size (default 256 px), with the option to take smaller images out of Immich for good; search inside videos toggle (`video_scenes`) and night window (`video_scenes_hours`); libraries per user |
+| What gets indexed | File types and folders Immich should skip (with suggestions for icon and cache folders); minimum picture size (default 256 px), with the option to take smaller images out of Immich for good; search inside videos toggle (`video_scenes`) and night window (`video_scenes_hours`); whether users may turn on sensitive pictures (`sensitive_detection`); libraries per user |
 | People | Who may name, merge and hide people (everyone, admins or nobody); minimum number of pictures for unnamed people; how often the people index is rebuilt (every 1 h, 6 h or 24 h) |
 | Nextcloud search | Whether the search bar shows photos and people, from how many characters, and where in the results |
 
@@ -322,11 +330,48 @@ Configuration:
   occ glimpse:video-scenes --purge                      # remove all stills created by Glimpse
   ```
 
+### Sensitive pictures
+
+Optional, off by default, twice: the admin allows it (*Settings → What gets indexed*), then each
+user turns it on for themselves (*Settings → Display*). Whoever leaves it off sees Glimpse
+exactly as before.
+
+Turned on, Glimpse recognises nudity and the user picks in the app bar what they see: *All
+pictures* (the default; recognised ones get a small mark on their tile), *Without sensitive
+pictures*, or *Only sensitive pictures* (to review what was recognised). The choice applies
+everywhere in Glimpse: search, timeline, map, folders, people and memories. *Without* also
+applies to the Nextcloud search bar and the dashboard widget. A button in the viewer and the
+selection menu mark pictures as sensitive or not by hand; a mark always wins over the
+recognition.
+
+How it works:
+1. No extra model. Immich's search embeddings (the same ones search uses) are read from its
+   database, and a linear classifier is trained per user.
+2. First guesses come from comparing every picture with a few sensitive and neutral terms,
+   encoded by Immich's machine-learning service with its current search model. Pictures marked
+   by hand count five times as much, so the recognition learns from corrections.
+3. Scoring every picture is one query in Immich's database (half a second for 60,000 pictures);
+   training takes 15 to 30 seconds. The `UpdateSensitive` job reruns it hourly when Immich has
+   new pictures, another model or the user marked pictures.
+4. The user sets the sensitivity with a slider that shows how many pictures count at each
+   setting. Scores are stored per file the user can see, so the slider needs no new run.
+
+Needs the database access from step 5 with read access to `smart_search`, and the address of
+Immich's machine-learning service (*Settings → Connection*, also used for the health check). The
+Nextcloud container must reach it, e.g. by putting `immich-machine-learning` on Nextcloud's Docker
+network. `occ glimpse:sensitive --check` tests both.
+
+Measured with `ViT-SO400M-16-SigLIP2-384__webli`: a demo library without nudity gets no
+recognised picture at any setting. The thresholds for the first guesses were tuned on that
+model; with another model, the slider and corrections matter more. The recognition knows
+concepts, not body parts: beach photos, art or close-ups of skin can be caught, and some
+pictures slip through.
+
 Every user can set:
 
 | Section | What you set |
 |---|---|
-| Display | Tile size, start view, whether videos are included by default |
+| Display | Tile size, start view, whether videos are included by default; sensitive pictures (on/off, sensitivity, mark on tiles) |
 | Nextcloud search | Whether your own search bar shows photos |
 | Private | Your private folders and people, and whether unlocking asks for your password |
 
@@ -337,6 +382,7 @@ Every user can set:
 | People and map index | hourly (or 6 h / 24 h), skipped when nothing changed | `occ glimpse:people-index` |
 | Video scene indexing | every 5 minutes (up to 2 min budget) in night window | `occ glimpse:video-scenes [--minutes=N] [--limit=N]` |
 | Take tiny images out of Immich | every 15 minutes, new images only | `occ glimpse:prune [--full] [--reset]` |
+| Sensitive pictures, per user who turned them on | hourly, when something changed | `occ glimpse:sensitive [user …] [--check]` |
 | Map tile cache cleanup | daily | – |
 | Connection | – | `occ glimpse:configure` |
 
