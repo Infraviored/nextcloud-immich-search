@@ -94,6 +94,12 @@
 					{{ t('No longer private') }}
 				</NcActionButton>
 				<template v-if="sensitiveOn">
+					<NcActionButton v-if="term && single" :closeAfterClick="true" @click="$emit('upToHere')">
+						<template #icon>
+							<NcIconSvgWrapper :path="sensitiveIcon" />
+						</template>
+						{{ t('Sensitive up to here') }}
+					</NcActionButton>
 					<NcActionButton :closeAfterClick="true" @click="$emit('sensitive', true)">
 						<template #icon>
 							<NcIconSvgWrapper :path="sensitiveIcon" />
@@ -223,8 +229,10 @@ const props = defineProps({
 	memoriesPaths: { type: Array, default: () => [] },
 	/** {id, name}: the pictures are listed for this person, offer "Not {name}" */
 	person: { type: Object, default: null },
+	/** The text of the search the pictures come from, best first: offers "Sensitive up to here" */
+	term: { type: String, default: '' },
 })
-defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'sensitive', 'delete', 'notPerson', 'timeline'])
+defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'sensitive', 'upToHere', 'delete', 'notPerson', 'timeline'])
 
 const shareHref = computed(() => {
 	const dir = props.single.path.slice(0, props.single.path.lastIndexOf('/')) || '/'

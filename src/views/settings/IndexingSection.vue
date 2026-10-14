@@ -126,23 +126,17 @@
 
 		<h3>{{ t('Sensitive pictures') }}</h3>
 		<p class="hint">
-			{{ t('Lets each user turn on recognition of nudity, to mark such pictures, hide them or see only them. Off for everyone until they turn it on. A small detector (NudeNet, see the README) looks at Immich\'s preview of every picture once and tells uncovered from covered body parts, so swimwear does not count.') }}
+			{{ t('Lets each user turn on recognition of nudity, to mark such pictures, hide them or see only them. Off for everyone until they turn it on. It uses the search embeddings Immich already has, so it needs the database access from the install guide (with read access to smart_search) and the address of the machine-learning service under Connection.') }}
 		</p>
-		<div class="indexing__add">
-			<NcTextField v-model="detectorUrl" :label="t('Address of the detector')" placeholder="http://glimpse-detector:3005" />
-			<NcButton @click="saveDetector">
-				{{ t('Save') }}
-			</NcButton>
-		</div>
 		<NcCheckboxRadioSwitch v-model="s.sensitive_detection" type="switch" @update:modelValue="saveSensitive">
 			{{ t('Allow recognising sensitive pictures') }}
 		</NcCheckboxRadioSwitch>
 		<ul v-if="sensitiveCheck" class="indexing__check">
-			<li :class="sensitiveCheck.detector ? 'indexing__check--bad' : 'indexing__check--ok'">
-				{{ sensitiveCheck.detector ? t('Detector: {error}', { error: sensitiveCheck.detector }) : t('Detector: answers') }}
+			<li :class="sensitiveCheck.database ? 'indexing__check--bad' : 'indexing__check--ok'">
+				{{ sensitiveCheck.database ? t('Immich database: {error}', { error: sensitiveCheck.database }) : t('Immich database: readable') }}
 			</li>
-			<li v-if="sensitiveCheck.total">
-				{{ t('{scanned} of {total} pictures looked at', { scanned: sensitiveCheck.scanned, total: sensitiveCheck.total }) }}
+			<li :class="sensitiveCheck.ml ? 'indexing__check--bad' : 'indexing__check--ok'">
+				{{ sensitiveCheck.ml ? t('Machine-learning service: {error}', { error: sensitiveCheck.ml }) : t('Machine-learning service: works ({model})', { model: sensitiveCheck.model }) }}
 			</li>
 		</ul>
 
@@ -328,12 +322,6 @@ async function saveSensitive(on) {
 	}
 }
 
-const detectorUrl = ref('')
-async function saveDetector() {
-	await save({ sensitive_detector_url: detectorUrl.value.trim() })
-	loadSensitiveCheck()
-}
-
 async function addLibrary(uid) {
 	const res = await act(() => createLibrary(uid), t('Library created, scan started'))
 	if (res) {
@@ -346,8 +334,7 @@ onMounted(async () => {
 	minSize.value = String(s.value.min_size ?? 256)
 	libs.value = await act(getLibraries)
 	suggestions.value = (await act(getFolderSuggestions)) ?? []
-	detectorUrl.value = s.value.sensitive_detector_url ?? ''
-	if (s.value.sensitive_detection || detectorUrl.value) {
+	if (s.value.sensitive_detection) {
 		loadSensitiveCheck()
 	}
 })

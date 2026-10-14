@@ -3,17 +3,20 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.8.2] - 2026-10-14
+## [4.9.3] - unreleased
 
 ### Added
-- **Sensitive pictures (optional).** Recognises nudity from Immich's search embeddings, with
-  no extra model, and lets each user show all pictures (recognised ones marked on their tile),
-  hide them, or see only them, from a menu in the app bar. Applies to search, timeline, map,
-  folders, people and memories; hiding also to the Nextcloud search bar and the dashboard.
-  Pictures are marked by hand from the viewer or a selection, and the recognition learns from
-  those marks. Off until the admin allows it (`sensitive_detection`) and the user turns it on
-  under *Settings → Display*, with a sensitivity slider that shows how many pictures count.
-  Needs read access to Immich's `smart_search` table and the machine-learning service's
+- **Sensitive pictures (optional).** Each user decides what counts: search for it, select the
+  last result that still counts and choose *Sensitive up to here*; the search is saved as a term
+  with that picture's similarity as its limit. Marks by hand always win for their picture, and
+  the pictures most like a marked one follow it. No extra model, no extra container: Immich's
+  search embeddings are read from its database. Each user can show all pictures (sensitive ones
+  marked on their tile), hide them, or see only them; "only" lists straight from the database
+  instead of paging through the library. Applies to search, timeline, map, folders, people and
+  memories; hiding also to the Nextcloud search bar and the dashboard. Off until the admin allows
+  it (`sensitive_detection`) and the user turns it on under *Settings → Display*, where the terms
+  are listed with how many pictures each brings in. Needs read access to Immich's
+  `smart_search` table and a few `asset` columns (README), and the machine-learning service's
   address. New: `occ glimpse:sensitive`, the hourly `UpdateSensitive` job.
 
 ### Changed

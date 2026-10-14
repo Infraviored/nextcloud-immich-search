@@ -13,7 +13,7 @@ use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\IndexAdmin;
-use OCA\Glimpse\Service\SensitiveScanner;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -33,7 +33,7 @@ class AdminController extends Controller {
 		private Config $config,
 		private IndexAdmin $index,
 		private SmallImagePruner $pruner,
-		private SensitiveScanner $scanner,
+		private SensitiveContent $sensitive,
 		private IL10N $l,
 		private LoggerInterface $logger,
 	) {
@@ -114,9 +114,9 @@ class AdminController extends Controller {
 		});
 	}
 
-	/** Does the nudity detector answer, and how far is the scan? */
+	/** Is everything there for recognising sensitive content (database access, machine learning)? */
 	public function sensitiveCheck(): JSONResponse {
-		return $this->guard(fn () => ['detector' => $this->scanner->check()] + $this->scanner->status());
+		return $this->guard(fn () => $this->sensitive->check());
 	}
 
 	private function guard(callable $fn): JSONResponse {

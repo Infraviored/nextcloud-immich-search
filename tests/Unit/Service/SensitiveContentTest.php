@@ -10,8 +10,10 @@ declare(strict_types=1);
 namespace OCA\Glimpse\Tests\Unit\Service;
 
 use OCA\Glimpse\Service\AssetSearch;
+use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\ImmichClient;
+use OCA\Glimpse\Service\ImmichDb;
 use OCA\Glimpse\Service\SensitiveContent;
-use OCA\Glimpse\Service\SensitiveScanner;
 use OCA\Glimpse\Service\UserPrefs;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\Folder;
@@ -21,8 +23,7 @@ use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
-use OCP\ICache;
-use OCP\ICacheFactory;
+use OCP\Http\Client\IClientService;
 use OCP\IConfig;
 use PHPUnit\Framework\TestCase;
 
@@ -49,39 +50,29 @@ class SensitiveContentTest extends TestCase {
 		$appData->method('getFolder')->willReturn($folder);
 		$factory = $this->createMock(IAppDataFactory::class);
 		$factory->method('get')->willReturn($appData);
-		$cacheFactory = $this->createMock(ICacheFactory::class);
-		$cacheFactory->method('createDistributed')->willReturn($this->createMock(ICache::class));
 
+		$config = $this->createMock(Config::class);
+		$config->method('get')->willReturnCallback(fn ($k) => $k === 'sensitive_detection' ? $this->allowed : null);
 		$prefs = $this->createMock(UserPrefs::class);
 		$prefs->method('get')->willReturnCallback(fn ($uid, $k) => $this->prefs[$k] ?? UserPrefs::PREFS[$k][1]);
 
-		// Asset a1 (file 1): an uncovered breast; a2 (file 2): only a bare male chest;
-		// a3 (file 3): unsure buttocks; a9: someone else's file
-		$scanner = $this->createMock(SensitiveScanner::class);
-		$scanner->method('enabled')->willReturnCallback(fn () => $this->allowed);
-		$scanner->method('candidates')->willReturn([
-			'a1' => ['path' => '/p/1', 'type' => 'IMAGE', 'scores' => ['FEMALE_BREAST_EXPOSED' => 0.9]],
-			'a2' => ['path' => '/p/2', 'type' => 'IMAGE', 'scores' => ['MALE_BREAST_EXPOSED' => 0.8]],
-			'a3' => ['path' => '/p/3', 'type' => 'IMAGE', 'scores' => ['BUTTOCKS_EXPOSED' => 0.3]],
-			'a9' => ['path' => '/p/9', 'type' => 'IMAGE', 'scores' => ['FEMALE_GENITALIA_EXPOSED' => 0.9]],
-		]);
-		$assets = $this->createMock(AssetSearch::class);
-		$assets->method('visibleItem')->willReturnCallback(fn ($uid, $a) => $a['id'] === 'a9' ? null : ['fileId' => (int)substr($a['id'], 1)]);
-
-		// The user reaches files 1 to 8
+		// The user reaches files 1 to 9, nothing else
 		$userFolder = $this->createMock(Folder::class);
-		$userFolder->method('getFirstNodeById')->willReturnCallback(fn ($id) => $id < 9 ? $this->createMock(Node::class) : null);
+		$userFolder->method('getFirstNodeById')->willReturnCallback(fn ($id) => $id < 10 ? $this->createMock(Node::class) : null);
 		$root = $this->createMock(IRootFolder::class);
 		$root->method('getUserFolder')->willReturn($userFolder);
 
-		return new SensitiveContent($prefs, $scanner, $assets, $root, $this->createMock(IConfig::class), $factory, $cacheFactory);
+		return new SensitiveContent($config, $prefs, $this->createMock(ImmichDb::class), $this->createMock(ImmichClient::class),
+			$this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class), $factory);
 	}
 
 	private function items(): array {
-		return array_map(static fn ($id) => ['id' => 'a' . $id, 'fileId' => $id, 'path' => '/p/' . $id . '.jpg'], [1, 2, 3, 4]);
+		return array_map(static fn ($id) => ['id' => 'a' . $id, 'fileId' => $id, 'path' => '/p/' . $id . '.jpg'], [1, 2, 3]);
 	}
 
 	protected function setUp(): void {
+		// The terms bring in 1
+		$this->files['u.json'] = json_encode(['auto' => [1], 'marks' => []]);
 		$this->prefs = ['sensitive_enabled' => true];
 	}
 
@@ -99,26 +90,14 @@ class SensitiveContentTest extends TestCase {
 		$this->assertNull($this->service()->onlyFiles('u'));
 	}
 
-	public function testOnlyChosenBodyPartsAboveTheThresholdCount(): void {
-		// Default: breast, genitals, buttocks at 50 %; a bare male chest does not count
-		$this->assertSame([1 => true], $this->service()->flagged('u'));
-		$this->prefs['sensitive_chest'] = true;
-		$this->assertSame([1 => true, 2 => true], $this->service()->flagged('u'));
-		$this->prefs['sensitive_threshold'] = 25;
-		$this->assertSame([1 => true, 2 => true, 3 => true], $this->service()->flagged('u'));
-		$this->prefs['sensitive_breast'] = false;
-		$this->assertSame([2 => true, 3 => true], $this->service()->flagged('u'));
-	}
-
-	public function testSomeoneElsesFilesNeverCount(): void {
-		$this->prefs['sensitive_threshold'] = 20;
-		$this->assertArrayNotHasKey(9, $this->service()->flagged('u'));
-		$this->assertSame(1, $this->service()->status('u')['counts'][50]);
+	public function testAllMarksWithoutHiding(): void {
+		$out = $this->service()->apply('u', $this->items());
+		$this->assertSame([true, false, false], array_map(static fn ($i) => $i['sensitive'] ?? false, $out));
 	}
 
 	public function testHideAndOnly(): void {
 		$this->prefs['sensitive_mode'] = 'hide';
-		$this->assertSame([2, 3, 4], array_column($this->service()->apply('u', $this->items()), 'fileId'));
+		$this->assertSame([2, 3], array_column($this->service()->apply('u', $this->items()), 'fileId'));
 		$this->prefs['sensitive_mode'] = 'only';
 		$this->assertSame([1], array_column($this->service()->apply('u', $this->items()), 'fileId'));
 		$this->assertSame([1 => true], $this->service()->onlyFiles('u'));
@@ -126,19 +105,50 @@ class SensitiveContentTest extends TestCase {
 
 	public function testGlobalSearchNeverShowsOnlyTheSensitive(): void {
 		$this->prefs['sensitive_mode'] = 'only';
-		$this->assertCount(4, $this->service()->apply('u', $this->items(), true));
+		$this->assertCount(3, $this->service()->apply('u', $this->items(), true));
+		$this->prefs['sensitive_mode'] = 'hide';
+		$this->assertSame([2, 3], array_column($this->service()->apply('u', $this->items(), true), 'fileId'));
 	}
 
 	public function testMarksWinAndCanBeUndone(): void {
 		$s = $this->service();
 		// 12 is not the user's: ignored
-		$res = $s->mark('u', ['1' => false, '4' => true, '12' => true]);
-		$this->assertSame([1 => null, 4 => null], $res['previous']);
-		$this->assertSame([1 => false, 4 => true], $res['sensitive']);
-		$this->assertSame([4 => true], $this->service()->flagged('u'));
+		$res = $s->mark('u', ['1' => false, '3' => true, '12' => true]);
+		$this->assertSame([1 => null, 3 => null], $res['previous']);
+		$this->assertSame([1 => false, 3 => true], $res['sensitive']);
+		$this->assertSame([3 => true], $this->service()->flagged('u'));
+		// The next build takes the pictures nearby along
+		$this->assertGreaterThan(0, $this->service()->get('u')['marksChanged']);
 
 		$back = $this->service()->mark('u', $res['previous']);
-		$this->assertSame([1 => true, 4 => false], $back['sensitive']);
+		$this->assertSame([1 => true, 3 => false], $back['sensitive']);
 		$this->assertSame([1 => true], $this->service()->flagged('u'));
+	}
+
+	public function testANearbyMarkWinsOverTheTerms(): void {
+		$hits = ['a' => true, 'b' => true];
+		$verdicts = [
+			// b is near a "not" mark
+			'b' => [[0.9, false]],
+			// c is near a "sensitive" mark
+			'c' => [[0.85, true]],
+			// d is near both; the closer one decides
+			'd' => [[0.83, false], [0.95, true]],
+			'e' => [[0.95, false], [0.83, true]],
+		];
+		$this->assertSame(['a' => true, 'c' => true, 'd' => true], SensitiveContent::decide($hits, $verdicts));
+	}
+
+	public function testOwnMarkWinsOverEverything(): void {
+		$this->assertSame([1 => true, 3 => true], SensitiveContent::withMarks([1, 2], [2 => false, 3 => true]));
+	}
+
+	public function testOldFilesKeepTheirMarks(): void {
+		$this->files['u.json'] = json_encode(['scores' => ['1' => 0.9], 'marks' => ['4' => true]]);
+		$this->assertSame([4 => true], $this->service()->flagged('u'));
+	}
+
+	public function testVector(): void {
+		$this->assertSame('[0.5,-0.25]', SensitiveContent::vector([0.5, -0.25]));
 	}
 }

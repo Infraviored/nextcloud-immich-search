@@ -290,7 +290,7 @@ For that, give it read access to them as well:
 
 ```sql
 GRANT SELECT ON smart_search TO nextcloud_moves;
-GRANT SELECT ("originalFileName", "deletedAt", type) ON asset TO nextcloud_moves;
+GRANT SELECT ("originalFileName", "deletedAt", type, "fileCreatedAt", "localDateTime") ON asset TO nextcloud_moves;
 ```
 
 ## Configuration

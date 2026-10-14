@@ -66,6 +66,9 @@ return [
 
 		['name' => 'sensitive#status', 'url' => '/api/sensitive', 'verb' => 'GET'],
 		['name' => 'sensitive#mark', 'url' => '/api/sensitive/marks', 'verb' => 'POST'],
+		['name' => 'sensitive#rebuild', 'url' => '/api/sensitive/rebuild', 'verb' => 'POST'],
+		['name' => 'sensitive#setTerm', 'url' => '/api/sensitive/terms', 'verb' => 'POST'],
+		['name' => 'sensitive#removeTerm', 'url' => '/api/sensitive/terms/remove', 'verb' => 'POST'],
 
 		['name' => 'admin#settings', 'url' => '/api/admin/settings', 'verb' => 'GET'],
 		['name' => 'admin#saveSettings', 'url' => '/api/admin/settings', 'verb' => 'PUT'],

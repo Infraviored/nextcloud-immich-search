@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import { showError, showUndo } from '@nextcloud/dialogs'
+import { showError, showSuccess, showUndo } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, reactive } from 'vue'
-import { errorMessage, markSensitive } from './api.js'
+import { errorMessage, markSensitive, setSensitiveTerm } from './api.js'
 import { n, t } from './l10n.js'
 import { saveUserPrefs, userPrefs } from './prefs.js'
 
@@ -71,6 +71,29 @@ export async function markItems(items, on) {
 				showError(errorMessage(e))
 			}
 		})
+	} catch (e) {
+		showError(errorMessage(e))
+	}
+}
+
+/**
+ * "Sensitive up to here", on one picture in the results of a text search: the search counts
+ * as sensitive down to it. The results above it get the mark right away; everything else
+ * follows when the views load again.
+ *
+ * @param {string} q the search text
+ * @param {object} item the picked result
+ * @param {object[]} items the results in their order
+ */
+export async function sensitiveUpToHere(q, item, items) {
+	try {
+		const res = await setSensitiveTerm(q, item.thumbId ?? item.id)
+		const index = items.indexOf(item)
+		for (const i of items.slice(0, index + 1)) {
+			i.sensitive = true
+		}
+		const count = res.terms?.find((x) => x.q.toLowerCase() === q.toLowerCase())?.count ?? index + 1
+		showSuccess(n('“{q}”: {count} picture counts as sensitive', '“{q}”: {count} pictures count as sensitive', count, { q, count }))
 	} catch (e) {
 		showError(errorMessage(e))
 	}

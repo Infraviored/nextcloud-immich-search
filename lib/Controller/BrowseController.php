@@ -71,7 +71,9 @@ class BrowseController extends Controller {
 					return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
 				}
 			}
-			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person, $this->sensitive->onlyFiles($this->uid()), max(0, $seen));
+			// "Only sensitive": straight from the list instead of paging through everything
+			$res = ($person === '' ? $this->sensitive->onlyPage($this->uid(), '', $before !== '' ? $before : null, $after !== '' ? $after : null, $type, $page, self::PAGE_SIZE) : null)
+				?? $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person, $this->sensitive->onlyFiles($this->uid()), max(0, $seen));
 			$res['items'] = $this->filter($res['items']);
 			$seenYear = null;
 			if ($page === 1 && $before === '' && $after === '' && isset($res['items'][0]['date'])) {

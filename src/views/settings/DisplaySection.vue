@@ -39,46 +39,44 @@
 		<template v-if="page.sensitiveAvailable">
 			<h3>{{ t('Sensitive pictures') }}</h3>
 			<p class="hint">
-				{{ t('Recognises uncovered breasts, genitals and buttocks, so you can mark such pictures, hide them or look at only them. Swimwear and underwear do not count. Recognised on this server; only you see what counts or is marked for you.') }}
+				{{ t('You decide what counts as sensitive: search for it, select the last result that still counts and choose “Sensitive up to here”. Works with what Immich already knows about each picture; nothing leaves this server. Only you see your terms and marks.') }}
 			</p>
 			<NcCheckboxRadioSwitch v-model="userPrefs.sensitive_enabled" type="switch" @update:modelValue="toggleSensitive">
-				{{ t('Recognise sensitive pictures') }}
+				{{ t('Mark sensitive pictures') }}
 			</NcCheckboxRadioSwitch>
 			<template v-if="userPrefs.sensitive_enabled">
-				<p v-if="scanLine" class="sensitive__state" aria-live="polite">
-					{{ scanLine }}
+				<p class="sensitive__state" aria-live="polite">
+					{{ sensitiveLine }}
 				</p>
-				<h4>{{ t('What counts') }}</h4>
-				<NcCheckboxRadioSwitch
-					v-for="c in categories"
-					:key="c.key"
-					:modelValue="userPrefs['sensitive_' + c.key]"
-					@update:modelValue="saveCategory(c.key, $event)">
-					{{ c.label }}
-				</NcCheckboxRadioSwitch>
-				<label class="sensitive__slider">
-					<span>{{ t('Sensitivity') }}</span>
-					<input
-						v-model.number="sensitivity"
-						type="range"
-						min="20"
-						max="95"
-						step="5"
-						@change="save({ sensitive_threshold: 115 - sensitivity })">
-				</label>
-				<p v-if="count !== null" class="hint">
-					{{ n('At this sensitivity {count} picture counts as sensitive.', 'At this sensitivity {count} pictures count as sensitive.', count, { count }) }}
+				<ul v-if="status?.terms?.length" class="sensitive__terms">
+					<li v-for="term in status.terms" :key="term.q">
+						<a :href="searchHref(term.q)" @click.prevent="navigate('/search', { q: term.q })">“{{ term.q }}”</a>
+						<span class="hint">
+							{{ term.stale ? t('made with another search model, set it again') : n('{count} picture', '{count} pictures', term.count, { count: term.count }) }}
+						</span>
+						<NcButton variant="tertiary" :aria-label="t('Remove “{q}”', { q: term.q })" @click="removeTerm(term.q)">
+							<template #icon>
+								<NcIconSvgWrapper :path="mdiClose" />
+							</template>
+						</NcButton>
+					</li>
+				</ul>
+				<p v-else-if="status" class="hint">
+					{{ t('No terms yet. Search for what you consider sensitive, select the last picture that still counts, and choose “Sensitive up to here” in the selection menu.') }}
 				</p>
 				<NcCheckboxRadioSwitch v-model="userPrefs.sensitive_badge" type="switch" @update:modelValue="save({ sensitive_badge: $event })">
 					{{ t('Mark them on the tiles') }}
 				</NcCheckboxRadioSwitch>
 				<div class="sensitive__actions">
 					<NcButton @click="review">
-						{{ t('Review recognised pictures') }}
+						{{ t('Review sensitive pictures') }}
+					</NcButton>
+					<NcButton variant="tertiary" :disabled="busy" @click="recompute">
+						{{ t('Recompute now') }}
 					</NcButton>
 				</div>
 				<p class="hint">
-					{{ t('Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count.') }}
+					{{ t('Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and the pictures most like it follow it.') }}
 				</p>
 			</template>
 		</template>
@@ -86,16 +84,18 @@
 </template>
 
 <script setup>
+import { mdiClose } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import { getSensitive } from '../../api.js'
+import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
+import { getSensitive, rebuildSensitive, removeSensitiveTerm } from '../../api.js'
 import { useAction } from '../../composables/useAction.js'
 import { n, t } from '../../l10n.js'
 import { prefs, saveUserPrefs, userPrefs } from '../../prefs.js'
-import { navigate } from '../../router.js'
-import { setSensitiveMode } from '../../sensitive.js'
+import { href, navigate } from '../../router.js'
+import { sensitiveState, setSensitiveMode } from '../../sensitive.js'
 
 const { act } = useAction()
 const page = loadState('glimpse', 'page', { sensitiveAvailable: false })
@@ -115,28 +115,31 @@ const views = [
 
 const save = (changes) => act(() => saveUserPrefs(changes), t('Saved'))
 
-/** Sensitivity on the slider: further right counts more pictures (a lower score threshold). */
-const sensitivity = ref(115 - (userPrefs.sensitive_threshold ?? 50))
 const status = ref(null)
-const count = computed(() => status.value?.counts?.[115 - sensitivity.value] ?? null)
-const categories = [
-	{ key: 'breast', label: t('Uncovered breasts') },
-	{ key: 'genitals', label: t('Genitals') },
-	{ key: 'buttocks', label: t('Bare buttocks') },
-	{ key: 'chest', label: t('Bare male chest') },
-]
-/** While the detector has not seen every picture yet: how far it is. */
-const scanLine = computed(() => {
-	const scan = status.value?.scan
-	if (!scan || scan.firstPassDone || !scan.total) {
+const busy = ref(false)
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+const sensitiveLine = computed(() => {
+	const s = status.value
+	if (!s) {
 		return ''
 	}
-	return t('Still looking at pictures: {scanned} of {total}. More are recognised as it goes on.', { scanned: scan.scanned, total: scan.total })
+	if (s.error) {
+		return t('Last attempt failed: {error}', { error: s.error })
+	}
+	const parts = [n('{count} picture counts as sensitive.', '{count} pictures count as sensitive.', s.flagged ?? 0, { count: s.flagged ?? 0 })]
+	if (s.marked + s.unmarked) {
+		parts.push(n('{count} picture marked by you.', '{count} pictures marked by you.', s.marked + s.unmarked, { count: s.marked + s.unmarked }))
+	}
+	if (s.added || s.removed) {
+		parts.push(t('Pictures like your marks: {added} added, {removed} taken out.', { added: s.added, removed: s.removed }))
+	}
+	if (s.built) {
+		parts.push(t('Last computed {date}.', { date: dateFormat.format(new Date(s.built * 1000)) }))
+	}
+	return parts.join(' ')
 })
 
-let poll = null
 async function loadStatus() {
-	clearTimeout(poll)
 	if (!page.sensitiveAvailable || !userPrefs.sensitive_enabled) {
 		status.value = null
 		return
@@ -146,9 +149,17 @@ async function loadStatus() {
 	} catch {
 		status.value = null
 	}
-	// While the detector is still going through the pictures, look again now and then
-	if (status.value?.scan && !status.value.scan.firstPassDone) {
-		poll = setTimeout(loadStatus, 30000)
+}
+
+const searchHref = (q) => href('/search', { q })
+
+async function removeTerm(q) {
+	busy.value = true
+	const res = await act(() => removeSensitiveTerm(q), t('Removed'))
+	busy.value = false
+	if (res) {
+		status.value = res
+		sensitiveState.version++
 	}
 }
 
@@ -157,9 +168,14 @@ async function toggleSensitive(on) {
 	loadStatus()
 }
 
-async function saveCategory(key, on) {
-	await save({ ['sensitive_' + key]: on })
-	loadStatus()
+async function recompute() {
+	busy.value = true
+	const res = await act(rebuildSensitive)
+	busy.value = false
+	if (res) {
+		status.value = res
+		sensitiveState.version++
+	}
 }
 
 /** "Only sensitive", in the timeline: the list to clean up. */
@@ -168,29 +184,22 @@ async function review() {
 	navigate('/timeline')
 }
 
-watch(() => userPrefs.sensitive_threshold, (v) => {
-	sensitivity.value = 115 - (v ?? 50)
-})
 onMounted(loadStatus)
-onBeforeUnmount(() => clearTimeout(poll))
 </script>
 
 <style scoped>
 .hint { color: var(--color-text-maxcontrast); }
 h3 { margin-top: 20px; }
 .hint, .sensitive__state { max-width: 62ch; }
-h4 { margin: 12px 0 2px; }
 
-.sensitive__slider {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 8px 16px;
-	margin: 12px 0 4px;
+.sensitive__terms {
+	margin: 8px 0;
 
-	input {
-		flex: 0 1 280px;
-		accent-color: var(--g-accent, var(--color-primary-element));
+	li {
+		display: flex;
+		align-items: center;
+		gap: 4px 12px;
+		flex-wrap: wrap;
 	}
 }
 

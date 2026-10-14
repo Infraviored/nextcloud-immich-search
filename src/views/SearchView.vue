@@ -97,6 +97,7 @@
 			<MediaBrowser
 				:groups="[{ key: 'all', items }]"
 				:person="listedPerson"
+				:term="sensitiveTerm"
 				@removed="drop"
 				@refresh="run(true)"
 				@similar="showSimilar">
@@ -242,6 +243,9 @@ const listedPerson = computed(() => {
 
 /** Without text or picture to rank by, results come by date. */
 const byDate = computed(() => !(q.value.trim() && !similar.value))
+
+/** The words the results are ranked by (without a recognized person): "Sensitive up to here" saves them */
+const sensitiveTerm = computed(() => similar.value ? '' : (resolved.value ? resolved.value.rest : runQ.value).trim())
 
 const status = computed(() => {
 	if (!searched.value || !items.value.length) {

@@ -103,7 +103,9 @@ class ApiController extends Controller {
 					[$person, $q] = [$found, $rest];
 				}
 			}
-			return new JSONResponse($this->private($uid, $this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type, '', $only, $seen)) + ['person' => $resolved]);
+			// "Only sensitive": straight from the list instead of paging through everything
+			$res = $person === '' && $tag === '' ? $this->sensitive->onlyPage($uid, $q, null, null, $type, $page, self::PAGE_SIZE) : null;
+			return new JSONResponse($this->private($uid, $res ?? $this->search->search($uid, $q, $page, self::PAGE_SIZE, $person, $type, '', $only, $seen)) + ['person' => $resolved]);
 		});
 	}
 

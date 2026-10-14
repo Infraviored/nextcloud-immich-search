@@ -272,10 +272,28 @@ export async function getSensitive() {
 }
 
 /**
- * @param {Object<number, boolean|null>} marks fileId => true (sensitive), false (not), null (back to the score)
+ * @param {Object<number, boolean|null>} marks fileId => true (sensitive), false (not), null (back to what the terms say)
  */
 export async function markSensitive(marks) {
 	return (await axios.post(url('/api/sensitive/marks'), { marks })).data
+}
+
+/**
+ * "Sensitive up to here": the term counts down to this picture.
+ *
+ * @param {string} q the search text
+ * @param {string} assetId the picture's Immich id (for a video found through a still, the still's)
+ */
+export async function setSensitiveTerm(q, assetId) {
+	return (await axios.post(url('/api/sensitive/terms'), { q, assetId })).data
+}
+
+export async function removeSensitiveTerm(q) {
+	return (await axios.post(url('/api/sensitive/terms/remove'), { q })).data
+}
+
+export async function rebuildSensitive() {
+	return (await axios.post(url('/api/sensitive/rebuild'))).data
 }
 
 export async function checkSensitive() {

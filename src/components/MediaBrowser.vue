@@ -20,6 +20,7 @@
 			:photosEnabled="page.photosEnabled"
 			:memoriesPaths="page.memoriesPaths"
 			:person="peopleState.canManage ? person : null"
+			:term="term"
 			@clear="selected = new Set()"
 			@selectAll="selected = new Set(allItems.map((i) => i.fileId))"
 			@move="doTransfer('move', $event)"
@@ -31,6 +32,7 @@
 			@faces="dialog = 'faces'"
 			@private="doPrivate"
 			@sensitive="doSensitive"
+			@upToHere="doUpToHere"
 			@delete="dialog = 'delete'"
 			@notPerson="dialog = 'notPerson'"
 			@timeline="navigate('/timeline', { at: singleSelected.date.slice(0, 10) })" />
@@ -96,7 +98,7 @@ import { peopleState, reloadPeople } from '../people.js'
 import { privateState, setPrivateFiles } from '../private.js'
 import { navigate } from '../router.js'
 import { pruneSelection, selectionActive, toggleSelection } from '../selection.js'
-import { markItems } from '../sensitive.js'
+import { markItems, sensitiveUpToHere } from '../sensitive.js'
 import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
@@ -104,6 +106,8 @@ const props = defineProps({
 	groups: { type: Array, required: true },
 	/** {id, name}: the pictures are this person's; offers correcting wrong faces */
 	person: { type: Object, default: null },
+	/** The text of a search, results best first: offers "Sensitive up to here" */
+	term: { type: String, default: '' },
 })
 /**
  * removed: file ids that left this view (moved or deleted)
@@ -250,6 +254,12 @@ async function doSensitive(on) {
 	const ids = selected.value
 	selected.value = new Set()
 	await markItems(allItems.value.filter((i) => ids.has(i.fileId)), on)
+}
+
+async function doUpToHere() {
+	const item = singleSelected.value
+	selected.value = new Set()
+	await sensitiveUpToHere(props.term, item, allItems.value)
 }
 
 async function doDelete() {
