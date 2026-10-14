@@ -55,7 +55,7 @@
 								<template #icon>
 									<NcIconSvgWrapper :path="mdiSort" />
 								</template>
-								{{ t('Sort sensitive pictures') }}
+								{{ t('Train the sensitive filter') }}
 							</NcActionButton>
 						</NcActions>
 						<NcButton

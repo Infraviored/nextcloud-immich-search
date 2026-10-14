@@ -542,34 +542,19 @@ OC.L10N.register(
             "{count} Bild gilt als heikel.",
             "{count} Bilder gelten als heikel."
         ],
-        "Sort sensitive pictures": "Heikle Bilder sortieren",
         "Steps": "Schritte",
-        "Type something you want to sort out, for example “nude breasts”. English words usually work better. Only pictures that do not count as sensitive yet are shown, the best matches first. Select the ones that are sensitive and mark them; leave out the rest.": "Gib etwas ein, das du aussortieren möchtest, zum Beispiel „nude breasts“. Englische Begriffe funktionieren meist besser. Es erscheinen nur Bilder, die noch nicht als heikel gelten, die besten Treffer zuerst. Wähl die heiklen aus und markiere sie; den Rest lässt du stehen.",
-        "What should be sorted out?": "Was soll aussortiert werden?",
-        "Everything that counts as sensitive and that you did not mark yourself, the least sure first. Select what is not sensitive. Once only sensitive ones come, you are done here.": "Alles, was als heikel gilt und nicht von dir selbst markiert ist, die unsichersten zuerst. Wähl aus, was nicht heikel ist. Sobald nur noch heikle kommen, bist du hier fertig.",
-        "Pictures that do not count as sensitive yet, but that Glimpse finds most likely to be. Select the sensitive ones and mark them.": "Bilder, die noch nicht als heikel gelten, die Glimpse aber am ehesten dafür hält. Wähl die heiklen aus und markiere sie.",
         "New pictures are judged by what Glimpse learned from your marks. Choose how strict that is. Your terms and your marks keep counting either way.": "Neue Bilder beurteilt Glimpse nach dem, was es aus deinen Markierungen gelernt hat. Wähl, wie streng das sein soll. Deine Begriffe und Markierungen gelten in jedem Fall weiter.",
         "Stricter": "Strenger",
         "More generous": "Großzügiger",
         "Done": "Fertig",
         "Click to select, shift-click for a range": "Klick wählt aus, Shift-Klick einen Bereich",
-        "Sort again by what was learned": "Neu sortieren nach dem Gelernten",
         "Another term": "Noch ein Begriff",
         "Next: {step}": "Weiter: {step}",
-        "Find": "Finden",
-        "Check": "Prüfen",
-        "Missed ones": "Übersehene",
         "New pictures": "Neue Bilder",
         "Glimpse learns from {positives} pictures you marked as sensitive and {negatives} you marked as not.": "Glimpse lernt aus {positives} Bildern, die du als heikel markiert hast, und {negatives}, die du als nicht heikel markiert hast.",
         "Nothing more for this term": "Zu diesem Begriff kommt nichts mehr",
-        "Nothing that counts as sensitive by itself": "Nichts, was von selbst als heikel gilt",
-        "Nothing more that looks sensitive": "Nichts mehr, was heikel aussieht",
         "Look at it larger": "Größer ansehen",
         "Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and from 20 marks on Glimpse learns from them.": "Einzelne Bilder markierst du im Viewer oder per Auswahl als heikel oder nicht. Deine Markierung gilt immer für das Bild, und ab 20 Markierungen lernt Glimpse daraus.",
-        "_Glimpse learns from your marks once you marked {count} picture as sensitive. Go back to step 1._::_Glimpse learns from your marks once you marked {count} pictures as sensitive. Go back to step 1._": [
-            "Glimpse lernt aus deinen Markierungen, sobald du {count} Bild als heikel markiert hast. Geh zurück zu Schritt 1.",
-            "Glimpse lernt aus deinen Markierungen, sobald du {count} Bilder als heikel markiert hast. Geh zurück zu Schritt 1."
-        ],
         "_About {count} picture counts as sensitive by what Glimpse learned._::_About {count} pictures count as sensitive by what Glimpse learned._": [
             "Etwa {count} Bild gilt nach dem Gelernten als heikel.",
             "Etwa {count} Bilder gelten nach dem Gelernten als heikel."
@@ -586,6 +571,20 @@ OC.L10N.register(
             "{count} weiteres nach dem, was Glimpse aus deinen Markierungen gelernt hat.",
             "{count} weitere nach dem, was Glimpse aus deinen Markierungen gelernt hat."
         ],
-        "Learning from your marks …": "Lerne aus deinen Markierungen …"
+        "Train the sensitive filter": "Filter trainieren",
+        "Check what is hidden": "Ausgeblendete prüfen",
+        "Search for something the filter should hide, for example “nude breasts”. English words usually work better. Pictures the filter already hides are left out, the best matches first. Select the ones that should be hidden and mark them as sensitive, then train the filter.": "Such nach etwas, das der Filter ausblenden soll, zum Beispiel „nude breasts“. Englische Begriffe funktionieren meist besser. Was der Filter schon ausblendet, fehlt hier, die besten Treffer kommen zuerst. Wähl aus, was ausgeblendet werden soll, markiere es als heikel und trainiere dann den Filter.",
+        "What should be hidden?": "Was soll ausgeblendet werden?",
+        "Everything the filter hides now that you did not mark yourself, the least sensitive-looking first. A filter often hides too much at first: select what should stay visible, mark it as not sensitive and train again. Go back and forth until only pictures that belong here come first.": "Alles, was der Filter jetzt ausblendet und du nicht selbst markiert hast, das am wenigsten heikle zuerst. Anfangs blendet ein Filter oft zu viel aus: Wähl aus, was sichtbar bleiben soll, markiere es als nicht heikel und trainiere nochmal. So geht es hin und her, bis oben nur noch Bilder stehen, die hierher gehören.",
+        "Search for another term": "Anderen Begriff suchen",
+        "Train and check": "Trainieren und prüfen",
+        "Train again": "Nochmal trainieren",
+        "_The filter hides {count} picture._::_The filter hides {count} pictures._": [
+            "Der Filter blendet {count} Bild aus.",
+            "Der Filter blendet {count} Bilder aus."
+        ],
+        "Trained: {added} more hidden, {removed} fewer.": "Trainiert: {added} mehr ausgeblendet, {removed} weniger.",
+        "The filter hides nothing but what you marked yourself": "Der Filter blendet nur aus, was du selbst markiert hast",
+        "Training the filter …": "Trainiere den Filter …"
     },
 "nplurals=2; plural=(n != 1);");

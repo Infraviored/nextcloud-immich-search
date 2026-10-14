@@ -99,7 +99,7 @@ class SensitiveController extends Controller {
 	}
 
 	/**
-	 * One page of the review (the wizard): $step find (with $q), check or missed. $page is where
+	 * One page of the review (the wizard): $step find (with $q) or check. $page is where
 	 * the previous answer said the next page starts.
 	 */
 	#[NoAdminRequired]

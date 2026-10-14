@@ -69,7 +69,7 @@
 				</NcCheckboxRadioSwitch>
 				<div class="sensitive__actions">
 					<NcButton variant="primary" @click="navigate('/sensitive')">
-						{{ t('Sort sensitive pictures') }}
+						{{ t('Train the sensitive filter') }}
 					</NcButton>
 					<NcButton @click="review">
 						{{ t('Review sensitive pictures') }}

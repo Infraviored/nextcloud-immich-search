@@ -47,7 +47,7 @@ class SensitiveContent {
 	/** Thresholds offered for new pictures (the SVM's score; 0 is its boundary). */
 	public const THRESHOLDS = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0];
 	/** The steps of the review, see review(). */
-	public const STEPS = ['find', 'check', 'missed'];
+	public const STEPS = ['find', 'check'];
 	private const FOLDER = 'sensitive';
 	/** Embedded terms per model, shared by all users (not a user's file name). */
 	private const TERMS_FOLDER = 'sensitive-terms';
@@ -298,6 +298,7 @@ class SensitiveContent {
 				'stale' => $model !== null && ($t['model'] ?? '') !== $model,
 			], $data['terms']),
 			'flagged' => count($this->flagged($uid)),
+			'change' => $data['change'] ?? null,
 			'marked' => count(array_filter($marks)),
 			'unmarked' => count($marks) - count(array_filter($marks)),
 			// What the SVM learns from, and what it brings in on top of the terms
@@ -408,6 +409,10 @@ class SensitiveContent {
 			$data['fileOf'] = $fileOf;
 			$time('files');
 			$data['took'] = $took;
+			// What this build changed, for the wizard ("12 more hidden, 3 fewer") and the log
+			$was = array_flip($data['auto'] ?? []);
+			$now = array_flip($auto);
+			$data['change'] = ['added' => count(array_diff_key($now, $was)), 'removed' => count(array_diff_key($was, $now))];
 			$this->logBuild($uid, $data, $auto, $byModel, $trained);
 			$data['auto'] = $auto;
 			$data['assets'] = $fileAssets;
@@ -433,7 +438,6 @@ class SensitiveContent {
 	 *
 	 * - find: not sensitive and not marked "not", most like $q first
 	 * - check: sensitive by the terms or the SVM, not marked by hand; least sure first
-	 * - missed: not sensitive and not marked, most likely sensitive first (needs the SVM)
 	 *
 	 * @return array{items: list<array>, nextPage: ?int}
 	 */
@@ -494,14 +498,6 @@ class SensitiveContent {
 				$order = 'a."fileCreatedAt" DESC';
 				$orderParams = [];
 			}
-		} elseif ($step === 'missed') {
-			if ($score === null) {
-				return ['items' => [], 'nextPage' => null];
-			}
-			$where[] = 'NOT (a.id = ANY(?::uuid[]))';
-			$params[] = '{' . implode(',', $assetsOf(array_merge(array_keys($flagged), array_keys($marks)))) . '}';
-			$order = $score . ' DESC';
-			$orderParams = $scoreParams;
 		} else {
 			throw new \InvalidArgumentException('Unknown step');
 		}
@@ -728,13 +724,11 @@ class SensitiveContent {
 	 * @param list<int> $auto
 	 */
 	private function logBuild(string $uid, array $data, array $auto, int $byModel, ?array $trained): void {
-		$was = array_flip($data['auto'] ?? []);
-		$now = array_flip($auto);
 		$context = [
 			'app' => Application::APP_ID, 'uid' => $uid,
 			'positives' => $data['learned'][0], 'negatives' => $data['learned'][1],
 			'auto' => count($auto), 'byModel' => $byModel,
-			'added' => count(array_diff_key($now, $was)), 'removed' => count(array_diff_key($was, $now)),
+			'added' => $data['change']['added'], 'removed' => $data['change']['removed'],
 			'threshold' => (float)$data['threshold'], 'took' => json_encode($data['took']),
 		];
 		if ($data['svm'] === null) {

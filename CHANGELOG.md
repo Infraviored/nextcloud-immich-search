@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.10.5] - unreleased
+## [4.10.6] - unreleased
 
 ### Added
 - **Sensitive pictures (optional).** Each user decides what counts:
@@ -16,9 +16,11 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), ve
     the same model and a few new marks move it a little. Each build logs at debug level what
     it learned (`Sensitive: ...`): marks it gets wrong, how it scores the new marks before and
     after, how many pictures came and went.
-  - *Sort sensitive pictures* (`/sensitive`), a wizard: find by a term (only pictures not yet
-    sensitive, best match first), check the least sure first, look at the ones the model finds
-    most likely, set how strict it is for new pictures. A click selects, shift-click a range.
+  - *Train the sensitive filter* (`/sensitive`), back and forth: search for a term (only
+    pictures not hidden yet, best match first) and mark what should be hidden, train, check
+    what the filter hides now with the least sensitive-looking first, bring back what should
+    stay, train again. Last, how strict it is for new pictures. A click selects, shift-click a
+    range.
   No extra model, no extra container: Immich's search embeddings are read from its database.
   Each user can show all pictures (sensitive ones marked on their tile), hide them, or see only
   them; "only" lists straight from the database, and marking takes a picture out of a filtered

@@ -4,15 +4,16 @@
 -->
 
 <!--
-  Sorting sensitive pictures, step by step: find them by search terms, check the least sure
-  ones, look at what the learned model suspects, and set how strict it is for new pictures.
-  Lists are sorted by how well a picture fits, never by date. A click selects, shift-click a
-  range; the button above the grid acts on the selection.
+  Training the sensitive filter, back and forth: search for something and mark what should be
+  hidden, train, then check what the filter hides now, the least sensitive-looking first (a
+  filter learned from a few terms tends to hide too much), bring back what should stay, train
+  again. Last, how strict it is for new pictures. Lists are sorted by how well a picture fits,
+  never by date. A click selects, shift-click a range; the buttons above the grid act on it.
 -->
 <template>
 	<div class="sort">
 		<h2 class="g-display sort__title">
-			{{ t('Sort sensitive pictures') }}
+			{{ t('Train the sensitive filter') }}
 		</h2>
 		<nav class="sort__steps" :aria-label="t('Steps')">
 			<button
@@ -28,27 +29,23 @@
 			</button>
 		</nav>
 		<p class="sort__learned" aria-live="polite">
+			<strong v-if="trainedLine">{{ trainedLine }}</strong>
 			{{ learnedLine }}
 		</p>
 
 		<template v-if="step === 'find'">
 			<p class="sort__hint">
-				{{ t('Type something you want to sort out, for example “nude breasts”. English words usually work better. Only pictures that do not count as sensitive yet are shown, the best matches first. Select the ones that are sensitive and mark them; leave out the rest.') }}
+				{{ t('Search for something the filter should hide, for example “nude breasts”. English words usually work better. Pictures the filter already hides are left out, the best matches first. Select the ones that should be hidden and mark them as sensitive, then train the filter.') }}
 			</p>
 			<LensSearch
 				v-model="q"
 				class="sort__search"
-				:placeholder="t('What should be sorted out?')"
+				:placeholder="t('What should be hidden?')"
 				@submit="load(true)"
 				@clear="q = ''; items = []; done = false" />
 		</template>
 		<p v-else-if="step === 'check'" class="sort__hint">
-			{{ t('Everything that counts as sensitive and that you did not mark yourself, the least sure first. Select what is not sensitive. Once only sensitive ones come, you are done here.') }}
-		</p>
-		<p v-else-if="step === 'missed'" class="sort__hint">
-			{{ model
-				? t('Pictures that do not count as sensitive yet, but that Glimpse finds most likely to be. Select the sensitive ones and mark them.')
-				: n('Glimpse learns from your marks once you marked {count} picture as sensitive. Go back to step 1.', 'Glimpse learns from your marks once you marked {count} pictures as sensitive. Go back to step 1.', minPositive, { count: minPositive }) }}
+			{{ t('Everything the filter hides now that you did not mark yourself, the least sensitive-looking first. A filter often hides too much at first: select what should stay visible, mark it as not sensitive and train again. Go back and forth until only pictures that belong here come first.') }}
 		</p>
 
 		<section v-if="step === 'limit'" class="sort__limit">
@@ -98,8 +95,8 @@
 				<NcButton variant="tertiary" :disabled="!selected.size" @click="clear">
 					{{ t('Clear selection') }}
 				</NcButton>
-				<NcButton v-if="stale && step !== 'find'" variant="tertiary" :disabled="learning" @click="relearn">
-					{{ t('Sort again by what was learned') }}
+				<NcButton v-if="marked" :disabled="learning" @click="train">
+					{{ trainLabel }}
 				</NcButton>
 			</div>
 
@@ -121,15 +118,21 @@
 			</p>
 			<div ref="sentinel" class="sort__more">
 				<NcLoadingIcon v-if="loading" :size="32" />
-				<span v-if="learning" class="sort__hint">{{ t('Learning from your marks …') }}</span>
+				<span v-if="learning" class="sort__hint">{{ t('Training the filter …') }}</span>
 			</div>
 
 			<div class="sort__next">
 				<NcButton v-if="step === 'find'" @click="q = ''; items = []; done = false; focusSearch()">
 					{{ t('Another term') }}
 				</NcButton>
-				<NcButton variant="primary" @click="go(nextStep)">
-					{{ t('Next: {step}', { step: steps.find((s) => s.id === nextStep).label }) }}
+				<NcButton v-else @click="go('find')">
+					{{ t('Search for another term') }}
+				</NcButton>
+				<NcButton variant="primary" :disabled="learning" @click="train">
+					{{ trainLabel }}
+				</NcButton>
+				<NcButton v-if="step === 'check'" variant="tertiary" @click="go('limit')">
+					{{ t('Next: {step}', { step: steps[2].label }) }}
 				</NcButton>
 			</div>
 		</template>
@@ -154,11 +157,10 @@ import { toggleSelection } from '../selection.js'
 import { markItems } from '../sensitive.js'
 import { openInViewer } from '../viewer.js'
 
-/** The steps in order; the first three are lists, the last sets the threshold. */
+/** Search and check go back and forth; the last step sets the threshold for new pictures. */
 const steps = [
-	{ id: 'find', label: t('Find') },
-	{ id: 'check', label: t('Check') },
-	{ id: 'missed', label: t('Missed ones') },
+	{ id: 'find', label: t('Search') },
+	{ id: 'check', label: t('Check what is hidden') },
 	{ id: 'limit', label: t('New pictures') },
 ]
 
@@ -168,25 +170,25 @@ const items = ref([])
 const selected = ref(new Set())
 let anchor = null
 let next = 0
-/** Something was marked since the model last learned */
-let marked = false
+/** Something was marked since the filter last learned */
+const marked = ref(false)
+/** The filter was trained in this visit: show what that changed */
+const trained = ref(false)
 const loading = ref(false)
 const busy = ref(false)
 const done = ref(false)
 const error = ref('')
-/** Marks changed since the list was loaded: the order of "check" and "missed" may be different now. */
-const stale = ref(false)
 const status = ref(null)
 /** Training on the marks (a few seconds) */
 const learning = ref(false)
 const limitIndex = ref(4)
 let controller = null
 
-const nextStep = computed(() => steps[Math.min(steps.findIndex((s) => s.id === step.value) + 1, steps.length - 1)].id)
 const model = computed(() => !!status.value?.model)
 const minPositive = computed(() => status.value?.minPositive ?? 20)
 const thresholds = computed(() => status.value?.thresholds ?? [])
 const counts = computed(() => status.value?.thresholdCounts ?? null)
+const trainLabel = computed(() => step.value === 'find' ? t('Train and check') : t('Train again'))
 /** The slider runs from strict (left, high threshold) to generous (right) */
 const limitValue = computed(() => thresholds.value[thresholds.value.length - 1 - limitIndex.value] ?? 0)
 const limitCount = computed(() => counts.value?.[String(limitValue.value)] ?? 0)
@@ -196,13 +198,21 @@ const learnedLine = computed(() => {
 	if (!s) {
 		return ''
 	}
-	const parts = [n('{count} picture counts as sensitive.', '{count} pictures count as sensitive.', s.flagged ?? 0, { count: s.flagged ?? 0 })]
+	const parts = [n('The filter hides {count} picture.', 'The filter hides {count} pictures.', s.flagged ?? 0, { count: s.flagged ?? 0 })]
 	if (s.model) {
 		parts.push(t('Glimpse learns from {positives} pictures you marked as sensitive and {negatives} you marked as not.', s.learned))
 	} else {
 		parts.push(n('Glimpse starts learning once {count} picture is marked as sensitive; {have} so far.', 'Glimpse starts learning once {count} pictures are marked as sensitive; {have} so far.', minPositive.value, { count: minPositive.value, have: s.learned?.positives ?? 0 }))
 	}
 	return parts.join(' ')
+})
+
+const trainedLine = computed(() => {
+	const c = status.value?.change
+	if (!trained.value || !c) {
+		return ''
+	}
+	return t('Trained: {added} more hidden, {removed} fewer.', c)
 })
 
 const emptyText = computed(() => {
@@ -212,7 +222,7 @@ const emptyText = computed(() => {
 	if (step.value === 'find') {
 		return t('Nothing more for this term')
 	}
-	return step.value === 'check' ? t('Nothing that counts as sensitive by itself') : (model.value ? t('Nothing more that looks sensitive') : '')
+	return t('The filter hides nothing but what you marked yourself')
 })
 
 const sentinel = ref(null)
@@ -241,7 +251,6 @@ async function load(fresh) {
 		selected.value = new Set()
 		next = 0
 		done.value = false
-		stale.value = false
 	} else if (loading.value || done.value) {
 		return
 	}
@@ -308,8 +317,7 @@ async function act() {
 	const gone = new Set(chosen.map((i) => i.fileId))
 	items.value = items.value.filter((i) => !gone.has(i.fileId))
 	clear()
-	stale.value = step.value !== 'find'
-	marked = true
+	marked.value = true
 	await loadStatus()
 	more.check()
 }
@@ -321,8 +329,11 @@ async function act() {
 async function relearn() {
 	learning.value = true
 	loading.value = true
+	items.value = []
 	try {
 		status.value = await rebuildSensitive()
+		marked.value = false
+		trained.value = true
 	} catch (e) {
 		showError(errorMessage(e))
 	} finally {
@@ -332,11 +343,24 @@ async function relearn() {
 	await load(true)
 }
 
-function go(id) {
+/** Train on what was marked, then check what the filter hides now */
+function train() {
+	if (step.value === 'check') {
+		relearn()
+	} else {
+		go('check', true)
+	}
+}
+
+/**
+ * @param {string} id the step
+ * @param {boolean} learn train first even when nothing was marked
+ */
+function go(id, learn = false) {
 	if (id === step.value) {
 		return
 	}
-	const changed = stale.value || marked
+	const changed = marked.value || learn
 	step.value = id
 	replaceQuery({ step: id })
 	items.value = []
@@ -347,8 +371,7 @@ function go(id) {
 		focusSearch()
 		load(true)
 	} else if (changed) {
-		// What was marked in the step before changes what the model thinks
-		marked = false
+		// What was marked in the step before changes what the filter hides
 		relearn()
 	} else {
 		load(true)

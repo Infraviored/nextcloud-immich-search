@@ -295,7 +295,7 @@ export async function removeSensitiveTerm(q) {
 /**
  * One page of sorting sensitive pictures.
  *
- * @param {{step: 'find'|'check'|'missed', q?: string, page?: number}} params page: where the previous answer said the next starts
+ * @param {{step: 'find'|'check', q?: string, page?: number}} params page: where the previous answer said the next starts
  * @param {AbortSignal} [signal]
  */
 export async function reviewSensitive({ step, q = '', page = 0 }, signal) {
