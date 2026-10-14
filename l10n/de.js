@@ -554,7 +554,7 @@ OC.L10N.register(
         "Side": "Seite",
         "Hidden": "Ausgeblendet",
         "Visible": "Sichtbar",
-        "Learning …": "Lernt …",
+        "Learning …": "Lernt …",
         "Bring back": "Zurückholen",
         "Sort again": "Neu sortieren",
         "What the filter lets through, the most sensitive-looking first. Select what it should hide. To look at a new topic, search for it.": "Was der Filter durchlässt, das heikelste zuerst. Wähl aus, was er ausblenden soll. Für ein neues Thema such danach.",

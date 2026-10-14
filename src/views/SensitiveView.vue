@@ -32,7 +32,7 @@
 			{{ orderLine }}
 		</p>
 		<p class="sort__learned" aria-live="polite">
-			<strong v-if="training">{{ t('Learning …') }}</strong>
+			<strong v-if="training">{{ t('Learning …') }}</strong>
 			<strong v-else-if="trainedLine">{{ trainedLine }}</strong>
 			{{ learnedLine }}
 		</p>
@@ -136,6 +136,7 @@ let next = 0
 const loading = ref(false)
 const busy = ref(false)
 const done = ref(false)
+const loaded = ref(false)
 const error = ref('')
 const status = ref(null)
 /** Learning from the marks in the background */
@@ -191,7 +192,7 @@ const emptyText = computed(() => {
 })
 
 const sentinel = ref(null)
-const more = useInfiniteScroll(sentinel, () => !done.value && !error.value && items.value.length && load(false))
+const more = useInfiniteScroll(sentinel, () => loaded.value && !done.value && !error.value && load(false))
 
 async function loadStatus() {
 	try {
@@ -213,6 +214,7 @@ async function load(fresh) {
 		next = 0
 		done.value = false
 		resort.value = false
+		loaded.value = false
 	} else if (loading.value || done.value) {
 		return
 	}
@@ -231,6 +233,7 @@ async function load(fresh) {
 		searched.value = term
 		next = res.nextPage ?? 0
 		done.value = res.nextPage === null || res.nextPage === undefined
+		loaded.value = true
 	} catch (e) {
 		if (ctrl === controller && e?.name !== 'CanceledError') {
 			error.value = errorMessage(e)
@@ -283,7 +286,11 @@ async function act() {
 	clear()
 	scheduleTrain()
 	loadStatus()
-	more.check()
+	if (!items.value.length && !done.value) {
+		load(false)
+	} else {
+		more.check()
+	}
 }
 
 function scheduleTrain() {

@@ -29,7 +29,7 @@
 					</NcButton>
 				</li>
 			</ul>
-		<NcCheckboxRadioSwitch v-model="userPrefs.sensitive_badge" type="switch" @update:modelValue="save({ sensitive_badge: $event })">
+			<NcCheckboxRadioSwitch v-model="userPrefs.sensitive_badge" type="switch" @update:modelValue="save({ sensitive_badge: $event })">
 				{{ t('Mark them on the tiles') }}
 			</NcCheckboxRadioSwitch>
 			<div class="sensitive__actions">
