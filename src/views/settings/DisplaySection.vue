@@ -39,15 +39,23 @@
 		<template v-if="page.sensitiveAvailable">
 			<h3>{{ t('Sensitive pictures') }}</h3>
 			<p class="hint">
-				{{ t('Recognises nudity, so you can mark such pictures, hide them or look at only them. Recognised on this server from what Immich already knows about each picture; nothing leaves it. Only you see what is recognised or marked for you.') }}
+				{{ t('Recognises uncovered breasts, genitals and buttocks, so you can mark such pictures, hide them or look at only them. Swimwear and underwear do not count. Recognised on this server; only you see what counts or is marked for you.') }}
 			</p>
 			<NcCheckboxRadioSwitch v-model="userPrefs.sensitive_enabled" type="switch" @update:modelValue="toggleSensitive">
 				{{ t('Recognise sensitive pictures') }}
 			</NcCheckboxRadioSwitch>
 			<template v-if="userPrefs.sensitive_enabled">
-				<p class="sensitive__state" aria-live="polite">
-					{{ sensitiveLine }}
+				<p v-if="scanLine" class="sensitive__state" aria-live="polite">
+					{{ scanLine }}
 				</p>
+				<h4>{{ t('What counts') }}</h4>
+				<NcCheckboxRadioSwitch
+					v-for="c in categories"
+					:key="c.key"
+					:modelValue="userPrefs['sensitive_' + c.key]"
+					@update:modelValue="saveCategory(c.key, $event)">
+					{{ c.label }}
+				</NcCheckboxRadioSwitch>
 				<label class="sensitive__slider">
 					<span>{{ t('Sensitivity') }}</span>
 					<input
@@ -68,12 +76,9 @@
 					<NcButton @click="review">
 						{{ t('Review recognised pictures') }}
 					</NcButton>
-					<NcButton variant="tertiary" :disabled="status?.queued" @click="recompute">
-						{{ t('Recompute now') }}
-					</NcButton>
 				</div>
 				<p class="hint">
-					{{ t('Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count, and the recognition learns from them within the hour.') }}
+					{{ t('Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count.') }}
 				</p>
 			</template>
 		</template>
@@ -85,7 +90,7 @@ import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import { getSensitive, rebuildSensitive } from '../../api.js'
+import { getSensitive } from '../../api.js'
 import { useAction } from '../../composables/useAction.js'
 import { n, t } from '../../l10n.js'
 import { prefs, saveUserPrefs, userPrefs } from '../../prefs.js'
@@ -114,20 +119,19 @@ const save = (changes) => act(() => saveUserPrefs(changes), t('Saved'))
 const sensitivity = ref(115 - (userPrefs.sensitive_threshold ?? 50))
 const status = ref(null)
 const count = computed(() => status.value?.counts?.[115 - sensitivity.value] ?? null)
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-const sensitiveLine = computed(() => {
-	const s = status.value
-	if (!s) {
+const categories = [
+	{ key: 'breast', label: t('Uncovered breasts') },
+	{ key: 'genitals', label: t('Genitals') },
+	{ key: 'buttocks', label: t('Bare buttocks') },
+	{ key: 'chest', label: t('Bare male chest') },
+]
+/** While the detector has not seen every picture yet: how far it is. */
+const scanLine = computed(() => {
+	const scan = status.value?.scan
+	if (!scan || scan.firstPassDone || !scan.total) {
 		return ''
 	}
-	if (s.queued || !s.built) {
-		return t('Being computed, this takes a minute …')
-	}
-	if (s.error) {
-		return t('Last attempt failed: {error}', { error: s.error })
-	}
-	return t('Last computed {date}.', { date: dateFormat.format(new Date(s.built * 1000)) })
-		+ (s.marked + s.unmarked ? ' ' + n('{count} picture marked by you.', '{count} pictures marked by you.', s.marked + s.unmarked, { count: s.marked + s.unmarked }) : '')
+	return t('Still looking at pictures: {scanned} of {total}. More are recognised as it goes on.', { scanned: scan.scanned, total: scan.total })
 })
 
 let poll = null
@@ -142,9 +146,9 @@ async function loadStatus() {
 	} catch {
 		status.value = null
 	}
-	// While it is being computed (a background job), look again now and then
-	if (status.value?.queued || (status.value?.enabled && !status.value?.built)) {
-		poll = setTimeout(loadStatus, 10000)
+	// While the detector is still going through the pictures, look again now and then
+	if (status.value?.scan && !status.value.scan.firstPassDone) {
+		poll = setTimeout(loadStatus, 30000)
 	}
 }
 
@@ -153,8 +157,8 @@ async function toggleSensitive(on) {
 	loadStatus()
 }
 
-async function recompute() {
-	await act(rebuildSensitive)
+async function saveCategory(key, on) {
+	await save({ ['sensitive_' + key]: on })
 	loadStatus()
 }
 
@@ -175,6 +179,7 @@ onBeforeUnmount(() => clearTimeout(poll))
 .hint { color: var(--color-text-maxcontrast); }
 h3 { margin-top: 20px; }
 .hint, .sensitive__state { max-width: 62ch; }
+h4 { margin: 12px 0 2px; }
 
 .sensitive__slider {
 	display: flex;

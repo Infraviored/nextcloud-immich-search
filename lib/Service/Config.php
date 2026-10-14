@@ -123,8 +123,9 @@ class Config {
 		'video_scenes_hours' => ['enum:2-7,0-6,1-6,23-6,22-6,0-7,0-24,', '2-7'],
 		// Optional health check of Immich's machine-learning service (GET <url>/ping -> "pong")
 		'ml_ping_url' => ['url', ''],
-		// Recognise nudity from Immich's embeddings; each user still turns it on (SensitiveContent)
+		// Recognise nudity with the detector (docker/detector); each user still turns it on (SensitiveContent)
 		'sensitive_detection' => ['bool', false],
+		'sensitive_detector_url' => ['url', ''],
 	];
 
 	public function get(string $key): mixed {

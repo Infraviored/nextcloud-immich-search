@@ -10,18 +10,15 @@ declare(strict_types=1);
 namespace OCA\Glimpse\Controller;
 
 use OCA\Glimpse\AppInfo\Application;
-use OCA\Glimpse\BackgroundJob\RebuildSensitive;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\IndexAdmin;
 use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
-use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\UserPrefs;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
-use OCP\BackgroundJob\IJobList;
 use OCP\IRequest;
 use OCP\ISession;
 use OCP\IUserSession;
@@ -39,8 +36,6 @@ class PrefsController extends Controller {
 		private Permissions $permissions,
 		private PrivateArea $privateArea,
 		private ISession $session,
-		private SensitiveContent $sensitive,
-		private IJobList $jobs,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -66,11 +61,6 @@ class PrefsController extends Controller {
 			$this->prefs->setAll($uid, $prefs);
 		} catch (\InvalidArgumentException $e) {
 			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
-		}
-		// Turned on for the first time: compute it now instead of within the hour
-		if (!empty($prefs['sensitive_enabled']) && $this->sensitive->isEnabled($uid) && $this->sensitive->status($uid)['built'] === null
-			&& !$this->jobs->has(RebuildSensitive::class, ['uid' => $uid])) {
-			$this->jobs->add(RebuildSensitive::class, ['uid' => $uid]);
 		}
 		return new JSONResponse($this->prefs->all($uid));
 	}

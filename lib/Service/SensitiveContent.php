@@ -15,53 +15,58 @@ use OCP\Files\IAppData;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\Files\SimpleFS\ISimpleFolder;
-use OCP\Http\Client\IClientService;
+use OCP\ICache;
+use OCP\ICacheFactory;
 use OCP\IConfig;
 
 /**
- * Optional: recognises nudity, so each user can show such pictures marked, hide them or see
- * only them. Off unless the admin allows it (`sensitive_detection`) and the user turns it on.
+ * Optional: nudity, so each user can show such pictures marked, hide them or see only them.
+ * Off unless the admin allows it (`sensitive_detection`, with the detector's address) and the
+ * user turns it on.
  *
- * No extra model: Immich's search embeddings are read from its database and a linear
- * classifier is trained per user (SensitiveModel). First guesses come from comparing every
- * picture to a few sensitive and neutral terms; what the user marks by hand counts more,
- * and always wins over the score. Scores are stored per file the user can see, so the
- * threshold can change without a new run.
+ * What the detector found is per picture and the same for everyone (SensitiveScanner). Per
+ * user are: which body parts count (categories), how sure the detector must be (threshold),
+ * and marks by hand, which always win. A user's list holds only files they can see.
  *
- * Stored per user in app data, `sensitive/<uid>.json`:
- * {"scores": {fileId: score}, "marks": {fileId: bool}, "signature": "...", "built": time,
- *  "examples": [sensitive, neutral], "error": null}
+ * Marks are stored per user in app data, `sensitive/<uid>.json`: {"marks": {fileId: bool}}.
  */
 class SensitiveContent {
+	/** What a user can choose to count, and the detector classes behind each. */
+	public const CATEGORIES = [
+		'breast' => ['FEMALE_BREAST_EXPOSED'],
+		'genitals' => ['FEMALE_GENITALIA_EXPOSED', 'MALE_GENITALIA_EXPOSED'],
+		'buttocks' => ['BUTTOCKS_EXPOSED', 'ANUS_EXPOSED'],
+		'chest' => ['MALE_BREAST_EXPOSED'],
+	];
+	/** Thresholds offered to the user, in percent. */
+	public const THRESHOLDS = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95];
 	private const FOLDER = 'sensitive';
-	/** Embedded terms per model, shared by all users (not a user's file name). */
-	private const TERMS_FOLDER = 'sensitive-terms';
 	private const MODES = ['all', 'hide', 'only'];
-	/** Rebuilt at least this often even when nothing seems to have changed. */
-	private const MAX_AGE = 7 * 86400;
+	private const LIST_TTL = 3600;
 
 	private IAppData $appData;
+	private ICache $lists;
 	/** @var array<string, array> */
 	private array $cache = [];
-	private ?string $model = null;
+	/** @var array<string, array> */
+	private array $visible = [];
 
 	public function __construct(
-		private Config $config,
 		private UserPrefs $prefs,
-		private ImmichDb $db,
-		private ImmichClient $immich,
+		private SensitiveScanner $scanner,
 		private AssetSearch $assets,
 		private IRootFolder $rootFolder,
-		private IClientService $clients,
 		private IConfig $ncConfig,
 		IAppDataFactory $appDataFactory,
+		ICacheFactory $cacheFactory,
 	) {
 		$this->appData = $appDataFactory->get(Application::APP_ID);
+		$this->lists = $cacheFactory->createDistributed('glimpse_sensitive');
 	}
 
-	/** The admin allows it. */
+	/** The admin allows it (and set up the detector). */
 	public function isAvailable(): bool {
-		return (bool)$this->config->get('sensitive_detection');
+		return $this->scanner->enabled();
 	}
 
 	/** Allowed and turned on by this user. */
@@ -78,19 +83,18 @@ class SensitiveContent {
 	public function get(string $uid): array {
 		if (!isset($this->cache[$uid])) {
 			try {
-				$data = json_decode($this->folder(self::FOLDER)->getFile($uid . '.json')->getContent(), true) ?: [];
+				$data = json_decode($this->folder()->getFile($uid . '.json')->getContent(), true) ?: [];
 			} catch (NotFoundException) {
 				$data = [];
 			}
-			$this->cache[$uid] = $data + ['scores' => [], 'marks' => [], 'signature' => '', 'built' => 0, 'examples' => [0, 0], 'error' => null];
+			$this->cache[$uid] = $data + ['marks' => []];
 		}
 		return $this->cache[$uid];
 	}
 
 	/** @return array<int, true> the files that count as sensitive for $uid right now */
 	public function flagged(string $uid): array {
-		$data = $this->get($uid);
-		return SensitiveModel::flagged($this->ints($data['scores']), $this->bools($data['marks']), $this->threshold($uid));
+		return self::pick($this->visibleScores($uid), $this->marks($uid), $this->categories($uid), $this->threshold($uid));
 	}
 
 	/**
@@ -131,8 +135,8 @@ class SensitiveContent {
 	}
 
 	/**
-	 * Mark files by hand: true sensitive, false not, null back to the score. Only files the
-	 * user can reach. The next run trains with them.
+	 * Mark files by hand: true sensitive, false not, null back to what the detector says. Only
+	 * files the user can reach.
 	 *
 	 * @param array<int|string, ?bool> $marks
 	 * @return array{previous: array<int, ?bool>, sensitive: array<int, bool>}
@@ -141,308 +145,139 @@ class SensitiveContent {
 		$data = $this->get($uid);
 		$folder = $this->rootFolder->getUserFolder($uid);
 		$previous = [];
-		$now = [];
-		$threshold = $this->threshold($uid);
 		foreach (array_slice($marks, 0, 1000, true) as $id => $on) {
 			$id = (int)$id;
 			if ($id <= 0 || $folder->getFirstNodeById($id) === null) {
 				continue;
 			}
-			$previous[$id] = $data['marks'][$id] ?? null;
+			$previous[$id] = isset($data['marks'][$id]) ? (bool)$data['marks'][$id] : null;
 			if ($on === null) {
 				unset($data['marks'][$id]);
 			} else {
 				$data['marks'][$id] = (bool)$on;
 			}
-			$now[$id] = $data['marks'][$id] ?? (($data['scores'][$id] ?? 0) >= $threshold);
 		}
-		$data['marksChanged'] = time();
 		$this->save($uid, $data);
+		$flagged = $this->flagged($uid);
+		$now = [];
+		foreach (array_keys($previous) as $id) {
+			$now[$id] = isset($flagged[$id]);
+		}
 		return ['previous' => $previous, 'sensitive' => $now];
 	}
 
-	/** For the settings: how far it is, and how many each threshold would flag. */
+	/** For the settings: scan progress, and how many each threshold would flag with the user's categories. */
 	public function status(string $uid): array {
-		$data = $this->get($uid);
-		$marks = $this->bools($data['marks']);
+		$scores = $this->visibleScores($uid);
+		$marks = $this->marks($uid);
+		$categories = $this->categories($uid);
+		$counts = [];
+		foreach (self::THRESHOLDS as $t) {
+			$counts[$t] = count(self::pick($scores, $marks, $categories, $t / 100));
+		}
 		return [
-			'built' => $data['built'] ?: null,
-			'error' => $data['error'],
-			'examples' => $data['examples'],
+			'scan' => $this->scanner->status(),
 			'marked' => count(array_filter($marks)),
 			'unmarked' => count($marks) - count(array_filter($marks)),
-			'counts' => SensitiveModel::counts($this->ints($data['scores']), $marks),
+			'counts' => $counts,
 		];
 	}
 
-	/** Has anything changed that the last run did not see (pictures, model, marks)? */
-	public function needsRebuild(string $uid): bool {
-		$data = $this->get($uid);
-		return $data['built'] === 0
-			|| $data['built'] < time() - self::MAX_AGE
-			|| ($data['marksChanged'] ?? 0) > $data['built']
-			|| $data['signature'] !== $this->signature();
-	}
-
-	/**
-	 * Train and score for $uid. Seconds to a minute; run from background jobs and occ.
-	 * Failures are stored for the settings page and rethrown.
-	 */
-	public function rebuild(string $uid): array {
-		$data = $this->get($uid);
-		try {
-			$signature = $this->signature();
-			$terms = $this->terms();
-			$pdo = $this->db->pdo('120s');
-
-			[$x, $y, $weight] = $this->firstGuesses($pdo, $terms);
-			$auto = [array_sum($y), count($y) - array_sum($y)];
-			foreach ($this->markedEmbeddings($pdo, $uid, $this->bools($data['marks'])) as [$vector, $on]) {
-				$x[] = $vector;
-				$y[] = $on ? 1 : 0;
-				$weight[] = SensitiveModel::MANUAL_WEIGHT;
-			}
-			$sensitive = array_sum($y);
-			$scores = [];
-			if ($sensitive >= SensitiveModel::MIN_EXAMPLES && count($y) - $sensitive >= SensitiveModel::MIN_EXAMPLES) {
-				$model = SensitiveModel::train($x, $y, $weight);
-				unset($x);
-				$scores = $this->score($pdo, $uid, $model['w'], $model['b']);
-			}
-			$data['scores'] = $scores;
-			$data['signature'] = $signature;
-			$data['built'] = time();
-			$data['examples'] = $auto;
-			$data['error'] = null;
-		} catch (\Throwable $e) {
-			$data['error'] = $e->getMessage();
-			$data['built'] = time();
-			$this->save($uid, $data);
-			throw $e;
-		}
-		$this->save($uid, $data);
-		return ['flagged' => count($this->flagged($uid)), 'scored' => count($scores), 'examples' => $auto];
-	}
-
-	/**
-	 * What the admin needs before turning it on: the database with read access to the
-	 * embeddings, and the machine-learning service. Error per part, null when fine.
-	 *
-	 * @return array{database: ?string, ml: ?string, model: ?string}
-	 */
-	public function check(): array {
-		$database = !$this->db->isEnabled() ? 'not configured'
-			: $this->db->check('SELECT s."assetId", a."originalFileName", a."deletedAt", a.type FROM smart_search s JOIN asset a ON a.id = s."assetId" LIMIT 1');
-		$model = null;
-		try {
-			$model = $this->model();
-			$this->embed($model, 'a photo');
-			$ml = null;
-		} catch (\Throwable $e) {
-			$ml = $e->getMessage();
-		}
-		return ['database' => $database, 'ml' => $ml, 'model' => $model];
-	}
-
-	/** Users who turned it on (for the hourly job). @return list<string> */
+	/** Users who turned it on. @return list<string> */
 	public function users(): array {
 		return $this->ncConfig->getUsersForUserValue(Application::APP_ID, 'pref_sensitive_enabled', '1');
 	}
 
+	/**
+	 * Which files count: a mark wins; otherwise the highest score among the chosen categories.
+	 *
+	 * @param array<int, array<string, float>> $scores fileId => class => score
+	 * @param array<int, bool> $marks
+	 * @param list<string> $categories
+	 * @return array<int, true>
+	 */
+	public static function pick(array $scores, array $marks, array $categories, float $threshold): array {
+		$classes = [];
+		foreach ($categories as $c) {
+			array_push($classes, ...(self::CATEGORIES[$c] ?? []));
+		}
+		$out = [];
+		foreach ($scores as $id => $byClass) {
+			if (($marks[$id] ?? true) === false) {
+				continue;
+			}
+			foreach ($classes as $class) {
+				if (($byClass[$class] ?? 0) >= $threshold) {
+					$out[(int)$id] = true;
+					break;
+				}
+			}
+		}
+		foreach ($marks as $id => $on) {
+			if ($on) {
+				$out[(int)$id] = true;
+			}
+		}
+		return $out;
+	}
+
+	/** @return list<string> categories the user counts */
+	public function categories(string $uid): array {
+		return array_values(array_filter(array_keys(self::CATEGORIES), fn ($c) => (bool)$this->prefs->get($uid, 'sensitive_' . $c)));
+	}
+
+	/**
+	 * What the detector found on files $uid can see: fileId => class => score. Built from the
+	 * shared table, mapped to the user's file ids; cached until something new was scanned.
+	 *
+	 * @return array<int, array<string, float>>
+	 */
+	public function visibleScores(string $uid): array {
+		if (isset($this->visible[$uid])) {
+			return $this->visible[$uid];
+		}
+		$key = $uid . '/' . $this->scanner->version();
+		$cached = $this->lists->get($key);
+		if (is_array($cached)) {
+			return $this->visible[$uid] = $cached;
+		}
+		$out = [];
+		foreach ($this->scanner->candidates() as $assetId => $a) {
+			$item = $this->assets->visibleItem($uid, ['id' => $assetId, 'originalPath' => $a['path'], 'type' => $a['type']], false);
+			if ($item !== null) {
+				foreach ($a['scores'] as $class => $score) {
+					$out[$item['fileId']][$class] = max($out[$item['fileId']][$class] ?? 0, $score);
+				}
+			}
+		}
+		$this->lists->set($key, $out, self::LIST_TTL);
+		return $this->visible[$uid] = $out;
+	}
+
 	private function threshold(string $uid): float {
 		$t = (int)$this->prefs->get($uid, 'sensitive_threshold');
-		return max(SensitiveModel::FLOOR, min(0.99, $t / 100));
-	}
-
-	/** Changes when Immich gets new pictures or another model. */
-	private function signature(): string {
-		$count = (int)$this->db->pdo()->query('SELECT count(*) FROM smart_search')->fetchColumn();
-		return $this->model() . '|' . $count;
-	}
-
-	private function model(): string {
-		if ($this->model === null) {
-			$ml = $this->immich->json('GET', '/system-config')['machineLearning'] ?? [];
-			if (!($ml['enabled'] ?? true) || !($ml['clip']['enabled'] ?? true)) {
-				throw new \RuntimeException('Smart search is turned off in Immich');
-			}
-			$this->model = (string)($ml['clip']['modelName'] ?? '') ?: throw new \RuntimeException('Immich did not say which search model it uses');
-		}
-		return $this->model;
-	}
-
-	/**
-	 * The terms as vectors of the current model, cached per model and term as each arrives.
-	 *
-	 * @return array{sensitive: list<list<float>>, neutral: list<list<float>>}
-	 */
-	private function terms(): array {
-		$model = $this->model();
-		return [
-			'sensitive' => array_map(fn ($t) => $this->termEmbedding($model, $t), SensitiveModel::POSITIVE),
-			'neutral' => array_map(fn ($t) => $this->termEmbedding($model, $t), SensitiveModel::NEUTRAL),
-		];
-	}
-
-	/** One term's vector, saved as soon as fetched so a failed run keeps what it got. @return list<float> */
-	private function termEmbedding(string $model, string $text): array {
-		$key = md5($model . '|' . $text) . '.json';
-		$folder = $this->folder(self::TERMS_FOLDER);
-		try {
-			$cached = json_decode($folder->getFile($key)->getContent(), true);
-			if (is_array($cached) && $cached !== []) {
-				return $cached;
-			}
-		} catch (NotFoundException) {
-		}
-		$vector = $this->embed($model, $text);
-		$folder->newFile($key, json_encode($vector));
-		return $vector;
-	}
-
-	/** A text as Immich's machine-learning service encodes it for search. @return list<float> */
-	private function embed(string $model, string $text): array {
-		$base = rtrim((string)$this->config->get('ml_ping_url'), '/');
-		if ($base === '') {
-			throw new \RuntimeException('The address of Immich\'s machine-learning service is not set (Settings → Connection)');
-		}
-		$resp = $this->clients->newClient()->post($base . '/predict', [
-			'form_params' => ['entries' => json_encode(['clip' => ['textual' => ['modelName' => $model]]]), 'text' => $text],
-			'timeout' => 120,
-		]);
-		$clip = json_decode((string)$resp->getBody(), true)['clip'] ?? null;
-		$vector = is_string($clip) ? json_decode($clip, true) : $clip;
-		if (!is_array($vector) || $vector === []) {
-			throw new \RuntimeException('The machine-learning service returned no vector');
-		}
-		return array_map('floatval', $vector);
-	}
-
-	/**
-	 * Pictures that are clearly closer to a sensitive term than to any neutral one, and
-	 * clearly the other way round; spread over the library, the same ones every run.
-	 *
-	 * @return array{0: list<list<float>>, 1: list<int>, 2: list<float>}
-	 */
-	private function firstGuesses(\PDO $pdo, array $terms): array {
-		$params = [];
-		$sim = function (array $v) use (&$params) {
-			$params[] = SensitiveModel::vector($v);
-			return '-(s.embedding <#> ?::vector)';
-		};
-		$sensitive = implode(', ', array_map($sim, $terms['sensitive']));
-		$neutral = implode(', ', array_map($sim, $terms['neutral']));
-		$sql = 'WITH sc AS (SELECT s.embedding, s."assetId", GREATEST(' . $sensitive . ') - GREATEST(' . $neutral . ') AS m
-				FROM smart_search s JOIN asset a ON a.id = s."assetId" WHERE a."deletedAt" IS NULL)
-			(SELECT 1 AS y, embedding::text AS e FROM sc WHERE m > ? ORDER BY md5(sc."assetId"::text) LIMIT ?)
-			UNION ALL
-			(SELECT 0, embedding::text FROM sc WHERE m < ? ORDER BY md5(sc."assetId"::text) LIMIT ?)';
-		$stmt = $pdo->prepare($sql);
-		$stmt->execute([...$params, SensitiveModel::SENSITIVE_MARGIN, SensitiveModel::MAX_SENSITIVE, SensitiveModel::NEUTRAL_MARGIN, SensitiveModel::MAX_NEUTRAL]);
-		$x = $y = $weight = [];
-		while ($row = $stmt->fetch(\PDO::FETCH_NUM)) {
-			$x[] = array_map('floatval', json_decode($row[1], true));
-			$y[] = (int)$row[0];
-			$weight[] = 1.0;
-		}
-		return [$x, $y, $weight];
-	}
-
-	/**
-	 * Embeddings of the files the user marked, found by the path Immich sees them at.
-	 *
-	 * @param array<int, bool> $marks
-	 * @return list<array{0: list<float>, 1: bool}>
-	 */
-	private function markedEmbeddings(\PDO $pdo, string $uid, array $marks): array {
-		$paths = [];
-		foreach ($marks as $id => $on) {
-			$path = $this->assets->immichPathOf($uid, $id);
-			if ($path !== null) {
-				$paths[$path] = $on;
-			}
-		}
-		$out = [];
-		foreach (array_chunk(array_keys($paths), 500) as $chunk) {
-			$stmt = $pdo->prepare('SELECT a."originalPath", s.embedding::text FROM asset a JOIN smart_search s ON s."assetId" = a.id
-				WHERE a."deletedAt" IS NULL AND a."originalPath" IN (' . implode(',', array_fill(0, count($chunk), '?')) . ')');
-			$stmt->execute($chunk);
-			while ($row = $stmt->fetch(\PDO::FETCH_NUM)) {
-				$out[] = [array_map('floatval', json_decode($row[1], true)), $paths[$row[0]]];
-			}
-		}
-		return $out;
-	}
-
-	/**
-	 * Score every picture in Immich, keep those above the floor that $uid can see, as their
-	 * file ids. A still from a video counts for the video, with its highest score.
-	 *
-	 * @param list<float> $w
-	 * @return array<int, float>
-	 */
-	private function score(\PDO $pdo, string $uid, array $w, float $b): array {
-		$stmt = $pdo->prepare('SELECT a.id, a."originalPath", a."originalFileName", a.type, -(s.embedding <#> ?::vector) AS z
-			FROM smart_search s JOIN asset a ON a.id = s."assetId" WHERE a."deletedAt" IS NULL AND -(s.embedding <#> ?::vector) >= ?');
-		$vector = SensitiveModel::vector($w);
-		$stmt->execute([$vector, $vector, SensitiveModel::logit(SensitiveModel::FLOOR) - $b]);
-		$hits = [];
-		$stills = [];
-		while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-			$p = SensitiveModel::sigmoid((float)$row['z'] + $b);
-			$still = VideoScenes::parseName((string)$row['originalFileName']);
-			if ($still !== null) {
-				$stills[$still[0]] = max($stills[$still[0]] ?? 0.0, $p);
-			} else {
-				$hits[$row['id']] = ['id' => $row['id'], 'originalPath' => $row['originalPath'], 'type' => $row['type'], 'p' => $p];
-			}
-		}
-		foreach (array_chunk(array_keys($stills), 500) as $chunk) {
-			$q = $pdo->prepare('SELECT id, "originalPath", type FROM asset WHERE "deletedAt" IS NULL AND id IN (' . implode(',', array_fill(0, count($chunk), '?')) . ')');
-			$q->execute($chunk);
-			while ($row = $q->fetch(\PDO::FETCH_ASSOC)) {
-				$p = max($stills[$row['id']], $hits[$row['id']]['p'] ?? 0.0);
-				$hits[$row['id']] = $row + ['p' => $p];
-			}
-		}
-		$scores = [];
-		foreach ($hits as $hit) {
-			$item = $this->assets->visibleItem($uid, $hit, false);
-			if ($item !== null) {
-				$scores[$item['fileId']] = round(max($scores[$item['fileId']] ?? 0.0, $hit['p']), 3);
-			}
-		}
-		return $scores;
-	}
-
-	/** @return array<int, float> */
-	private function ints(array $scores): array {
-		$out = [];
-		foreach ($scores as $id => $p) {
-			$out[(int)$id] = (float)$p;
-		}
-		return $out;
+		return max(SensitiveScanner::FLOOR, min(0.99, $t / 100));
 	}
 
 	/** @return array<int, bool> */
-	private function bools(array $marks): array {
+	private function marks(string $uid): array {
 		$out = [];
-		foreach ($marks as $id => $on) {
+		foreach ($this->get($uid)['marks'] as $id => $on) {
 			$out[(int)$id] = (bool)$on;
 		}
 		return $out;
 	}
 
 	private function save(string $uid, array $data): void {
-		$this->folder(self::FOLDER)->newFile($uid . '.json', json_encode($data));
+		$this->folder()->newFile($uid . '.json', json_encode(['marks' => (object)$data['marks']]));
 		$this->cache[$uid] = $data;
 	}
 
-	private function folder(string $name): ISimpleFolder {
+	private function folder(): ISimpleFolder {
 		try {
-			return $this->appData->getFolder($name);
+			return $this->appData->getFolder(self::FOLDER);
 		} catch (NotFoundException) {
-			return $this->appData->newFolder($name);
+			return $this->appData->newFolder(self::FOLDER);
 		}
 	}
 }

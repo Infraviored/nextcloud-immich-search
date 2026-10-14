@@ -278,10 +278,6 @@ export async function markSensitive(marks) {
 	return (await axios.post(url('/api/sensitive/marks'), { marks })).data
 }
 
-export async function rebuildSensitive() {
-	return (await axios.post(url('/api/sensitive/rebuild'))).data
-}
-
 export async function checkSensitive() {
 	return (await axios.get(url('/api/admin/sensitive-check'))).data
 }

@@ -483,7 +483,6 @@ OC.L10N.register(
         "Link copied": "Link kopiert",
         "Could not share: {error}": "Teilen fehlgeschlagen: {error}",
         "Sensitive": "Heikel",
-        "Not sensitive": "Nicht heikel",
         "All pictures": "Alle Bilder",
         "Without sensitive pictures": "Ohne heikle Bilder",
         "Only sensitive pictures": "Nur heikle Bilder",
@@ -492,22 +491,11 @@ OC.L10N.register(
         "Sensitive pictures": "Heikle Bilder",
         "Mark as sensitive": "Als heikel markieren",
         "Mark as not sensitive": "Als nicht heikel markieren",
-        "Recognises nudity, so you can mark such pictures, hide them or look at only them. Recognised on this server from what Immich already knows about each picture; nothing leaves it. Only you see what is recognised or marked for you.": "Erkennt Nacktheit, damit Sie solche Bilder markieren, ausblenden oder nur sie ansehen können. Erkannt wird auf diesem Server aus dem, was Immich ohnehin über jedes Bild weiß; nichts verlässt ihn. Was für Sie erkannt oder markiert ist, sehen nur Sie.",
         "Recognise sensitive pictures": "Heikle Bilder erkennen",
         "Sensitivity": "Empfindlichkeit",
         "Mark them on the tiles": "Auf den Kacheln kennzeichnen",
         "Review recognised pictures": "Erkannte Bilder durchsehen",
-        "Recompute now": "Jetzt neu berechnen",
-        "Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count, and the recognition learns from them within the hour.": "Falsch erkannte oder übersehene Bilder markieren Sie im Viewer oder über eine Auswahl. Ihre Markierungen gelten immer, und die Erkennung lernt innerhalb einer Stunde daraus.",
-        "Being computed, this takes a minute …": "Wird berechnet, das dauert etwa eine Minute …",
-        "Last attempt failed: {error}": "Letzter Versuch fehlgeschlagen: {error}",
-        "Last computed {date}.": "Zuletzt berechnet am {date}.",
-        "Lets each user turn on recognition of nudity, to mark such pictures, hide them or see only them. Off for everyone until they turn it on. It uses the search embeddings Immich already has, so it needs the database access from the install guide (with read access to smart_search) and the address of the machine-learning service under Connection.": "Jede Person kann damit eine Erkennung von Nacktheit einschalten, um solche Bilder zu markieren, auszublenden oder nur sie anzusehen. Aus für alle, bis sie es selbst einschalten. Nutzt die Suchvektoren, die Immich schon hat; braucht daher den Datenbankzugang aus der Installationsanleitung (mit Lesezugriff auf smart_search) und die Adresse des Machine-Learning-Dienstes unter Verbindung.",
         "Allow recognising sensitive pictures": "Erkennen heikler Bilder erlauben",
-        "Immich database: {error}": "Immich-Datenbank: {error}",
-        "Immich database: readable": "Immich-Datenbank: lesbar",
-        "Machine-learning service: {error}": "Machine-Learning-Dienst: {error}",
-        "Machine-learning service: works ({model})": "Machine-Learning-Dienst: funktioniert ({model})",
         "_{count} picture marked as sensitive_::_{count} pictures marked as sensitive_": [
             "{count} Bild als heikel markiert",
             "{count} Bilder als heikel markiert"
@@ -520,9 +508,18 @@ OC.L10N.register(
             "Bei dieser Empfindlichkeit gilt {count} Bild als heikel.",
             "Bei dieser Empfindlichkeit gelten {count} Bilder als heikel."
         ],
-        "_{count} picture marked by you._::_{count} pictures marked by you._": [
-            "{count} Bild von Ihnen markiert.",
-            "{count} Bilder von Ihnen markiert."
-        ]
+        "Lets each user turn on recognition of nudity, to mark such pictures, hide them or see only them. Off for everyone until they turn it on. A small detector (NudeNet, see the README) looks at Immich's preview of every picture once and tells uncovered from covered body parts, so swimwear does not count.": "Jede Person kann damit eine Erkennung von Nacktheit einschalten, um solche Bilder zu markieren, auszublenden oder nur sie anzusehen. Aus für alle, bis sie es selbst einschalten. Ein kleiner Erkennungsdienst (NudeNet, siehe README) schaut sich Immichs Vorschau jedes Bildes einmal an und unterscheidet unbedeckte von bedeckten Körperstellen; Badekleidung zählt also nicht.",
+        "Address of the detector": "Adresse des Erkennungsdienstes",
+        "Detector: {error}": "Erkennungsdienst: {error}",
+        "Detector: answers": "Erkennungsdienst: antwortet",
+        "{scanned} of {total} pictures looked at": "{scanned} von {total} Bildern angesehen",
+        "Recognises uncovered breasts, genitals and buttocks, so you can mark such pictures, hide them or look at only them. Swimwear and underwear do not count. Recognised on this server; only you see what counts or is marked for you.": "Erkennt unbedeckte Brüste, Genitalien und Pos, damit Sie solche Bilder markieren, ausblenden oder nur sie ansehen können. Badekleidung und Unterwäsche zählen nicht. Erkannt wird auf diesem Server; was für Sie zählt oder markiert ist, sehen nur Sie.",
+        "What counts": "Was zählt",
+        "Uncovered breasts": "Unbedeckte Brüste",
+        "Genitals": "Genitalien",
+        "Bare buttocks": "Nackter Po",
+        "Bare male chest": "Nackter Männeroberkörper",
+        "Still looking at pictures: {scanned} of {total}. More are recognised as it goes on.": "Bilder werden noch angesehen: {scanned} von {total}. Es kommen laufend weitere dazu.",
+        "Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count.": "Falsch erkannte oder übersehene Bilder markieren Sie im Viewer oder über eine Auswahl. Ihre Markierungen gelten immer."
     },
 "nplurals=2; plural=(n != 1);");

@@ -33,8 +33,13 @@ class UserPrefs {
 		'sensitive_mode' => ['enum:all,hide,only', 'all'],
 		// The mark on tiles
 		'sensitive_badge' => ['bool', true],
-		// Score (percent) from which a picture counts as sensitive
+		// How sure the detector must be (percent) that a body part is uncovered
 		'sensitive_threshold' => ['int:20-95', 50],
+		// Which uncovered body parts count (SensitiveContent::CATEGORIES)
+		'sensitive_breast' => ['bool', true],
+		'sensitive_genitals' => ['bool', true],
+		'sensitive_buttocks' => ['bool', true],
+		'sensitive_chest' => ['bool', false],
 	];
 
 	public function __construct(
