@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.8.0] - 2026-10-14
+## [4.8.1] - 2026-10-14
 
 ### Added
 - **Sensitive pictures (optional).** Recognises nudity from Immich's search embeddings, with
