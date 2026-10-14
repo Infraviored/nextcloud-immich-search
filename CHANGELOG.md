@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.9.3] - unreleased
+## [4.9.4] - unreleased
 
 ### Added
 - **Sensitive pictures (optional).** Each user decides what counts: search for it, select the

@@ -321,7 +321,8 @@ class SensitiveContent {
 			[$hits, $byTerm] = $this->termHits($pdo, $model, $terms, $rows);
 
 			// Fresh neighbours once a day and when the pictures or the model change
-			$near = $data['signature'] === $signature && $data['built'] >= time() - self::MAX_AGE ? $data['near'] : [];
+			$near = $data['signature'] === $signature && $data['built'] >= time() - self::MAX_AGE
+				&& ($data['nearOf'] ?? '') === self::NEIGHBOURS . '/' . self::NEIGHBOUR_MIN ? $data['near'] : [];
 			$fileAssets = [];
 			$markAssets = $this->markAssets($pdo, $uid, $this->bools($data['marks']), $fileAssets);
 			$near = array_intersect_key($near, $markAssets);
@@ -343,6 +344,7 @@ class SensitiveContent {
 			$data['added'] = $added;
 			$data['removed'] = $removed;
 			$data['near'] = $near;
+			$data['nearOf'] = self::NEIGHBOURS . '/' . self::NEIGHBOUR_MIN;
 			$data['signature'] = $signature;
 			$data['built'] = time();
 			$data['error'] = null;
