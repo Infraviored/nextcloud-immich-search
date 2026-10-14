@@ -4,6 +4,7 @@ Glimpse is a Nextcloud app (id `glimpse`, namespace `OCA\Glimpse`) that gives a 
 gallery UI over a self-hosted Immich. Immich indexes the users' Nextcloud files read-only, under
 **one** service account. Glimpse filters every result through Nextcloud permissions. User docs
 are in `README.md`, the threat model in `docs/SECURITY.md`, releasing in `docs/RELEASE.md`.
+Setting up a server rather than changing the code? Follow `SETUP.md`.
 
 ## Layout
 

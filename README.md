@@ -156,7 +156,51 @@ Details: [docs/SECURITY.md](docs/SECURITY.md).
   - the PHP extension `pdo_pgsql` plus network access to Immich's Postgres, to keep pictures
     when they are moved (step 5 below)
 
+## Hardware
+
+Glimpse itself is light: a Nextcloud app plus `ffmpeg` for video stills. The weight is
+Immich, above all its machine-learning service, which reads every picture once and then every
+search query.
+
+| | Minimum | Recommended |
+|---|---|---|
+| CPU | 4 cores (x86-64 or ARM64) | 6 cores or more |
+| RAM, Immich on top of Nextcloud | 6 GB | 8 GB or more; 12 GB for the large search model without a GPU |
+| GPU | none, everything runs on the CPU | NVIDIA with 8 GB VRAM, for the large model and fast indexing |
+| Disk for Immich, best on an SSD | about 300 KB per picture (thumbnails and database) plus 1 to 5 GB for the models | the same |
+
+The photos themselves stay in Nextcloud. Immich only reads them and keeps thumbnails.
+
+**Which search model.** Immich's default, `ViT-B-32__openai`, is small, fast on a CPU and
+understands English. A large model such as `ViT-SO400M-16-SigLIP2-384__webli` finds noticeably
+better and understands other languages too, but is about 4 times slower to index than the default
+on a CPU, and 30 times slower than on a GPU. You pick it in Immich under *Administration →
+Settings → Machine Learning → Smart Search*, then run *Administration → Job Queues → Smart Search →
+All* once.
+
+**Measured** with Immich 3.2, one 1024×768 picture, models already loaded. "Per picture" is
+search model plus face detection and recognition (`buffalo_l`), Immich's machine learning only:
+
+| Setup | Per picture | 10,000 pictures | One search query | RAM of the ML service | VRAM |
+|---|---|---|---|---|---|
+| 4 CPU cores (i5-11400F), `ViT-B-32` | 1.9 s | about 5 h | 0.3 s | 1.4 GB | – |
+| 4 CPU cores (i5-11400F), `SigLIP2 SO400M` | 7 s | about 19 h | 1.1 s | 6 GB | – |
+| RTX 4060 Ti 16 GB, `SigLIP2 SO400M` | 0.23 s | about 40 min | 0.13 s | 3.6 GB | 5.7 GB |
+
+Indexing runs once; afterwards only new pictures cost time. Immich unloads idle models after
+5 minutes (`MACHINE_LEARNING_MODEL_TTL`), so the first search after a pause waits a few seconds
+for the model to load.
+
+**Search inside videos** cuts up to 40 stills per video on the Nextcloud server with `ffmpeg`,
+by default only at night. Each still costs Immich the same as one picture.
+
 ## Install
+
+Immich comes first: install it with its own guide
+([immich.app/docs/install](https://immich.app/docs/install/docker-compose)), and for a GPU follow
+[hardware-accelerated machine learning](https://immich.app/docs/features/ml-hardware-acceleration).
+Then follow the steps below. Letting an AI agent do the setup? Point it at
+[SETUP.md](SETUP.md), the same steps as a checklist with a check after each.
 
 ### 1. Give Immich read-only access to the files
 
