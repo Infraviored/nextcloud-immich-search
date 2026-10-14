@@ -133,7 +133,8 @@ import { closeViewer, downloadUrl, folderUrl, viewerState } from '../viewer.js'
 
 const page = loadState('glimpse', 'page', { photosEnabled: false })
 const { setFavorite, tag, album, remove } = usePictureActions()
-const { run: runTransfer } = useTransfer(() => viewerState.onRefresh?.())
+let lastRefresh = null
+const { run: runTransfer } = useTransfer(() => lastRefresh?.())
 
 const item = computed(() => viewerState.current)
 const info = ref(false)
@@ -206,23 +207,49 @@ watch(info, async (open) => {
 
 /**
  * While the sheet is open, Escape closes it and the arrows do not page the viewer behind it.
+ * While any modal dialog is open, stop ArrowLeft/ArrowRight/Escape from reaching the viewer,
+ * letting the modal or its inputs handle the keys.
  *
  * @param e
  */
 function onKey(e) {
-	if (!info.value) {
+	if (info.value) {
+		if (e.key === 'Escape') {
+			info.value = false
+		} else if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+			return
+		}
+		e.stopImmediatePropagation()
+		e.preventDefault()
 		return
 	}
-	if (e.key === 'Escape') {
-		info.value = false
-	} else if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+
+	const modal = document.querySelector('.modal-mask:not(.viewer)')
+	if (!modal || !['ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) {
 		return
 	}
-	e.stopImmediatePropagation()
-	e.preventDefault()
+	const inInput = e.target?.matches?.('input, textarea, [contenteditable="true"]')
+	if (e.key !== 'Escape' && !inInput) {
+		e.preventDefault()
+	}
+	if (!modal.contains(e.target)) {
+		e.stopImmediatePropagation()
+	}
 }
+
+function onKeyBubble(e) {
+	const modal = document.querySelector('.modal-mask:not(.viewer)')
+	if (modal && ['ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) {
+		e.stopImmediatePropagation()
+	}
+}
+
 window.addEventListener('keydown', onKey, true)
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey, true))
+window.addEventListener('keydown', onKeyBubble, false)
+onBeforeUnmount(() => {
+	window.removeEventListener('keydown', onKey, true)
+	window.removeEventListener('keydown', onKeyBubble, false)
+})
 
 function openDialog(name) {
 	info.value = false
@@ -244,9 +271,14 @@ function similar() {
 	go('/', { similar: item.value.id, name: item.value.name })
 }
 
-/** The picture left the view it was opened from: tell that view, and close. */
-function gone() {
-	viewerState.onRemoved?.([item.value.fileId])
+/**
+ * The picture left the view it was opened from: tell that view, and close.
+ *
+ * @param {number} fileId
+ * @param {(fileIds: number[]) => void} [onRemoved]
+ */
+function gone(fileId, onRemoved = viewerState.onRemoved) {
+	onRemoved?.([fileId])
 	closeViewer()
 }
 
@@ -266,8 +298,16 @@ async function share() {
 				// no share sheet after all: copy instead
 			}
 		}
-		await navigator.clipboard.writeText(link)
-		showSuccess(t('Link copied'))
+		if (navigator.clipboard?.writeText) {
+			try {
+				await navigator.clipboard.writeText(link)
+				showSuccess(t('Link copied'))
+				return
+			} catch {
+				// clipboard write denied: prompt instead
+			}
+		}
+		window.prompt(link, link)
 	} catch (e) {
 		showError(t('Could not share: {error}', { error: e?.message ?? String(e) }))
 	}
@@ -285,10 +325,12 @@ function download() {
 
 async function transfer(mode) {
 	info.value = false
-	const fileId = item.value.fileId
+	const fileId = item.value?.fileId
+	const onRemoved = viewerState.onRemoved
+	lastRefresh = viewerState.onRefresh
 	const res = await runTransfer([fileId], mode)
 	if (res && mode === 'move' && !res.failedIds.includes(fileId)) {
-		gone()
+		gone(fileId, onRemoved)
 	}
 }
 
@@ -304,9 +346,11 @@ function doAlbum(name, isNew, recipients = []) {
 
 async function doDelete() {
 	dialog.value = null
-	const res = await remove([item.value.fileId])
+	const fileId = item.value?.fileId
+	const onRemoved = viewerState.onRemoved
+	const res = await remove([fileId])
 	if (res && res.done > 0) {
-		gone()
+		gone(fileId, onRemoved)
 	}
 }
 
