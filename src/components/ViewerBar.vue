@@ -189,7 +189,7 @@ const sheetRows = computed(() => [
 	{ key: 'copy', icon: copyIcon, label: t('Copy to folder …'), run: () => transfer('copy') },
 	page.photosEnabled && { key: 'album', icon: albumIcon, label: t('Add to album …'), run: () => openDialog('album') },
 	{ key: 'tag', icon: tagIcon, label: t('Tag …'), run: () => openDialog('tag') },
-	page.isAdmin && { key: 'ignore', icon: mdiFolderOffOutline, label: t('Ignore this folder …'), run: () => openDialog('ignore') },
+	page.isAdmin && folder.value !== '/' && { key: 'ignore', icon: mdiFolderOffOutline, label: t('Ignore this folder …'), run: () => openDialog('ignore') },
 ].filter(Boolean))
 
 /** Who is in the picture, loaded when the info sheet opens. */

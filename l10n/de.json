@@ -579,7 +579,8 @@
         "Glimpse and Immich stop indexing this folder and everything in it, for everyone. Its pictures disappear after the next library scan. You can take it back under Settings → What gets indexed.": "Glimpse und Immich indexieren diesen Ordner samt Inhalt nicht mehr, für alle. Seine Bilder verschwinden nach dem nächsten Scan der Bibliothek. Rückgängig machen kannst du das unter Einstellungen → Was indexiert wird.",
         "Ignore folder": "Ordner ignorieren",
         "“{folder}” is ignored from now on": "„{folder}“ wird ab jetzt ignoriert",
-        "This file is not indexed by Glimpse": "Diese Datei ist nicht von Glimpse indexiert"
+        "This file is not indexed by Glimpse": "Diese Datei ist nicht von Glimpse indexiert",
+        "The root folder cannot be ignored": "Der oberste Ordner kann nicht ignoriert werden"
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }

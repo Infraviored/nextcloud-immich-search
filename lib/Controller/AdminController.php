@@ -90,6 +90,10 @@ class AdminController extends Controller {
 			if ($path === null || !str_contains($path, '/')) {
 				return new JSONResponse(['error' => $this->l->t('This file is not indexed by Glimpse')], Http::STATUS_NOT_FOUND);
 			}
+			$ncPath = SmallImagePruner::nextcloudPath($this->config->getPathPattern(), $path);
+			if ($ncPath === null || !str_contains($ncPath[1], '/')) {
+				throw new \InvalidArgumentException($this->l->t('The root folder cannot be ignored'));
+			}
 			$pattern = SmallImagePruner::escape(substr($path, 0, strrpos($path, '/'))) . '/**';
 			return $this->pruner->exclusive(function () use ($pattern) {
 				$folders = $this->config->get('excluded_folders');
