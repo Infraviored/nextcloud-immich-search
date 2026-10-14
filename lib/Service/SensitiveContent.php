@@ -490,7 +490,14 @@ class SensitiveContent {
 				$offset++;
 				$item = $this->assets->visibleItem($uid, $row);
 				if ($item !== null) {
-					$items[] = $item + (isset($flagged[$item['fileId']]) ? ['sensitive' => true] : []);
+					$fileId = (int)$item['fileId'];
+					if ($side === 'visible' && (isset($flagged[$fileId]) || isset($marks[$fileId]))) {
+						continue;
+					}
+					if ($side === 'hidden' && !isset($auto[$fileId])) {
+						continue;
+					}
+					$items[] = $item + (isset($flagged[$fileId]) ? ['sensitive' => true] : []);
 					if (count($items) >= $size) {
 						return ['items' => $items, 'nextPage' => $offset];
 					}
