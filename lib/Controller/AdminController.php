@@ -91,15 +91,15 @@ class AdminController extends Controller {
 				return new JSONResponse(['error' => $this->l->t('This file is not indexed by Glimpse')], Http::STATUS_NOT_FOUND);
 			}
 			$pattern = SmallImagePruner::escape(substr($path, 0, strrpos($path, '/'))) . '/**';
-			$folders = $this->config->get('excluded_folders');
-			if (in_array($pattern, $folders, true)) {
-				return ['pattern' => $pattern, 'exclusionsApplied' => null];
-			}
-			$res = $this->saveSettings(['excluded_folders' => [...$folders, $pattern]]);
-			if ($res->getStatus() !== Http::STATUS_OK) {
-				return $res;
-			}
-			return ['pattern' => $pattern, 'exclusionsApplied' => $res->getData()['exclusionsApplied'] ?? null];
+			return $this->pruner->exclusive(function () use ($pattern) {
+				$folders = $this->config->get('excluded_folders');
+				if (in_array($pattern, $folders, true)) {
+					return ['pattern' => $pattern, 'exclusionsApplied' => null];
+				}
+				$this->config->set('excluded_folders', [...$folders, $pattern]);
+				$applied = $this->index->applyExclusions();
+				return ['pattern' => $pattern, 'exclusionsApplied' => $applied];
+			});
 		});
 	}
 
