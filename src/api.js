@@ -96,6 +96,15 @@ export async function getFolderSuggestions() {
 	return (await axios.get(url('/api/admin/folder-suggestions'))).data
 }
 
+/**
+ * Admins: stop indexing the folder this file is in (Immich drops its pictures on the next scan).
+ *
+ * @param {number} fileId
+ */
+export async function excludeFolder(fileId) {
+	return (await axios.post(url('/api/admin/exclude-folder'), { fileId })).data
+}
+
 export async function queueMissing() {
 	return (await axios.post(url('/api/admin/queue-missing'))).data
 }

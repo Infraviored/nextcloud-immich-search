@@ -16,6 +16,11 @@
 				class="viewer-bar"
 				role="toolbar"
 				:aria-label="t('Picture actions')">
+				<!-- Where the picture lives, always in sight; a click opens the folder in Glimpse -->
+				<button type="button" class="viewer-bar__folder" @click="go('/folders', { path: folder })">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="folderIcon" /></svg>
+					<span>{{ folder }}</span>
+				</button>
 				<div class="viewer-bar__row">
 					<button
 						v-for="a in barActions"
@@ -107,6 +112,12 @@
 				@close="dialog = null"
 				@apply="doAlbum" />
 			<NcDialog
+				v-if="dialog === 'ignore'"
+				:name="t('Ignore “{folder}”?', { folder })"
+				:message="t('Glimpse and Immich stop indexing this folder and everything in it, for everyone. Its pictures disappear after the next library scan. You can take it back under Settings → What gets indexed.')"
+				:buttons="ignoreButtons"
+				@closing="dialog = null" />
+			<NcDialog
 				v-if="dialog === 'delete'"
 				:name="n('Delete {count} file?', 'Delete {count} files?', 1, { count: 1 })"
 				:message="t('They go to the Nextcloud trash bin and can be restored from there.')"
@@ -117,7 +128,7 @@
 </template>
 
 <script setup>
-import { mdiOpenInNew } from '@mdi/js'
+import { mdiFolderOffOutline, mdiOpenInNew } from '@mdi/js'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -125,7 +136,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import AlbumDialog from './AlbumDialog.vue'
 import TagDialog from './TagDialog.vue'
-import { faceUrl, getFaces, publicLink } from '../api.js'
+import { errorMessage, excludeFolder, faceUrl, getFaces, publicLink } from '../api.js'
 import { usePictureActions } from '../composables/usePictureActions.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
@@ -134,7 +145,7 @@ import { navigate } from '../router.js'
 import { markItems, sensitiveOn } from '../sensitive.js'
 import { closeViewer, downloadUrl, folderUrl, viewerState } from '../viewer.js'
 
-const page = loadState('glimpse', 'page', { photosEnabled: false })
+const page = loadState('glimpse', 'page', { photosEnabled: false, isAdmin: false })
 const { setFavorite, tag, album, remove } = usePictureActions()
 let lastRefresh = null
 const { run: runTransfer } = useTransfer(() => lastRefresh?.())
@@ -178,6 +189,7 @@ const sheetRows = computed(() => [
 	{ key: 'copy', icon: copyIcon, label: t('Copy to folder …'), run: () => transfer('copy') },
 	page.photosEnabled && { key: 'album', icon: albumIcon, label: t('Add to album …'), run: () => openDialog('album') },
 	{ key: 'tag', icon: tagIcon, label: t('Tag …'), run: () => openDialog('tag') },
+	page.isAdmin && { key: 'ignore', icon: mdiFolderOffOutline, label: t('Ignore this folder …'), run: () => openDialog('ignore') },
 ].filter(Boolean))
 
 /** Who is in the picture, loaded when the info sheet opens. */
@@ -348,6 +360,22 @@ const deleteButtons = computed(() => [
 	{ label: t('Cancel'), callback: () => { dialog.value = null } },
 	{ label: t('Delete'), variant: 'error', callback: doDelete },
 ])
+
+/** Admins: the folder leaves the index; the pictures go once Immich has scanned again. */
+async function doIgnore() {
+	dialog.value = null
+	try {
+		await excludeFolder(item.value.fileId)
+		showSuccess(t('“{folder}” is ignored from now on', { folder: folder.value }))
+	} catch (e) {
+		showError(errorMessage(e))
+	}
+}
+
+const ignoreButtons = [
+	{ label: t('Cancel'), callback: () => { dialog.value = null } },
+	{ label: t('Ignore folder'), variant: 'error', callback: doIgnore },
+]
 </script>
 
 <style lang="scss">
@@ -378,6 +406,44 @@ body:has(.modal-mask:not(.viewer)) .viewer-bar {
 	padding: 20px 8px max(8px, env(safe-area-inset-bottom));
 	background: linear-gradient(transparent, rgba(0, 0, 0, 0.7) 24px);
 	pointer-events: none;
+
+	// The folder, quiet, above the actions
+	& &__folder {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		max-width: min(560px, 100%);
+		min-height: 0;
+		margin: 0 auto 6px;
+		padding: 2px 10px;
+		border: 0;
+		border-radius: 12px;
+		background: none;
+		color: rgba(255, 255, 255, 0.78);
+		font-family: inherit;
+		font-size: 12px;
+		pointer-events: auto;
+		cursor: pointer;
+
+		svg {
+			flex: 0 0 auto;
+			width: 16px;
+			height: 16px;
+			fill: currentColor;
+		}
+
+		span {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			direction: rtl;
+		}
+
+		&:hover, &:focus-visible {
+			background: rgba(255, 255, 255, 0.12);
+			color: #fff;
+		}
+	}
 
 	&__row {
 		display: flex;

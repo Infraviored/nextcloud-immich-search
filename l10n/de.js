@@ -574,6 +574,12 @@ OC.L10N.register(
         "Sensitive pictures: shown": "Heikle Bilder: sichtbar",
         "Sensitive pictures: hidden": "Heikle Bilder: ausgeblendet",
         "Sensitive pictures: only those": "Heikle Bilder: nur diese",
-        "A filter that hides the pictures you consider sensitive. You train it yourself: search for something, hide what matches, then check what it hides. Works with what Immich already knows about each picture; nothing leaves this server. Only you see your marks.": "Ein Filter, der die Bilder ausblendet, die du für heikel hältst. Du trainierst ihn selbst: nach etwas suchen, Passendes ausblenden, dann prüfen, was er ausblendet. Er nutzt, was Immich schon über jedes Bild weiß; nichts verlässt diesen Server. Deine Markierungen siehst nur du."
+        "A filter that hides the pictures you consider sensitive. You train it yourself: search for something, hide what matches, then check what it hides. Works with what Immich already knows about each picture; nothing leaves this server. Only you see your marks.": "Ein Filter, der die Bilder ausblendet, die du für heikel hältst. Du trainierst ihn selbst: nach etwas suchen, Passendes ausblenden, dann prüfen, was er ausblendet. Er nutzt, was Immich schon über jedes Bild weiß; nichts verlässt diesen Server. Deine Markierungen siehst nur du.",
+        "Ignore this folder …": "Diesen Ordner ignorieren …",
+        "Ignore “{folder}”?": "„{folder}“ ignorieren?",
+        "Glimpse and Immich stop indexing this folder and everything in it, for everyone. Its pictures disappear after the next library scan. You can take it back under Settings → What gets indexed.": "Glimpse und Immich indexieren diesen Ordner samt Inhalt nicht mehr, für alle. Seine Bilder verschwinden nach dem nächsten Scan der Bibliothek. Rückgängig machen kannst du das unter Einstellungen → Was indexiert wird.",
+        "Ignore folder": "Ordner ignorieren",
+        "“{folder}” is ignored from now on": "„{folder}“ wird ab jetzt ignoriert",
+        "This file is not indexed by Glimpse": "Diese Datei ist nicht von Glimpse indexiert"
     },
 "nplurals=2; plural=(n != 1);");
