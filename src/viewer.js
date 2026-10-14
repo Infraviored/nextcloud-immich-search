@@ -3,12 +3,16 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import { generateUrl } from '@nextcloud/router'
+import { getCurrentUser } from '@nextcloud/auth'
+import { generateRemoteUrl, generateUrl } from '@nextcloud/router'
 import { reactive } from 'vue'
 import { fileUrl } from './api.js'
 
-/** The file the Nextcloud viewer shows right now (for the "show in folder" button), or null. */
-export const viewerState = reactive({ current: null })
+/**
+ * The file the Nextcloud viewer shows right now (for the action bar over it), or null, and
+ * what the view that opened it wants to hear: pictures that left it, and when to reload.
+ */
+export const viewerState = reactive({ current: null, onRemoved: null, onRefresh: null })
 
 /**
  * Viewer file info for one of our items. The viewer only needs path, name, type and id.
@@ -35,8 +39,11 @@ function fileInfo(item) {
  *
  * @param item the picture
  * @param list the pictures around it, in display order
+ * @param {object} hooks from the view that opens it
+ * @param {(fileIds: number[]) => void} [hooks.onRemoved] file ids that left the view (deleted or moved in the viewer)
+ * @param {() => void} [hooks.onRefresh] something was undone, reload the view
  */
-export function openInViewer(item, list = [item]) {
+export function openInViewer(item, list = [item], { onRemoved = null, onRefresh = null } = {}) {
 	if (!window.OCA?.Viewer || !item.path) {
 		window.location.href = fileUrl(item.fileId)
 		return
@@ -48,6 +55,8 @@ export function openInViewer(item, list = [item]) {
 		viewerState.current = byId.get(info.fileid) ?? null
 	}
 	viewerState.current = item
+	viewerState.onRemoved = onRemoved
+	viewerState.onRefresh = onRefresh
 	window.OCA.Viewer.open({
 		path: item.path,
 		list: files.map(fileInfo),
@@ -56,11 +65,19 @@ export function openInViewer(item, list = [item]) {
 		onNext: follow,
 		onClose: () => {
 			viewerState.current = null
+			viewerState.onRemoved = null
+			viewerState.onRefresh = null
 		},
 	})
 	if (item.at) {
 		startAt(item.at)
 	}
+}
+
+/** Close the viewer (onClose above clears the state). */
+export function closeViewer() {
+	window.OCA?.Viewer?.close?.()
+	viewerState.current = null
 }
 
 /**
@@ -103,4 +120,14 @@ export function startAt(seconds) {
 export function folderUrl(item) {
 	const dir = item.path.slice(0, item.path.lastIndexOf('/')) || '/'
 	return generateUrl('/apps/files/files/{id}?dir={dir}', { id: item.fileId, dir })
+}
+
+/**
+ * The file itself, for downloading.
+ *
+ * @param item
+ */
+export function downloadUrl(item) {
+	const path = item.path.split('/').map(encodeURIComponent).join('/')
+	return `${generateRemoteUrl('dav')}/files/${encodeURIComponent(getCurrentUser().uid)}${path}`
 }

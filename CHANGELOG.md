@@ -3,6 +3,19 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.7.0] - 2026-10-14
+
+### Added
+- **Actions in the viewer, like in the Android app.** Below an open picture: share (public
+  link, through the device's share sheet or copied), favorite, similar, info and delete, with
+  the app's Material icons. Info opens a sheet with date and time, the people in the picture,
+  its folder (in Glimpse or in Files) and download, move, copy, album and tag. Replaces the
+  "Show in folder" button. The picture and a video's controls end above the bar.
+
+### Fixed
+- Toasts had no styles (`@nextcloud/dialogs/style.css` was never loaded), so they showed as
+  plain text in the corner and behind the viewer.
+
 ## [4.6.1] - 2026-10-13
 
 ### Fixed

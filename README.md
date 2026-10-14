@@ -63,8 +63,10 @@ integration and the permission checks.
   page.
 - **Light and dark.** The app follows your Nextcloud theme.
 
-Everything is a real Nextcloud file: clicking opens the Nextcloud viewer (videos play), and
-every action goes through Nextcloud with your own permissions.
+Everything is a real Nextcloud file: clicking opens the Nextcloud viewer (videos play), with
+the Android app's actions below the picture: share, favorite, similar, delete, and an info sheet
+with who is in it, its folder, download, move, copy, album and tag. Every action goes through
+Nextcloud with your own permissions.
 
 ## Screenshots
 

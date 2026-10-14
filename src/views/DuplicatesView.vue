@@ -93,7 +93,15 @@ function toggle(g, item) {
 }
 
 function open(item) {
-	openInViewer(item, groups.value.flatMap((g) => g.items))
+	openInViewer(item, groups.value.flatMap((g) => g.items), {
+		// Deleted or moved in the viewer: a group of one is no duplicate any more
+		onRemoved: (fileIds) => {
+			const gone = new Set(fileIds)
+			groups.value = groups.value
+				.map((g) => ({ ...g, items: g.items.filter((i) => !gone.has(i.fileId)) }))
+				.filter((g) => g.items.length > 1)
+		},
+	})
 }
 
 async function resolve(g) {
