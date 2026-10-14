@@ -156,7 +156,7 @@ const dialog = ref(null)
 const sheet = ref(null)
 const people = ref([])
 
-const folder = computed(() => item.value.path.slice(0, item.value.path.lastIndexOf('/')) || '/')
+const folder = computed(() => item.value?.path ? item.value.path.slice(0, item.value.path.lastIndexOf('/')) || '/' : '/')
 
 // Immich's local time comes as if it were UTC: read it back as such, not shifted
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' })
