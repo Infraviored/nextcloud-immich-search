@@ -436,7 +436,6 @@ body:has(.modal-mask:not(.viewer)) .viewer-bar {
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
-			direction: rtl;
 		}
 
 		&:hover, &:focus-visible {
