@@ -64,7 +64,7 @@ class SensitiveContentTest extends TestCase {
 		$root->method('getUserFolder')->willReturn($userFolder);
 
 		return new SensitiveContent($config, $prefs, $this->createMock(ImmichDb::class), $this->createMock(ImmichClient::class),
-			$this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class), $factory,
+			$assets ?? $this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class), $factory,
 			$this->createMock(LoggerInterface::class));
 	}
 
@@ -136,4 +136,12 @@ class SensitiveContentTest extends TestCase {
 		$this->assertSame([4 => true], $this->service()->flagged('u'));
 	}
 
+
+	public function testSetTermRejectsUnseenPicture(): void {
+		$assets = $this->createMock(AssetSearch::class);
+		$assets->method('maySee')->willReturn(false);
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Picture not found');
+		$this->service($assets)->setTerm('u', 'beach', '11111111-1111-1111-1111-111111111111');
+	}
 }

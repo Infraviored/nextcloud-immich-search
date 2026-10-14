@@ -254,6 +254,9 @@ class SensitiveContent {
 		if ($q === '' || mb_strlen($q) > 200 || !preg_match('/^[0-9a-f-]{36}$/', $assetId)) {
 			throw new \InvalidArgumentException('Term or picture missing');
 		}
+		if (!$this->assets->maySee($uid, $assetId)) {
+			throw new \InvalidArgumentException('Picture not found');
+		}
 		$model = $this->model();
 		$stmt = $this->db->pdo('20s')->prepare('SELECT -(embedding <#> ?::vector) FROM smart_search WHERE "assetId" = ?');
 		$stmt->execute([SensitiveModel::vector($this->termEmbedding($model, $q)), $assetId]);
