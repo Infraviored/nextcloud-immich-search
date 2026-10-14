@@ -13,6 +13,8 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), ve
   "Show in folder" button. The picture and a video's controls end above the bar.
 
 ### Fixed
+- A person recognized in the search text ("Tara coffee") now shows in the person filter.
+  Picking someone else or "All people" there drops the name from the text.
 - Toasts had no styles (`@nextcloud/dialogs/style.css` was never loaded), so they showed as
   plain text in the corner and behind the viewer.
 
