@@ -84,21 +84,23 @@ class AdminController extends Controller {
 	 * as its path in Immich, so Immich drops its pictures on the next scan.
 	 */
 	public function excludeFolder(int $fileId = 0): JSONResponse {
-		$uid = $this->userSession->getUser()?->getUID() ?? '';
-		$path = $this->assets->immichPathOf($uid, $fileId);
-		if ($path === null || !str_contains($path, '/')) {
-			return new JSONResponse(['error' => $this->l->t('This file is not indexed by Glimpse')], Http::STATUS_NOT_FOUND);
-		}
-		$pattern = SmallImagePruner::escape(substr($path, 0, strrpos($path, '/'))) . '/**';
-		$folders = $this->config->get('excluded_folders');
-		if (in_array($pattern, $folders, true)) {
-			return new JSONResponse(['pattern' => $pattern, 'exclusionsApplied' => null]);
-		}
-		$res = $this->saveSettings(['excluded_folders' => [...$folders, $pattern]]);
-		if ($res->getStatus() !== Http::STATUS_OK) {
-			return $res;
-		}
-		return new JSONResponse(['pattern' => $pattern, 'exclusionsApplied' => $res->getData()['exclusionsApplied'] ?? null]);
+		return $this->guard(function () use ($fileId) {
+			$uid = $this->userSession->getUser()?->getUID() ?? '';
+			$path = $this->assets->immichPathOf($uid, $fileId);
+			if ($path === null || !str_contains($path, '/')) {
+				return new JSONResponse(['error' => $this->l->t('This file is not indexed by Glimpse')], Http::STATUS_NOT_FOUND);
+			}
+			$pattern = SmallImagePruner::escape(substr($path, 0, strrpos($path, '/'))) . '/**';
+			$folders = $this->config->get('excluded_folders');
+			if (in_array($pattern, $folders, true)) {
+				return ['pattern' => $pattern, 'exclusionsApplied' => null];
+			}
+			$res = $this->saveSettings(['excluded_folders' => [...$folders, $pattern]]);
+			if ($res->getStatus() !== Http::STATUS_OK) {
+				return $res;
+			}
+			return ['pattern' => $pattern, 'exclusionsApplied' => $res->getData()['exclusionsApplied'] ?? null];
+		});
 	}
 
 	public function status(): JSONResponse {
@@ -147,7 +149,8 @@ class AdminController extends Controller {
 
 	private function guard(callable $fn): JSONResponse {
 		try {
-			return new JSONResponse($fn());
+			$res = $fn();
+			return $res instanceof JSONResponse ? $res : new JSONResponse($res);
 		} catch (\InvalidArgumentException $e) {
 			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
 		} catch (LockedException) {
