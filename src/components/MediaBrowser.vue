@@ -30,6 +30,7 @@
 			@similar="$emit('similar', singleSelected)"
 			@faces="dialog = 'faces'"
 			@private="doPrivate"
+			@sensitive="doSensitive"
 			@delete="dialog = 'delete'"
 			@notPerson="dialog = 'notPerson'"
 			@timeline="navigate('/timeline', { at: singleSelected.date.slice(0, 10) })" />
@@ -95,6 +96,7 @@ import { peopleState, reloadPeople } from '../people.js'
 import { privateState, setPrivateFiles } from '../private.js'
 import { navigate } from '../router.js'
 import { pruneSelection, selectionActive, toggleSelection } from '../selection.js'
+import { markItems } from '../sensitive.js'
 import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
@@ -237,6 +239,17 @@ async function doPrivate(on) {
 			emit('removed', ids)
 		}
 	}
+}
+
+/**
+ * By hand, as sensitive or not; the tiles change, the pictures stay until the view reloads.
+ *
+ * @param {boolean} on
+ */
+async function doSensitive(on) {
+	const ids = selected.value
+	selected.value = new Set()
+	await markItems(allItems.value.filter((i) => ids.has(i.fileId)), on)
 }
 
 async function doDelete() {

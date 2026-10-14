@@ -12,6 +12,7 @@ namespace OCA\Glimpse\Controller;
 use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\Permissions;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\UserPrefs;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
@@ -32,6 +33,7 @@ class PageController extends Controller {
 		private Config $config,
 		private Permissions $permissions,
 		private UserPrefs $prefs,
+		private SensitiveContent $sensitive,
 		private IInitialState $initialState,
 		private IEventDispatcher $events,
 		private IAppManager $appManager,
@@ -56,6 +58,8 @@ class PageController extends Controller {
 			'photosEnabled' => $this->appManager->isEnabledForUser('photos'),
 			// "Open in Memories" links into its timeline, for pictures inside its folders.
 			'memoriesPaths' => $this->memoriesPaths(),
+			// The admin allows recognising sensitive content; each user still turns it on
+			'sensitiveAvailable' => $this->sensitive->isAvailable(),
 		]);
 		$this->initialState->provideInitialState('prefs', $this->prefs->all($this->uid()));
 		if ($isAdmin) {

@@ -17,6 +17,7 @@ use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\PeopleIndex;
 use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUser;
@@ -79,7 +80,7 @@ class MoveFacesTest extends TestCase {
 		$l = $this->createMock(IL10N::class);
 		$l->method('t')->willReturnArgument(0);
 		return new PeopleController($this->createMock(IRequest::class), $session, $this->index, $this->createMock(FaceCropper::class),
-			$this->immich, $permissions, $assets, $area, $this->createMock(Config::class), $l, $this->createMock(LoggerInterface::class));
+			$this->immich, $permissions, $assets, $area, $this->sensitive(), $this->createMock(Config::class), $l, $this->createMock(LoggerInterface::class));
 	}
 
 	public function testOnlyThePersonsFacesMoveToAnother(): void {
@@ -115,5 +116,13 @@ class MoveFacesTest extends TestCase {
 		$this->assertSame(400, $c->moveFaces(self::TANJA, [self::A1], self::TANJA)->getStatus());
 		$this->assertSame(400, $c->moveFaces(self::TANJA, [], self::GABI)->getStatus());
 		$this->assertSame([], $this->writes);
+	}
+
+	/** Sensitive content off: items pass unchanged. */
+	private function sensitive(): SensitiveContent {
+		$sensitive = $this->createMock(SensitiveContent::class);
+		$sensitive->method('apply')->willReturnArgument(1);
+		$sensitive->method('mode')->willReturn('all');
+		return $sensitive;
 	}
 }

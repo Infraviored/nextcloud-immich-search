@@ -64,6 +64,10 @@ return [
 		['name' => 'private#unlock', 'url' => '/api/private/unlock', 'verb' => 'POST'],
 		['name' => 'private#lock', 'url' => '/api/private/lock', 'verb' => 'POST'],
 
+		['name' => 'sensitive#status', 'url' => '/api/sensitive', 'verb' => 'GET'],
+		['name' => 'sensitive#mark', 'url' => '/api/sensitive/marks', 'verb' => 'POST'],
+		['name' => 'sensitive#rebuild', 'url' => '/api/sensitive/rebuild', 'verb' => 'POST'],
+
 		['name' => 'admin#settings', 'url' => '/api/admin/settings', 'verb' => 'GET'],
 		['name' => 'admin#saveSettings', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
 		['name' => 'admin#libraries', 'url' => '/api/admin/libraries', 'verb' => 'GET'],
@@ -72,6 +76,7 @@ return [
 		['name' => 'admin#queueMissing', 'url' => '/api/admin/queue-missing', 'verb' => 'POST'],
 		['name' => 'admin#scan', 'url' => '/api/admin/scan', 'verb' => 'POST'],
 		['name' => 'admin#prune', 'url' => '/api/admin/prune', 'verb' => 'POST'],
+		['name' => 'admin#sensitiveCheck', 'url' => '/api/admin/sensitive-check', 'verb' => 'GET'],
 
 		['name' => 'settings#reindex',    'url' => '/api/settings/reindex',      'verb' => 'POST'],
 	],

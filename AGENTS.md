@@ -34,6 +34,7 @@ Setting up a server rather than changing the code? Follow `SETUP.md`.
 - `FilesController`: transfer (move/copy), undo, favorite, delete, tags, ZIP.
 - `PrefsController`: per-user prefs and `/api/status`.
 - `PrivateController`: the private area.
+- `SensitiveController`: sensitive pictures (status, marks, recompute).
 - `SettingsController`, `AdminController`: admin only.
 
 **Services** (`lib/Service/`)
@@ -71,6 +72,15 @@ Setting up a server rather than changing the code? Follow `SETUP.md`.
   and `AssetSearch` maps hits back to the video opened at that moment. Settings: `video_scenes`
   (bool) and `video_scenes_hours` (night window, default `2-7`).
 - `MoveTracker`: see below.
+- `ImmichDb`: the optional connection to Immich's database, shared by `MoveTracker` and
+  `SensitiveContent`. Statement timeout per call (`pdo('120s')`).
+- `SensitiveContent`, `SensitiveModel`: optional nudity recognition. Admin setting
+  `sensitive_detection`, user prefs `sensitive_enabled` / `sensitive_mode` (`all`, `hide`,
+  `only`) / `sensitive_badge` / `sensitive_threshold`. A logistic regression on Immich's
+  `smart_search` embeddings per user: first guesses from text terms encoded by the ML service
+  (`ml_ping_url` + `/predict`), hand marks weighted 5×. Scores per visible file id in
+  `sensitive/<uid>.json`. `apply()` marks items (`sensitive: true`) and filters by mode, right
+  after `PrivateArea::filter()`; "only" goes into `AssetSearch` as `$onlyFiles`.
 - `UserPrefs`, `Permissions`.
 
 **Search flow** (`ApiController::search`)
@@ -80,7 +90,8 @@ Setting up a server rather than changing the code? Follow `SETUP.md`.
 - Person only, no text: `POST /search/metadata` with `personIds`, ordered by newest.
 - A tag alone lists files from Nextcloud directly. With text or a person, the tag narrows the
   Immich hits.
-- Every result goes through `AssetSearch`'s permission filter, then `PrivateArea`.
+- Every result goes through `AssetSearch`'s permission filter, then `PrivateArea`, then
+  `SensitiveContent::apply()` (a no-op unless the user turned it on).
 
 **Timeline**
 
@@ -100,6 +111,9 @@ Setting up a server rather than changing the code? Follow `SETUP.md`.
 - `ScanLibraries`: queued after copies.
 - `IndexVideoScenes`: every 5 min (up to 2 min budget) inside `video_scenes_hours`. Also purges
   orphaned stills daily.
+- `UpdateSensitive`: hourly, per user with sensitive pictures on, when the signature (model +
+  embedding count) or their marks changed. `RebuildSensitive`: queued on turning it on and by
+  "Recompute now".
 
 **Immich API used**
 
@@ -114,7 +128,7 @@ Setting up a server rather than changing the code? Follow `SETUP.md`.
 
 Tested against Immich 3.2. The API key needs permission "all".
 
-**Optional direct Immich DB** (`MoveTracker`, `Listener/TrackMoves`)
+**Optional direct Immich DB** (`ImmichDb`; `MoveTracker`, `Listener/TrackMoves`, `SensitiveContent`)
 
 - Immich has no API to change an asset's path, so a moved file would be re-imported and
   re-analysed. When `immich_db` is configured (occ only: `glimpse:configure --db-*`), each
@@ -123,6 +137,7 @@ Tested against Immich 3.2. The API key needs permission "all".
   with 5 s / 2 s timeouts.
 - It never breaks a move. Failures are logged, and Immich re-analyses at its next scan.
 - Moves that change the owner are ignored.
+- Sensitive pictures only read: `smart_search` and a few `asset` columns (`check()` tests them).
 - The minimal role and grants are in `README.md`.
 
 ## Frontend
@@ -205,7 +220,8 @@ Why:
 ## Pitfalls
 
 - **Permissions first.** Every new endpoint that returns assets, faces, thumbnails or
-  coordinates must go through `AssetSearch` (`visibleItem` / `maySee`) and `PrivateArea`.
+  coordinates must go through `AssetSearch` (`visibleItem` / `maySee`), `PrivateArea` and
+  `SensitiveContent::apply()`.
   Never return Immich data unfiltered. Never use Immich's person thumbnail.
 - **Search inside videos (VideoScenes):**
   - Stills are uploaded to Immich with `visibility: archive` under filenames matching

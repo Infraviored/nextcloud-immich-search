@@ -19,6 +19,7 @@ use OCA\Glimpse\Service\PeopleIndex;
 use OCA\Glimpse\Service\PeopleNames;
 use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\TagFilter;
 use OCP\IL10N;
 use OCP\IRequest;
@@ -72,7 +73,7 @@ class PrivatePeopleTest extends TestCase {
 		$permissions = $this->createMock(Permissions::class);
 		$permissions->method('canManagePeople')->willReturn(true);
 		return new PeopleController($this->createMock(IRequest::class), $this->userSession, $index, $this->faces, $this->immich,
-			$permissions, $this->assets, $this->area, $this->createMock(Config::class), $this->l, $this->createMock(LoggerInterface::class));
+			$permissions, $this->assets, $this->area, $this->sensitive(), $this->createMock(Config::class), $this->l, $this->createMock(LoggerInterface::class));
 	}
 
 	public function testPrivatePersonIsNotFoundWhileLocked(): void {
@@ -102,7 +103,7 @@ class PrivatePeopleTest extends TestCase {
 		$names->method('split')->willReturnCallback(fn ($uid, $q) => str_starts_with($q, 'Secret ') ? [self::SECRET, substr($q, 7)] : [null, $q]);
 		$names->method('visible')->willReturn([self::SECRET => ['name' => 'Secret', 'count' => 3]]);
 		return new ApiController($this->createMock(IRequest::class), $this->userSession, $config, $this->assets, $names,
-			$this->area, $this->immich, $this->createMock(TagFilter::class), $this->l, $this->createMock(LoggerInterface::class));
+			$this->area, $this->sensitive(), $this->immich, $this->createMock(TagFilter::class), $this->l, $this->createMock(LoggerInterface::class));
 	}
 
 	public function testSearchIgnoresPrivatePersonWhileLocked(): void {
@@ -130,6 +131,7 @@ class PrivatePeopleTest extends TestCase {
 			$this->createMock(\OCA\Glimpse\Service\MapIndex::class),
 			$this->createMock(\OCA\Glimpse\Service\TileProxy::class),
 			$this->area,
+			$this->sensitive(),
 			$this->createMock(Permissions::class),
 			$this->l,
 			$this->createMock(LoggerInterface::class),
@@ -140,5 +142,13 @@ class PrivatePeopleTest extends TestCase {
 		$b = $this->browse();
 		$this->assertSame(['items' => [], 'nextPage' => null, 'years' => []], $b->timeline(1, '', '', '', self::SECRET)->getData());
 		$this->assertSame(['items' => [], 'nextPage' => null, 'years' => []], $b->timeline(1, '', '', '', 'not-a-uuid')->getData());
+	}
+
+	/** Sensitive content off: items pass unchanged. */
+	private function sensitive(): SensitiveContent {
+		$sensitive = $this->createMock(SensitiveContent::class);
+		$sensitive->method('apply')->willReturnArgument(1);
+		$sensitive->method('mode')->willReturn('all');
+		return $sensitive;
 	}
 }

@@ -1,0 +1,85 @@
+/**
+ * SPDX-FileCopyrightText: 2026 Florian Schneider
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+import { showError, showUndo } from '@nextcloud/dialogs'
+import { loadState } from '@nextcloud/initial-state'
+import { computed, reactive } from 'vue'
+import { errorMessage, markSensitive } from './api.js'
+import { n, t } from './l10n.js'
+import { saveUserPrefs, userPrefs } from './prefs.js'
+
+const page = loadState('glimpse', 'page', { sensitiveAvailable: false })
+
+/**
+ * Sensitive content (SensitiveContent.php): optional, the admin allows it and each user turns
+ * it on. `version` goes up when the mode changes what is visible: views reload on that.
+ */
+export const sensitiveState = reactive({ version: 0 })
+
+/** Allowed by the admin and turned on by this user. */
+export const sensitiveOn = computed(() => !!page.sensitiveAvailable && !!userPrefs.sensitive_enabled)
+
+/** Show the mark on tiles. */
+export const sensitiveBadge = computed(() => sensitiveOn.value && userPrefs.sensitive_badge !== false)
+
+export const sensitiveModes = [
+	{ value: 'all', label: t('All pictures') },
+	{ value: 'hide', label: t('Without sensitive pictures') },
+	{ value: 'only', label: t('Only sensitive pictures') },
+]
+
+/**
+ * @param {'all'|'hide'|'only'} mode
+ */
+export async function setSensitiveMode(mode) {
+	if (userPrefs.sensitive_mode === mode) {
+		return
+	}
+	try {
+		await saveUserPrefs({ sensitive_mode: mode })
+		sensitiveState.version++
+	} catch (e) {
+		showError(errorMessage(e))
+	}
+}
+
+/**
+ * Mark pictures by hand, with undo in the toast. The items' `sensitive` follows, so their
+ * tiles change right away; they stay in the view until it reloads (reviewing a list stays
+ * calm that way).
+ *
+ * @param {object[]} items
+ * @param {boolean} on
+ */
+export async function markItems(items, on) {
+	if (!items.length) {
+		return
+	}
+	try {
+		const res = await markSensitive(Object.fromEntries(items.map((i) => [i.fileId, on])))
+		apply(items, res.sensitive)
+		const count = items.length
+		// Undo puts the marks back as they were, including "no mark" (the score decides)
+		showUndo(on
+			? n('{count} picture marked as sensitive', '{count} pictures marked as sensitive', count, { count })
+			: n('{count} picture marked as not sensitive', '{count} pictures marked as not sensitive', count, { count }), async () => {
+			try {
+				apply(items, (await markSensitive(res.previous)).sensitive)
+			} catch (e) {
+				showError(errorMessage(e))
+			}
+		})
+	} catch (e) {
+		showError(errorMessage(e))
+	}
+}
+
+function apply(items, sensitive) {
+	for (const item of items) {
+		if (sensitive?.[item.fileId] !== undefined) {
+			item.sensitive = !!sensitive[item.fileId]
+		}
+	}
+}

@@ -265,3 +265,22 @@ export async function publicLink(path) {
 		throw new Error(e?.response?.data?.ocs?.meta?.message || errorMessage(e), { cause: e })
 	}
 }
+
+export async function getSensitive() {
+	return (await axios.get(url('/api/sensitive'))).data
+}
+
+/**
+ * @param {Object<number, boolean|null>} marks fileId => true (sensitive), false (not), null (back to the score)
+ */
+export async function markSensitive(marks) {
+	return (await axios.post(url('/api/sensitive/marks'), { marks })).data
+}
+
+export async function rebuildSensitive() {
+	return (await axios.post(url('/api/sensitive/rebuild'))).data
+}
+
+export async function checkSensitive() {
+	return (await axios.get(url('/api/admin/sensitive-check'))).data
+}

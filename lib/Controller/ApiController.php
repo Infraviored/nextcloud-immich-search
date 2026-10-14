@@ -16,6 +16,7 @@ use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\PeopleNames;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\TagFilter;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -41,6 +42,7 @@ class ApiController extends Controller {
 		private AssetSearch $search,
 		private PeopleNames $names,
 		private PrivateArea $privateArea,
+		private SensitiveContent $sensitive,
 		private ImmichClient $immich,
 		private TagFilter $tagFilter,
 		private IL10N $l,
@@ -103,16 +105,21 @@ class ApiController extends Controller {
 		});
 	}
 
-	/** @return ?array<int, true> file ids with the tag, null without a tag */
+	/**
+	 * @return ?array<int, true> file ids with the tag, null without a tag; with "only
+	 *                           sensitive" just those (and with the tag)
+	 */
 	private function tagged(string $uid, string $tag, string $type): ?array {
+		$only = $this->sensitive->onlyFiles($uid);
 		if ($tag === '') {
-			return null;
+			return $only;
 		}
 		try {
-			return $this->tagFilter->mediaIds($uid, $tag, in_array($type, ['IMAGE', 'VIDEO'], true) ? $type : '');
+			$ids = $this->tagFilter->mediaIds($uid, $tag, in_array($type, ['IMAGE', 'VIDEO'], true) ? $type : '');
 		} catch (\InvalidArgumentException) {
 			throw new ImmichException($this->l->t('Tag not found'), Http::STATUS_NOT_FOUND);
 		}
+		return $only === null ? $ids : array_intersect_key($ids, $only);
 	}
 
 	/**
@@ -149,9 +156,9 @@ class ApiController extends Controller {
 		});
 	}
 
-	/** Leave out what the user marked private, unless unlocked. */
+	/** Leave out what the user marked private, unless unlocked; sensitive pictures by their mode. */
 	private function private(string $uid, array $res): array {
-		$res['items'] = $this->privateArea->filter($uid, $res['items']);
+		$res['items'] = $this->sensitive->apply($uid, $this->privateArea->filter($uid, $res['items']));
 		return $res;
 	}
 

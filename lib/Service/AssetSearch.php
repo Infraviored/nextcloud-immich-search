@@ -92,7 +92,8 @@ class AssetSearch {
 	 * Everything the user may see, newest first, taken before $before (ISO date) if given.
 	 * The cursor is the Immich page within that window.
 	 */
-	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = ''): array {
+	/** @param ?array<int, true> $onlyFiles as in search() */
+	public function timeline(string $uid, ?string $before, int $page, int $size, string $type = '', ?string $after = null, string $person = '', ?array $onlyFiles = null): array {
 		if ($person !== '' && !preg_match(self::UUID, $person)) {
 			return ['items' => [], 'nextPage' => null];
 		}
@@ -117,7 +118,7 @@ class AssetSearch {
 				$body['personIds'] = [$person];
 			}
 			return $this->immich->json('POST', '/search/metadata', $body)['assets'] ?? [];
-		});
+		}, '', $onlyFiles);
 	}
 
 	/**
@@ -321,6 +322,16 @@ class AssetSearch {
 	 * owner's path, then to the path Immich sees (the reverse of nodeFor()).
 	 */
 	public function assetForFile(string $uid, int $fileId): ?array {
+		$path = $this->immichPathOf($uid, $fileId);
+		if ($path === null) {
+			return null;
+		}
+		$hit = $this->immich->json('POST', '/search/metadata', ['originalPath' => $path, 'size' => 1])['assets']['items'][0] ?? null;
+		return $hit !== null && ($hit['originalPath'] ?? '') === $path ? $this->visibleItem($uid, $hit) : null;
+	}
+
+	/** Where Immich sees a file $uid can reach, or null if they cannot. */
+	public function immichPathOf(string $uid, int $fileId): ?string {
 		$node = $this->userFolder($uid)?->getFirstNodeById($fileId);
 		$owner = $node?->getOwner()?->getUID();
 		$ownerNode = $owner !== null ? $this->userFolder($owner)?->getFirstNodeById($fileId) : null;
@@ -328,9 +339,7 @@ class AssetSearch {
 			return null;
 		}
 		$rel = ltrim($this->userFolder($owner)->getRelativePath($ownerNode->getPath()), '/');
-		$path = str_replace(Config::USER_PLACEHOLDER, $owner, $this->config->getPathPattern()) . $rel;
-		$hit = $this->immich->json('POST', '/search/metadata', ['originalPath' => $path, 'size' => 1])['assets']['items'][0] ?? null;
-		return $hit !== null && ($hit['originalPath'] ?? '') === $path ? $this->visibleItem($uid, $hit) : null;
+		return str_replace(Config::USER_PLACEHOLDER, $owner, $this->config->getPathPattern()) . $rel;
 	}
 
 	/** May $uid see this asset? Asks Immich for its path if the user has not been shown it yet. */

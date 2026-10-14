@@ -481,6 +481,48 @@ OC.L10N.register(
         "Move to folder …": "In Ordner verschieben …",
         "Copy to folder …": "In Ordner kopieren …",
         "Link copied": "Link kopiert",
-        "Could not share: {error}": "Teilen fehlgeschlagen: {error}"
+        "Could not share: {error}": "Teilen fehlgeschlagen: {error}",
+        "Sensitive": "Heikel",
+        "Not sensitive": "Nicht heikel",
+        "All pictures": "Alle Bilder",
+        "Without sensitive pictures": "Ohne heikle Bilder",
+        "Only sensitive pictures": "Nur heikle Bilder",
+        "Without sensitive": "Ohne heikle",
+        "Only sensitive": "Nur heikle",
+        "Sensitive pictures": "Heikle Bilder",
+        "Mark as sensitive": "Als heikel markieren",
+        "Mark as not sensitive": "Als nicht heikel markieren",
+        "Recognises nudity, so you can mark such pictures, hide them or look at only them. Recognised on this server from what Immich already knows about each picture; nothing leaves it. Only you see what is recognised or marked for you.": "Erkennt Nacktheit, damit Sie solche Bilder markieren, ausblenden oder nur sie ansehen können. Erkannt wird auf diesem Server aus dem, was Immich ohnehin über jedes Bild weiß; nichts verlässt ihn. Was für Sie erkannt oder markiert ist, sehen nur Sie.",
+        "Recognise sensitive pictures": "Heikle Bilder erkennen",
+        "Sensitivity": "Empfindlichkeit",
+        "Mark them on the tiles": "Auf den Kacheln kennzeichnen",
+        "Review recognised pictures": "Erkannte Bilder durchsehen",
+        "Recompute now": "Jetzt neu berechnen",
+        "Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count, and the recognition learns from them within the hour.": "Falsch erkannte oder übersehene Bilder markieren Sie im Viewer oder über eine Auswahl. Ihre Markierungen gelten immer, und die Erkennung lernt innerhalb einer Stunde daraus.",
+        "Being computed, this takes a minute …": "Wird berechnet, das dauert etwa eine Minute …",
+        "Last attempt failed: {error}": "Letzter Versuch fehlgeschlagen: {error}",
+        "Last computed {date}.": "Zuletzt berechnet am {date}.",
+        "Lets each user turn on recognition of nudity, to mark such pictures, hide them or see only them. Off for everyone until they turn it on. It uses the search embeddings Immich already has, so it needs the database access from the install guide (with read access to smart_search) and the address of the machine-learning service under Connection.": "Jede Person kann damit eine Erkennung von Nacktheit einschalten, um solche Bilder zu markieren, auszublenden oder nur sie anzusehen. Aus für alle, bis sie es selbst einschalten. Nutzt die Suchvektoren, die Immich schon hat; braucht daher den Datenbankzugang aus der Installationsanleitung (mit Lesezugriff auf smart_search) und die Adresse des Machine-Learning-Dienstes unter Verbindung.",
+        "Allow recognising sensitive pictures": "Erkennen heikler Bilder erlauben",
+        "Immich database: {error}": "Immich-Datenbank: {error}",
+        "Immich database: readable": "Immich-Datenbank: lesbar",
+        "Machine-learning service: {error}": "Machine-Learning-Dienst: {error}",
+        "Machine-learning service: works ({model})": "Machine-Learning-Dienst: funktioniert ({model})",
+        "_{count} picture marked as sensitive_::_{count} pictures marked as sensitive_": [
+            "{count} Bild als heikel markiert",
+            "{count} Bilder als heikel markiert"
+        ],
+        "_{count} picture marked as not sensitive_::_{count} pictures marked as not sensitive_": [
+            "{count} Bild als nicht heikel markiert",
+            "{count} Bilder als nicht heikel markiert"
+        ],
+        "_At this sensitivity {count} picture counts as sensitive._::_At this sensitivity {count} pictures count as sensitive._": [
+            "Bei dieser Empfindlichkeit gilt {count} Bild als heikel.",
+            "Bei dieser Empfindlichkeit gelten {count} Bilder als heikel."
+        ],
+        "_{count} picture marked by you._::_{count} pictures marked by you._": [
+            "{count} Bild von Ihnen markiert.",
+            "{count} Bilder von Ihnen markiert."
+        ]
     },
 "nplurals=2; plural=(n != 1);");

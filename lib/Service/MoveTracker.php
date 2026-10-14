@@ -24,19 +24,16 @@ use Psr\Log\LoggerInterface;
  * Needs a database user that may only read and update those columns (docs/flo-server.md).
  */
 class MoveTracker {
-	private ?\PDO $pdo = null;
-	/** Why the database could not be reached; not tried again for the rest of the request. */
-	private ?string $failed = null;
-
 	public function __construct(
 		private Config $config,
+		private ImmichDb $db,
 		private LoggerInterface $logger,
 	) {
 	}
 
 	/** Set up, and not found unreachable earlier in this request. */
 	public function isEnabled(): bool {
-		return $this->failed === null && $this->config->getDatabase() !== null;
+		return $this->db->isEnabled();
 	}
 
 	/**
@@ -80,7 +77,7 @@ class MoveTracker {
 		if ($from === $to || !$this->isEnabled()) {
 			return 0;
 		}
-		$pdo = $this->pdo();
+		$pdo = $this->db->pdo();
 		$like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $from) . '/%';
 		$select = $pdo->prepare('SELECT id, "originalPath" FROM asset WHERE "checksumAlgorithm" = \'sha1-path\' AND ("originalPath" = ? OR "originalPath" LIKE ?)');
 		$select->execute([$from, $like]);
@@ -118,35 +115,6 @@ class MoveTracker {
 
 	/** Can we reach the database with the stored credentials? Error message, or null if fine. */
 	public function check(): ?string {
-		try {
-			$this->pdo()->query('SELECT "originalPath" FROM asset LIMIT 1');
-			return null;
-		} catch (\Throwable $e) {
-			return $e->getMessage();
-		}
-	}
-
-	private function pdo(): \PDO {
-		if ($this->failed !== null) {
-			throw new \RuntimeException($this->failed);
-		}
-		if ($this->pdo === null) {
-			$db = $this->config->getDatabase() ?? throw new \RuntimeException('Immich database not configured');
-			try {
-				$pdo = new \PDO(sprintf('pgsql:host=%s;port=%d;dbname=%s;connect_timeout=5', $db['host'], $db['port'], $db['name']), $db['user'], $db['password'], [
-					\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-				]);
-				// A move waits for this; never for long, and never behind a lock Immich holds.
-				$pdo->exec("SET statement_timeout = '5s'");
-				$pdo->exec("SET lock_timeout = '2s'");
-			} catch (\PDOException $e) {
-				// Remembered, so a bulk move does not wait 5 s per file. Not chained: the trace
-				// of the constructor call holds the password (PHP 8.1 shows arguments).
-				$this->failed = 'Immich database not reachable: ' . $e->getMessage();
-				throw new \RuntimeException($this->failed);
-			}
-			$this->pdo = $pdo;
-		}
-		return $this->pdo;
+		return $this->db->check();
 	}
 }

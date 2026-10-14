@@ -13,6 +13,7 @@ use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\IndexAdmin;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -32,6 +33,7 @@ class AdminController extends Controller {
 		private Config $config,
 		private IndexAdmin $index,
 		private SmallImagePruner $pruner,
+		private SensitiveContent $sensitive,
 		private IL10N $l,
 		private LoggerInterface $logger,
 	) {
@@ -110,6 +112,11 @@ class AdminController extends Controller {
 			$this->index->scanAll();
 			return ['ok' => true];
 		});
+	}
+
+	/** Is everything there for recognising sensitive content (database access, machine learning)? */
+	public function sensitiveCheck(): JSONResponse {
+		return $this->guard(fn () => $this->sensitive->check());
 	}
 
 	private function guard(callable $fn): JSONResponse {

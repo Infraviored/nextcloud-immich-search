@@ -3,6 +3,23 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.8.0] - 2026-10-14
+
+### Added
+- **Sensitive pictures (optional).** Recognises nudity from Immich's search embeddings, with
+  no extra model, and lets each user show all pictures (recognised ones marked on their tile),
+  hide them, or see only them, from a menu in the app bar. Applies to search, timeline, map,
+  folders, people and memories; hiding also to the Nextcloud search bar and the dashboard.
+  Pictures are marked by hand from the viewer or a selection, and the recognition learns from
+  those marks. Off until the admin allows it (`sensitive_detection`) and the user turns it on
+  under *Settings → Display*, with a sensitivity slider that shows how many pictures count.
+  Needs read access to Immich's `smart_search` table and the machine-learning service's
+  address. New: `occ glimpse:sensitive`, the hourly `UpdateSensitive` job.
+
+### Changed
+- The Immich database connection moved out of `MoveTracker` into `ImmichDb`, shared by moves
+  and sensitive pictures.
+
 ## [4.7.0] - 2026-10-14
 
 ### Added
