@@ -13,6 +13,19 @@ coordinates of the place it shows were added so the map has something to show.
 
 Licenses: CC0 (203), Public domain (NASA) (83), Public domain (1), 287 pictures in total.
 
+Seven NASA videos (public domain, NASA Image and Video Library) show search inside videos. They
+were trimmed at the start (black lead-in), scaled to 1280 px and given their original dates:
+
+| Video (Space/Videos) | NASA id |
+|---|---|
+| Astronauts train for walking on the Moon.mp4 | [jsc2026m000112](https://images.nasa.gov/details/jsc2026m000112_NASA_Astronauts_Train_for_Walking_on_Lunar_Surface-SOCIAL) |
+| Neutral Buoyancy Lab divers.mp4 | [jsc2023m000161](https://images.nasa.gov/details/jsc2023m000161_CosmicCareers_Diving%20_NBL%20UPDATE_MP4) |
+| Perseverance descent and touchdown on Mars.mp4 | [JPL-20210222-M2020f-0001](https://images.nasa.gov/details/JPL-20210222-M2020f-0001-Perseverance%20Rover%E2%80%99s%20Descent%20and%20Touchdown%20on%20Mars) |
+| PREFIRE rocket launch.mp4 | [KSC-20240525-MH-RKL01-0001](https://images.nasa.gov/details/KSC-20240525-MH-RKL01-0001-Rocket_Lab_PREFIRE_1_Launch_1080p-M6988) |
+| Spacewalk 101.mp4 | [jsc2026m000932](https://images.nasa.gov/details/jsc2026m000932_Spacewalk_101_AVAIL1080p) |
+| The aurora named STEVE.mp4 | [GSFC_20180314_Aurora_m12865_Steve](https://images.nasa.gov/details/GSFC_20180314_Aurora_m12865_Steve) |
+| TROPICS rocket launch.mp4 | [KSC-20230507-MH-RLS01](https://images.nasa.gov/details/KSC-20230507-MH-RLS01-TROPICS_Rocket_Launch-Rocket_Lab-WON_3330130) |
+
 The Bricolage Grotesque font in the composed images is licensed under the SIL Open Font License
 (see `img/bricolage-OFL.txt`).
 
