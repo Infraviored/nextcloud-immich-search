@@ -27,6 +27,10 @@ read-only. Nextcloud still decides who sees what.
 Name, merge, hide and favorite people; assign single faces or correct many at once; "Label
 people" names them in a row. Faces are cut only from pictures the viewer may open.
 
+### Viewer
+Below an open picture, as in the Android app: share, favorite, similar, delete, and an info
+sheet with date, the people in it, its folder, download, move, copy, album and tag.
+
 ### Sort in bulk
 Select many (long-press on touch), then move or copy into folders with undo, tag, favorite, add to
 a Photos album and share it, download as ZIP, or delete.
@@ -60,14 +64,15 @@ search inside videos). Setup guide:
 	<repository type="git">https://github.com/Infraviored/nextcloud-immich-search.git</repository>
 	<!-- App Store schema (info.xsd) allows at most 10 screenshots -->
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/search.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/video.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/viewer-info.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/search-person.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/timeline.png</screenshot>
-	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/people.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/person.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/map.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/selection.png</screenshot>
-	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/folder.png</screenshot>
 	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/duplicates.png</screenshot>
-	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/phone-search.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/Infraviored/nextcloud-immich-search/main/docs/screenshots/android.png</screenshot>
 	<dependencies>
 		<php min-version="8.1"/>
 		<nextcloud min-version="30" max-version="35"/>

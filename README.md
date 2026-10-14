@@ -70,6 +70,17 @@ Nextcloud with your own permissions.
 
 ## Screenshots
 
+![Search for "astronaut underwater in a pool": two video moments, 9:53 and 1:22, among the photos; the video opened at 9:53 shows divers in the training pool](docs/screenshots/video.png)
+
+**Search inside videos.** Glimpse takes stills from every video and lets Immich read them. A scene
+you describe turns up as a moment, with its time, between your photos, and opens the video right
+there.
+
+| | |
+|---|---|
+| ![The viewer with Share, Favorite, Similar, Info and Delete below a rocket launch](docs/screenshots/viewer-bar.png) | ![The info sheet: date, the person in the picture, folder, download, move, copy, album, tag](docs/screenshots/viewer-info.png) |
+| **The viewer** with the Android app's actions below the picture. | **Info**: when, who, where, and what to do with it. |
+
 | | |
 |---|---|
 | ![Search results for "snowy mountains under a blue sky"](docs/screenshots/search-mountains.png) | ![A person's name and a word: pictures of Jessica Meir, best match for "spacesuit" first](docs/screenshots/search-person.png) |
@@ -90,6 +101,11 @@ Nextcloud with your own permissions.
   <img src="docs/screenshots/phone-map.png" width="24%" alt="Phone: map">
 </p>
 <p align="center"><sub>The web app on a phone: search and tabs sit at the bottom, where the thumb is.</sub></p>
+
+![Glimpse for Android: search with video moments, the info sheet of a picture, and People](docs/screenshots/android.png)
+
+**[Glimpse for Android](https://github.com/Infraviored/glimpse-android)**, the native app:
+everything above, under your thumb. [Download the APK](https://github.com/Infraviored/glimpse-android/releases/latest).
 
 <sub>All screenshots come from a demo account holding only public-domain (NASA) and CC0
 (Wikimedia Commons) photos. See [docs/screenshots/CREDITS.md](docs/screenshots/CREDITS.md).</sub>
