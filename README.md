@@ -166,7 +166,7 @@ search query.
 |---|---|---|
 | CPU | 4 cores (x86-64 or ARM64) | 6 cores or more |
 | RAM, Immich on top of Nextcloud | 6 GB | 8 GB or more; 12 GB for the large search model without a GPU |
-| GPU | none, everything runs on the CPU | NVIDIA with 8 GB VRAM, for the large model and fast indexing |
+| GPU (optional) | none, everything runs on the CPU | NVIDIA with 2 GB free VRAM for the default model, 6 GB for the large one; 8 GB leaves headroom |
 | Disk for Immich, best on an SSD | about 300 KB per picture (thumbnails and database) plus 1 to 5 GB for the models | the same |
 
 The photos themselves stay in Nextcloud. Immich only reads them and keeps thumbnails.
@@ -185,11 +185,12 @@ search model plus face detection and recognition (`buffalo_l`), Immich's machine
 |---|---|---|---|---|---|
 | 4 CPU cores (i5-11400F), `ViT-B-32` | 1.9 s | about 5 h | 0.3 s | 1.4 GB | – |
 | 4 CPU cores (i5-11400F), `SigLIP2 SO400M` | 7 s | about 19 h | 1.1 s | 6 GB | – |
+| RTX 4060 Ti 16 GB, `ViT-B-32` | 0.15 s | about 25 min | – | – | 1.5 GB |
 | RTX 4060 Ti 16 GB, `SigLIP2 SO400M` | 0.23 s | about 40 min | 0.13 s | 3.6 GB | 5.7 GB |
 
-Indexing runs once; afterwards only new pictures cost time. Immich unloads idle models after
-5 minutes (`MACHINE_LEARNING_MODEL_TTL`), so the first search after a pause waits a few seconds
-for the model to load.
+The VRAM is taken only while Immich works: it unloads idle models after 5 minutes
+(`MACHINE_LEARNING_MODEL_TTL`), so the first search after a pause waits a few seconds for the
+model to load. Indexing runs once; afterwards only new pictures cost time.
 
 **Search inside videos** cuts up to 40 stills per video on the Nextcloud server with `ffmpeg`,
 by default only at night. Each still costs Immich the same as one picture.

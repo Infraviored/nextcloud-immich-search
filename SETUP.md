@@ -20,7 +20,10 @@ Decide from this, and tell the user what you picked and why:
 |---|---|---|
 | No NVIDIA GPU, under 12 GB RAM | `immich-machine-learning:<version>` | `ViT-B-32__openai` (default, English) |
 | No NVIDIA GPU, 12 GB RAM or more | `immich-machine-learning:<version>` | default, or `ViT-SO400M-16-SigLIP2-384__webli` if the user accepts indexing about 4 times slower than the default on a CPU (7 s vs 1.9 s per picture) |
-| NVIDIA GPU with 8 GB VRAM or more | `immich-machine-learning:<version>-cuda` | `ViT-SO400M-16-SigLIP2-384__webli` (better, multilingual; needs GPU reservation in compose) |
+| NVIDIA GPU with 2 to 6 GB free VRAM | `immich-machine-learning:<version>-cuda` | `ViT-B-32__openai` (default, about 1.5 GB VRAM with face recognition) |
+| NVIDIA GPU with 6 GB free VRAM or more | `immich-machine-learning:<version>-cuda` | `ViT-SO400M-16-SigLIP2-384__webli` (better, multilingual; about 5.7 GB VRAM with face recognition) |
+
+With a GPU, Immich's compose file also needs the GPU reservation from its hardware acceleration guide (step 1).
 
 Ask the user before you:
 - install Docker, drivers or the NVIDIA container toolkit,
