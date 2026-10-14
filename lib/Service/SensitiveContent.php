@@ -343,7 +343,8 @@ class SensitiveContent {
 				$took[$part] = round(microtime(true) - $lap, 2);
 				$lap = microtime(true);
 			};
-			[$hits, $byTerm] = $this->termHits($pdo, $model, $terms, $rows);
+			$scope = $this->assets->ownScope($uid);
+			[$hits, $byTerm] = $this->termHits($pdo, $model, $terms, $rows, $scope);
 			$time('terms');
 
 			// What earlier builds found out about files and assets, while the pictures are the same
@@ -369,7 +370,7 @@ class SensitiveContent {
 					: null;
 			}
 			$time('train');
-			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], $rows) : [];
+			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], $rows, $scope) : [];
 			$time('model');
 
 			[$auto, $counts, $byModel] = $this->toFiles($pdo, $uid, $hits, $modelHits, $byTerm, $terms, $rows, $fileAssets, $fileOf);
@@ -565,7 +566,7 @@ class SensitiveContent {
 	 *
 	 * @return array{0: array<string, true>, 1: array<string, list<int>>}
 	 */
-	private function termHits(\PDO $pdo, string $model, array $terms, array &$rows): array {
+	private function termHits(\PDO $pdo, string $model, array $terms, array &$rows, ?string $scope = null): array {
 		if ($terms === []) {
 			return [[], []];
 		}
@@ -576,11 +577,17 @@ class SensitiveContent {
 			$params[] = SensitiveModel::vector($this->termEmbedding($model, $t['q']));
 			$params[] = (float)$t['min'];
 		}
+		$where = ['a."deletedAt" IS NULL'];
+		$whereParams = [];
+		if ($scope !== null) {
+			$where[] = 'starts_with(a."originalPath", ?)';
+			$whereParams[] = $scope;
+		}
 		$sql = 'SELECT * FROM (SELECT a.id, a."originalPath", a."originalFileName", a.type, ' . implode(', ', $cols) . '
-			FROM smart_search s JOIN asset a ON a.id = s."assetId" WHERE a."deletedAt" IS NULL) x
+			FROM smart_search s JOIN asset a ON a.id = s."assetId" WHERE ' . implode(' AND ', $where) . ') x
 			WHERE ' . implode(' OR ', array_map(fn ($i) => 't' . $i . ' >= 0', array_keys($terms)));
 		$stmt = $pdo->prepare($sql);
-		$stmt->execute($params);
+		$stmt->execute([...$params, ...$whereParams]);
 		$hits = [];
 		$byTerm = [];
 		while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
@@ -737,13 +744,19 @@ class SensitiveContent {
 	 *
 	 * @return array<string, true>
 	 */
-	private function modelHits(\PDO $pdo, array $svm, array &$rows): array {
+	private function modelHits(\PDO $pdo, array $svm, array &$rows, ?string $scope = null): array {
 		if (empty($svm['w'])) {
 			return [];
 		}
+		$where = ['a."deletedAt" IS NULL', '-(s.embedding <#> ?::vector) + ? >= ?'];
+		$params = [SensitiveModel::vector($svm['w']), (float)$svm['b'], 0.0];
+		if ($scope !== null) {
+			$where[] = 'starts_with(a."originalPath", ?)';
+			$params[] = $scope;
+		}
 		$stmt = $pdo->prepare('SELECT a.id, a."originalPath", a."originalFileName", a.type FROM smart_search s JOIN asset a ON a.id = s."assetId"
-			WHERE a."deletedAt" IS NULL AND -(s.embedding <#> ?::vector) + ? >= ?');
-		$stmt->execute([SensitiveModel::vector($svm['w']), (float)$svm['b'], 0.0]);
+			WHERE ' . implode(' AND ', $where));
+		$stmt->execute($params);
 		$hits = [];
 		while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
 			$hits[$row['id']] = true;
