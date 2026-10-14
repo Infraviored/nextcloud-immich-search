@@ -113,7 +113,7 @@ import { useInfiniteScroll } from '../composables/useInfiniteScroll.js'
 import { n, t } from '../l10n.js'
 import { sensitiveIcon } from '../materialIcons.js'
 import { replaceQuery, route } from '../router.js'
-import { toggleSelection } from '../selection.js'
+import { selectionActive, toggleSelection } from '../selection.js'
 import { markItems } from '../sensitive.js'
 import { openInViewer } from '../viewer.js'
 
@@ -346,6 +346,9 @@ function onKey(event) {
 	}
 }
 
+watch(selected, (s) => {
+	selectionActive.value = s.size > 0
+})
 watch(side, () => more.check())
 onMounted(async () => {
 	document.addEventListener('keydown', onKey)
@@ -356,6 +359,7 @@ onMounted(async () => {
 	}
 })
 onBeforeUnmount(() => {
+	selectionActive.value = false
 	controller?.abort()
 	document.removeEventListener('keydown', onKey)
 	// Marked just before leaving: still learn from it
