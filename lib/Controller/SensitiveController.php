@@ -102,6 +102,7 @@ class SensitiveController extends Controller {
 	 * given). $page is where the previous answer said the next page starts.
 	 */
 	#[NoAdminRequired]
+	#[UserRateLimit(limit: 300, period: 60)]
 	public function review(string $side = 'hidden', string $q = '', int $page = 0): JSONResponse {
 		$uid = $this->uid();
 		if (!$this->sensitive->isEnabled($uid)) {
