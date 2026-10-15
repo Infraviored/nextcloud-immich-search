@@ -585,7 +585,7 @@ class SensitiveContent {
 		$where = ['a."deletedAt" IS NULL'];
 		$whereParams = [];
 		if ($scope !== null) {
-			$where[] = 'starts_with(a."originalPath", ?)';
+			$where[] = '(starts_with(a."originalPath", ?) OR a."originalFileName" LIKE \'glimpse-frame\\_%\')';
 			$whereParams[] = $scope;
 		}
 		$sql = 'SELECT * FROM (SELECT a.id, a."originalPath", a."originalFileName", a.type, ' . implode(', ', $cols) . '
@@ -756,7 +756,7 @@ class SensitiveContent {
 		$where = ['a."deletedAt" IS NULL', '-(s.embedding <#> ?::vector) + ? >= ?'];
 		$params = [SensitiveModel::vector($svm['w']), (float)$svm['b'], 0.0];
 		if ($scope !== null) {
-			$where[] = 'starts_with(a."originalPath", ?)';
+			$where[] = '(starts_with(a."originalPath", ?) OR a."originalFileName" LIKE \'glimpse-frame\\_%\')';
 			$params[] = $scope;
 		}
 		$stmt = $pdo->prepare('SELECT a.id, a."originalPath", a."originalFileName", a.type FROM smart_search s JOIN asset a ON a.id = s."assetId"
