@@ -283,6 +283,7 @@ async function act() {
 	}
 	const gone = new Set(chosen.map((i) => i.fileId))
 	items.value = items.value.filter((i) => !gone.has(i.fileId))
+	next = Math.max(0, next - chosen.length)
 	clear()
 	scheduleTrain()
 	loadStatus()
