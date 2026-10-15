@@ -57,6 +57,9 @@ class SensitiveController extends Controller {
 		// At once, no build: a file's own mark counts right away; what the model learns from it
 		// follows with the next build (sorting asks for one, or the hourly job)
 		$res = $this->sensitive->mark($uid, $marks);
+		if (!$this->queued($uid)) {
+			$this->jobs->add(RebuildSensitive::class, ['uid' => $uid]);
+		}
 		// Objects also when empty (none of the files was the user's): [] would not decode as a map
 		return new JSONResponse(['previous' => (object)$res['previous'], 'sensitive' => (object)$res['sensitive']]);
 	}
