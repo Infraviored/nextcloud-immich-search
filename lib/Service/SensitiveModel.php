@@ -29,11 +29,13 @@ class SensitiveModel {
 	/** Weight of the background sample, pictures taken as "probably not" (a few are). */
 	public const BACKGROUND_WEIGHT = 0.1;
 	public const BACKGROUND_SIZE = 1000;
+	/** Cap per class to keep training time and memory bounded. */
+	public const MAX_PER_CLASS = 3000;
 	/** Cost of a mistake against a wide margin, as LinearSVC's C. Checked on real marks: 0.1 to 1 differ little. */
 	private const C = 0.3;
 	/** Done when the projected gradients lie this close together (LIBLINEAR's stopping rule). */
 	private const EPS = 0.01;
-	private const MAX_PASSES = 200;
+	private const MAX_PASSES = 80;
 
 	/**
 	 * @param list<list<float>> $x
@@ -45,6 +47,29 @@ class SensitiveModel {
 		$n = count($x);
 		if ($n === 0 || array_sum($y) === 0 || array_sum($y) === $n) {
 			return ['w' => [], 'b' => 0.0];
+		}
+		$indices = [0 => [], 1 => []];
+		foreach ($y as $i => $label) {
+			$indices[$label][] = $i;
+		}
+		if (count($indices[0]) > self::MAX_PER_CLASS || count($indices[1]) > self::MAX_PER_CLASS) {
+			$keep = [];
+			foreach ([0, 1] as $label) {
+				$idx = $indices[$label];
+				$count = count($idx);
+				if ($count <= self::MAX_PER_CLASS) {
+					$keep = array_merge($keep, $idx);
+				} else {
+					for ($k = 0; $k < self::MAX_PER_CLASS; $k++) {
+						$keep[] = $idx[(int)floor($k * $count / self::MAX_PER_CLASS)];
+					}
+				}
+			}
+			sort($keep);
+			$x = array_map(static fn ($i) => $x[$i], $keep);
+			$y = array_map(static fn ($i) => $y[$i], $keep);
+			$weight = array_map(static fn ($i) => $weight[$i], $keep);
+			$n = count($x);
 		}
 		// The bias as one more feature, always 1
 		$d = count($x[0]) + 1;

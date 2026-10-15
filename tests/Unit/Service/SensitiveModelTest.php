@@ -71,4 +71,14 @@ class SensitiveModelTest extends TestCase {
 	public function testVector(): void {
 		$this->assertSame('[0.5,-0.25]', SensitiveModel::vector([0.5, -0.25]));
 	}
+
+	public function testSubsamplesClassAboveMax(): void {
+		[$x, $y] = $this->data(25, 3500);
+		$weight = array_fill(0, count($x), 1.0);
+		$m1 = SensitiveModel::train($x, $y, $weight);
+		$m2 = SensitiveModel::train($x, $y, $weight);
+		$this->assertSame($m1, $m2);
+		$this->assertLessThanOrEqual(80, $m1['passes']);
+		$this->assertNotEmpty($m1['w']);
+	}
 }

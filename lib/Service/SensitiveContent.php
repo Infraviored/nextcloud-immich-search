@@ -700,6 +700,18 @@ class SensitiveContent {
 	 * @return array{svm: array, wrong: array{0: int, 1: int}, newMarks: list<array{0: bool, 1: ?float, 2: float}>}
 	 */
 	private function train(\PDO $pdo, array $markAssets, ?array $before, array $newMarks): array {
+		$pos = array_filter($markAssets);
+		$neg = array_filter($markAssets, fn ($on) => !$on);
+		if (count($pos) > SensitiveModel::MAX_PER_CLASS) {
+			ksort($pos);
+			$pos = array_slice($pos, 0, SensitiveModel::MAX_PER_CLASS, true);
+		}
+		if (count($neg) > SensitiveModel::MAX_PER_CLASS) {
+			ksort($neg);
+			$neg = array_slice($neg, 0, SensitiveModel::MAX_PER_CLASS, true);
+		}
+		$markAssets = $pos + $neg;
+
 		$x = $y = $weight = $ids = [];
 		$stmt = $pdo->prepare('SELECT "assetId", embedding::text FROM smart_search WHERE "assetId" = ANY(?::uuid[])');
 		$stmt->execute(['{' . implode(',', array_keys($markAssets)) . '}']);
