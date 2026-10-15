@@ -3,6 +3,18 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.11.0] - unreleased
+
+### Added
+- Viewer: the picture's folder right above the actions, a click opens it in Glimpse. Admins
+  can *Ignore this folder …* in the info sheet: it joins the excluded folders and Immich drops
+  its pictures on the next scan.
+
+### Fixed
+- Viewer: no "Open sidebar" any more; it needs the Files app's sidebar, which Glimpse does not
+  have (the info sheet has the same).
+- Person page: the name is smaller, and "Unnamed" is no longer cut off and pushed down.
+
 ## [4.10.8] - unreleased
 
 ### Added

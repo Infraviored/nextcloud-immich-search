@@ -77,6 +77,7 @@ return [
 		['name' => 'admin#libraries', 'url' => '/api/admin/libraries', 'verb' => 'GET'],
 		['name' => 'admin#createLibrary', 'url' => '/api/admin/libraries', 'verb' => 'POST'],
 		['name' => 'admin#folderSuggestions', 'url' => '/api/admin/folder-suggestions', 'verb' => 'GET'],
+		['name' => 'admin#excludeFolder', 'url' => '/api/admin/exclude-folder', 'verb' => 'POST'],
 		['name' => 'admin#queueMissing', 'url' => '/api/admin/queue-missing', 'verb' => 'POST'],
 		['name' => 'admin#scan', 'url' => '/api/admin/scan', 'verb' => 'POST'],
 		['name' => 'admin#prune', 'url' => '/api/admin/prune', 'verb' => 'POST'],

@@ -61,6 +61,8 @@ export function openInViewer(item, list = [item], { onRemoved = null, onRefresh 
 		path: item.path,
 		list: files.map(fileInfo),
 		canLoop: false,
+		// "Open sidebar" needs the Files app's sidebar, which this page does not have: the info sheet stands in
+		enableSidebar: false,
 		onPrev: follow,
 		onNext: follow,
 		onClose: () => {
