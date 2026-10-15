@@ -68,6 +68,7 @@ class SensitiveContent {
 		private IRootFolder $rootFolder,
 		private IClientService $clients,
 		private IConfig $ncConfig,
+		private PrivateArea $privateArea,
 		IAppDataFactory $appDataFactory,
 		private LoggerInterface $logger,
 	) {
@@ -485,6 +486,7 @@ class SensitiveContent {
 		$items = [];
 		$offset = max(0, $offset);
 		$batch = max($size, 100);
+		$locked = !$this->privateArea->isUnlocked();
 		// Fill the page: rows the user cannot see are skipped, a few batches at most
 		for ($round = 0; $round < 20 && count($items) < $size; $round++) {
 			$stmt->execute([...$params, ...$orderParams, $batch, $offset]);
@@ -493,6 +495,9 @@ class SensitiveContent {
 				$offset++;
 				$item = $this->assets->visibleItem($uid, $row);
 				if ($item !== null) {
+					if ($locked && $this->privateArea->isPrivate($uid, $item)) {
+						continue;
+					}
 					$fileId = (int)$item['fileId'];
 					if ($side === 'visible' && (isset($flagged[$fileId]) || isset($marks[$fileId]))) {
 						continue;

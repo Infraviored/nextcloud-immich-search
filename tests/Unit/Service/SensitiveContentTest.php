@@ -13,6 +13,7 @@ use OCA\Glimpse\Service\AssetSearch;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\ImmichDb;
+use OCA\Glimpse\Service\PrivateArea;
 use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\UserPrefs;
 use OCP\Files\AppData\IAppDataFactory;
@@ -64,7 +65,8 @@ class SensitiveContentTest extends TestCase {
 		$root->method('getUserFolder')->willReturn($userFolder);
 
 		return new SensitiveContent($config, $prefs, $this->createMock(ImmichDb::class), $this->createMock(ImmichClient::class),
-			$assets ?? $this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class), $factory,
+			$assets ?? $this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class),
+			$this->createMock(PrivateArea::class), $factory,
 			$this->createMock(LoggerInterface::class));
 	}
 
@@ -143,5 +145,65 @@ class SensitiveContentTest extends TestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Picture not found');
 		$this->service($assets)->setTerm('u', 'beach', '11111111-1111-1111-1111-111111111111');
+	}
+
+	public function testReviewFiltersPrivatePicturesWhenLocked(): void {
+		$private = $this->createMock(PrivateArea::class);
+		$private->method('isUnlocked')->willReturn(false);
+		$private->method('isPrivate')->willReturnCallback(fn ($uid, $item) => $item['fileId'] === 2);
+
+		$assets = $this->createMock(AssetSearch::class);
+		$assets->method('visibleItem')->willReturnCallback(fn ($uid, $row) => [
+			'id' => $row['id'],
+			'fileId' => (int)substr($row['id'], 1),
+			'path' => '/p/' . $row['id'] . '.jpg',
+		]);
+
+		$db = $this->createMock(ImmichDb::class);
+		$pdo = $this->createMock(\PDO::class);
+		$stmt = $this->createMock(\PDOStatement::class);
+		$stmt->method('fetchAll')->willReturn([
+			['id' => 'a1', 'originalPath' => '/p/1.jpg', 'originalFileName' => '1.jpg', 'type' => 'IMAGE'],
+			['id' => 'a2', 'originalPath' => '/p/2.jpg', 'originalFileName' => '2.jpg', 'type' => 'IMAGE'],
+			['id' => 'a3', 'originalPath' => '/p/3.jpg', 'originalFileName' => '3.jpg', 'type' => 'IMAGE'],
+		]);
+		$pdo->method('prepare')->willReturn($stmt);
+		$db->method('pdo')->willReturn($pdo);
+
+		$this->files['u.json'] = json_encode(['auto' => [], 'marks' => [], 'terms' => [], 'svm' => ['w' => [0.1], 'b' => 0.0]]);
+
+		$folder = $this->createMock(ISimpleFolder::class);
+		$folder->method('getFile')->willReturnCallback(function ($name) {
+			if (!isset($this->files[$name])) {
+				throw new NotFoundException();
+			}
+			$f = $this->createMock(ISimpleFile::class);
+			$f->method('getContent')->willReturn($this->files[$name]);
+			return $f;
+		});
+		$appData = $this->createMock(IAppData::class);
+		$appData->method('getFolder')->willReturn($folder);
+		$factory = $this->createMock(IAppDataFactory::class);
+		$factory->method('get')->willReturn($appData);
+
+		$config = $this->createMock(Config::class);
+		$config->method('get')->willReturnCallback(fn ($k) => $k === 'sensitive_detection' ? true : null);
+		$prefs = $this->createMock(UserPrefs::class);
+		$prefs->method('get')->willReturnCallback(fn ($uid, $k) => $this->prefs[$k] ?? UserPrefs::PREFS[$k][1]);
+
+		$userFolder = $this->createMock(Folder::class);
+		$userFolder->method('getFirstNodeById')->willReturnCallback(fn ($id) => $this->createMock(Node::class));
+		$root = $this->createMock(IRootFolder::class);
+		$root->method('getUserFolder')->willReturn($userFolder);
+
+		$immich = $this->createMock(ImmichClient::class);
+		$immich->method('json')->willReturn(['machineLearning' => ['clip' => ['enabled' => true, 'modelName' => 'ViT-B-32']]]);
+
+		$service = new SensitiveContent($config, $prefs, $db, $immich,
+			$assets, $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class),
+			$private, $factory, $this->createMock(LoggerInterface::class));
+
+		$res = $service->review('u', 'visible', '', 0, 10);
+		$this->assertSame([1, 3], array_column($res['items'], 'fileId'));
 	}
 }
