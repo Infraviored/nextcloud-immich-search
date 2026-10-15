@@ -110,6 +110,13 @@
 				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + version" />
 				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + version" />
 				<SensitiveView v-else-if="route.name === 'sensitive' && sensitiveOn" :key="'s' + version" />
+				<NcEmptyContent
+					v-else-if="route.name === 'sensitive'"
+					:name="t('Sensitive pictures')">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiEyeOffOutline" />
+					</template>
+				</NcEmptyContent>
 				<SettingsView v-else-if="route.name === 'settings'" />
 				<!-- Opened from the Files sidebar: ?faces=<assetId>&name=<file name> -->
 				<FacesDialog
@@ -204,6 +211,13 @@ watch(() => !!viewerState.current, (open) => document.body.classList.toggle('gli
 
 // Private people come and go with the lock
 watch(() => privateState.version, () => reloadPeople())
+
+// Navigating to /sensitive while the feature is off redirects
+watch([() => route.name, sensitiveOn], ([name, on]) => {
+	if (name === 'sensitive' && !on) {
+		navigate(page.sensitiveAvailable ? '/settings/sensitive' : '/')
+	}
+}, { immediate: true })
 
 /** Views load again when locking or the sensitive mode changes what they may show. */
 const version = computed(() => privateState.version + '.' + sensitiveState.version)
