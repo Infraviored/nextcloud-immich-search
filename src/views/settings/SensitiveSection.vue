@@ -29,8 +29,19 @@
 					</NcButton>
 				</li>
 			</ul>
+			<h3>{{ t('Show') }}</h3>
+			<NcCheckboxRadioSwitch
+				v-for="m in sensitiveModes"
+				:key="m.value"
+				:modelValue="userPrefs.sensitive_mode"
+				type="radio"
+				:value="m.value"
+				name="sensitive-mode"
+				@update:modelValue="setSensitiveMode(m.value)">
+				{{ m.label }}
+			</NcCheckboxRadioSwitch>
 			<NcCheckboxRadioSwitch v-model="userPrefs.sensitive_badge" type="switch" @update:modelValue="save({ sensitive_badge: $event })">
-				{{ t('Mark them on the tiles') }}
+				{{ t('Show a small mark on sensitive pictures') }}
 			</NcCheckboxRadioSwitch>
 			<div class="sensitive__actions">
 				<NcButton variant="primary" @click="navigate('/sensitive')">
@@ -61,7 +72,7 @@ import { useAction } from '../../composables/useAction.js'
 import { n, t } from '../../l10n.js'
 import { saveUserPrefs, userPrefs } from '../../prefs.js'
 import { href, navigate } from '../../router.js'
-import { sensitiveState, setSensitiveMode } from '../../sensitive.js'
+import { sensitiveModes, sensitiveState, setSensitiveMode } from '../../sensitive.js'
 
 const { act } = useAction()
 

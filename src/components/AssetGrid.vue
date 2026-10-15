@@ -307,21 +307,20 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 		font-variant-numeric: tabular-nums;
 	}
 
-	// Counted as sensitive: small and in the corner nothing else uses
+	// Counted as sensitive (only when the user wants to see it): a small light mark in the
+	// corner nothing else uses, no chip around it
 	&__sensitive {
 		position: absolute;
-		bottom: 6px;
-		left: 6px;
+		bottom: 5px;
+		left: 5px;
 		display: flex;
-		padding: 2px;
-		border-radius: 6px;
-		background: rgba(20, 22, 43, 0.72);
-		color: #fff;
+		color: rgba(255, 255, 255, 0.8);
+		filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.8));
 		pointer-events: none;
 
 		svg {
-			width: 16px;
-			height: 16px;
+			width: 13px;
+			height: 13px;
 			fill: currentColor;
 		}
 	}
