@@ -17,6 +17,7 @@ use OCP\Files\NotFoundException;
 use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\Http\Client\IClientService;
 use OCP\IConfig;
+use OCP\Lock\ILockingProvider;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -71,6 +72,7 @@ class SensitiveContent {
 		private PrivateArea $privateArea,
 		IAppDataFactory $appDataFactory,
 		private LoggerInterface $logger,
+		private ?ILockingProvider $locks = null,
 	) {
 		$this->appData = $appDataFactory->get(Application::APP_ID);
 	}
@@ -215,35 +217,41 @@ class SensitiveContent {
 	 * @return array{previous: array<int, ?bool>, sensitive: array<int, bool>}
 	 */
 	public function mark(string $uid, array $marks): array {
-		$data = $this->get($uid);
 		$folder = $this->rootFolder->getUserFolder($uid);
-		$previous = [];
+		$filtered = [];
 		foreach (array_slice($marks, 0, 1000, true) as $id => $on) {
 			$id = (int)$id;
 			if ($id <= 0 || $folder->getFirstNodeById($id) === null) {
 				continue;
 			}
-			$previous[$id] = isset($data['marks'][$id]) ? (bool)$data['marks'][$id] : null;
-			if ($on === null) {
-				unset($data['marks'][$id]);
-			} else {
-				$data['marks'][$id] = (bool)$on;
+			$filtered[$id] = $on === null ? null : (bool)$on;
+		}
+		return $this->withLock($uid, function () use ($uid, $filtered) {
+			$data = $this->get($uid);
+			$previous = [];
+			foreach ($filtered as $id => $on) {
+				$previous[$id] = isset($data['marks'][$id]) ? (bool)$data['marks'][$id] : null;
+				if ($on === null) {
+					unset($data['marks'][$id]);
+				} else {
+					$data['marks'][$id] = $on;
+				}
 			}
-		}
-		$data['marksChanged'] = time();
-		$this->save($uid, $data);
-		$this->logger->debug('Sensitive: {uid} marked {n} files ({on} sensitive, {off} not, {cleared} cleared)', [
-			'app' => Application::APP_ID, 'uid' => $uid, 'n' => count($previous),
-			'on' => count(array_filter($marks, fn ($on) => $on === true)),
-			'off' => count(array_filter($marks, fn ($on) => $on === false)),
-			'cleared' => count(array_filter($marks, fn ($on) => $on === null)),
-		]);
-		$flagged = $this->flagged($uid);
-		$now = [];
-		foreach (array_keys($previous) as $id) {
-			$now[$id] = isset($flagged[$id]);
-		}
-		return ['previous' => $previous, 'sensitive' => $now];
+			$data['marksChanged'] = time();
+			$this->save($uid, $data);
+			$this->logger->debug('Sensitive: {uid} marked {n} files ({on} sensitive, {off} not, {cleared} cleared)', [
+				'app' => Application::APP_ID, 'uid' => $uid, 'n' => count($previous),
+				'on' => count(array_filter($filtered, fn ($on) => $on === true)),
+				'off' => count(array_filter($filtered, fn ($on) => $on === false)),
+				'cleared' => count(array_filter($filtered, fn ($on) => $on === null)),
+			]);
+			$flagged = $this->flagged($uid);
+			$now = [];
+			foreach (array_keys($previous) as $id) {
+				$now[$id] = isset($flagged[$id]);
+			}
+			return ['previous' => $previous, 'sensitive' => $now];
+		});
 	}
 
 	/**
@@ -265,21 +273,25 @@ class SensitiveContent {
 		if ($sim === false) {
 			throw new \InvalidArgumentException('Immich has no search data for this picture');
 		}
-		$data = $this->get($uid);
-		$terms = array_values(array_filter($data['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower($q)));
-		if (count($terms) >= self::MAX_TERMS) {
-			throw new \InvalidArgumentException('Too many terms');
-		}
-		// A hair below, so the picture itself is in
-		$terms[] = ['q' => $q, 'min' => round((float)$sim - 0.00005, 5), 'model' => $model];
-		$data['terms'] = $terms;
-		$this->save($uid, $data);
+		$this->withLock($uid, function () use ($uid, $q, $sim, $model) {
+			$data = $this->get($uid);
+			$terms = array_values(array_filter($data['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower($q)));
+			if (count($terms) >= self::MAX_TERMS) {
+				throw new \InvalidArgumentException('Too many terms');
+			}
+			// A hair below, so the picture itself is in
+			$terms[] = ['q' => $q, 'min' => round((float)$sim - 0.00005, 5), 'model' => $model];
+			$data['terms'] = $terms;
+			$this->save($uid, $data);
+		});
 	}
 
 	public function removeTerm(string $uid, string $q): void {
-		$data = $this->get($uid);
-		$data['terms'] = array_values(array_filter($data['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower(trim($q))));
-		$this->save($uid, $data);
+		$this->withLock($uid, function () use ($uid, $q) {
+			$data = $this->get($uid);
+			$data['terms'] = array_values(array_filter($data['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower(trim($q))));
+			$this->save($uid, $data);
+		});
 	}
 
 	/** For the settings: the terms with what each brings in, marks, and what marks moved. */
@@ -330,6 +342,7 @@ class SensitiveContent {
 	 * @return array{flagged: int, terms: int, byModel: int, model: bool}
 	 */
 	public function rebuild(string $uid): array {
+		$buildStart = time();
 		$data = $this->get($uid);
 		try {
 			$signature = $this->signature();
@@ -356,49 +369,70 @@ class SensitiveContent {
 			$markAssets = $this->markAssets($pdo, $uid, $this->bools($data['marks']), $fileAssets, $known);
 			$time('marks');
 			$positives = count(array_filter($markAssets));
-			$data['learned'] = [$positives, count($markAssets) - $positives];
+			$learned = [$positives, count($markAssets) - $positives];
+			$data['learned'] = $learned;
 			$key = md5(SensitiveModel::VERSION . '|' . $signature . '|' . json_encode($markAssets));
 			$before = $data['svm'];
 			$trained = null;
 			if ($positives < SensitiveModel::MIN_POSITIVE) {
-				$data['svm'] = null;
+				$svm = null;
 			} elseif (($data['svm']['key'] ?? '') !== $key) {
 				// Marks the last model did not learn from: how it and the new one score them
 				$newMarks = array_diff_key($markAssets, $before['scored'] ?? []);
 				$trained = $this->train($pdo, $markAssets, $before, $newMarks);
-				$data['svm'] = !empty($trained['svm']['w'])
+				$svm = !empty($trained['svm']['w'])
 					? $trained['svm'] + ['key' => $key, 'scored' => array_fill_keys(array_keys($markAssets), true)]
 					: null;
+			} else {
+				$svm = $data['svm'];
 			}
+			$data['svm'] = $svm;
 			$time('train');
-			$modelHits = $data['svm'] !== null ? $this->modelHits($pdo, $data['svm'], $rows, $scope) : [];
+			$modelHits = $svm !== null ? $this->modelHits($pdo, $svm, $rows, $scope) : [];
 			$time('model');
 
 			[$auto, $counts, $byModel] = $this->toFiles($pdo, $uid, $hits, $modelHits, $byTerm, $terms, $rows, $fileAssets, $fileOf);
-			$data['markAssets'] = $known;
-			$data['fileOf'] = $fileOf;
 			$time('files');
 			$data['took'] = $took;
 			// What this build changed, for the wizard ("12 more hidden, 3 fewer") and the log
 			$was = array_flip($data['auto'] ?? []);
 			$now = array_flip($auto);
-			$data['change'] = ['added' => count(array_diff_key($now, $was)), 'removed' => count(array_diff_key($was, $now))];
+			$change = ['added' => count(array_diff_key($now, $was)), 'removed' => count(array_diff_key($was, $now))];
+			$data['change'] = $change;
 			$this->logBuild($uid, $data, $auto, $byModel, $trained);
-			$data['auto'] = $auto;
-			$data['assets'] = $fileAssets;
-			$data['counts'] = $counts;
-			$data['byModel'] = $byModel;
-			$data['signature'] = $signature;
-			$data['built'] = time();
-			$data['error'] = null;
+
+			$computed = [
+				'auto' => $auto,
+				'assets' => $fileAssets,
+				'counts' => $counts,
+				'byModel' => $byModel,
+				'svm' => $svm,
+				'learned' => $learned,
+				'signature' => $signature,
+				'markAssets' => $known,
+				'fileOf' => $fileOf,
+				'change' => $change,
+				'took' => $took,
+				'error' => null,
+				'built' => $buildStart,
+			];
+			$this->withLock($uid, function () use ($uid, $computed) {
+				$current = $this->get($uid);
+				foreach ($computed as $k => $v) {
+					$current[$k] = $v;
+				}
+				$this->save($uid, $current);
+			});
 		} catch (\Throwable $e) {
-			$data['error'] = $e->getMessage();
-			$data['built'] = time();
-			$this->save($uid, $data);
+			$this->withLock($uid, function () use ($uid, $e, $buildStart) {
+				$current = $this->get($uid);
+				$current['error'] = $e->getMessage();
+				$current['built'] = $buildStart;
+				$this->save($uid, $current);
+			});
 			throw $e;
 		}
-		$this->save($uid, $data);
-		return ['flagged' => count($this->flagged($uid)), 'terms' => count($terms), 'byModel' => $byModel, 'model' => $data['svm'] !== null];
+		return ['flagged' => count($this->flagged($uid)), 'terms' => count($terms), 'byModel' => $byModel, 'model' => ($computed['svm'] ?? null) !== null];
 	}
 
 	/**
@@ -900,6 +934,21 @@ class SensitiveContent {
 		unset($data['scores'], $data['examples'], $data['near'], $data['nearOf'], $data['added'], $data['removed'], $data['model']);
 		$this->folder(self::FOLDER)->newFile($uid . '.json', json_encode($data));
 		$this->cache[$uid] = $data;
+	}
+
+	private function withLock(string $uid, callable $fn): mixed {
+		$key = 'glimpse/sensitive/' . $uid;
+		if ($this->locks !== null) {
+			$this->locks->acquireLock($key, ILockingProvider::LOCK_EXCLUSIVE, 'Glimpse: sensitive ' . $uid);
+		}
+		try {
+			unset($this->cache[$uid]);
+			return $fn();
+		} finally {
+			if ($this->locks !== null) {
+				$this->locks->releaseLock($key, ILockingProvider::LOCK_EXCLUSIVE);
+			}
+		}
 	}
 
 	private function folder(string $name): ISimpleFolder {

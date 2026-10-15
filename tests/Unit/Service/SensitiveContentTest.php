@@ -34,7 +34,7 @@ class SensitiveContentTest extends TestCase {
 	private array $prefs = [];
 	private bool $allowed = true;
 
-	private function service(?AssetSearch $assets = null, ?PrivateArea $privateArea = null): SensitiveContent {
+	private function service(?AssetSearch $assets = null, ?PrivateArea $privateArea = null, ?ImmichDb $db = null, ?ImmichClient $immich = null): SensitiveContent {
 		$folder = $this->createMock(ISimpleFolder::class);
 		$folder->method('getFile')->willReturnCallback(function ($name) {
 			if (!isset($this->files[$name])) {
@@ -64,7 +64,7 @@ class SensitiveContentTest extends TestCase {
 		$root = $this->createMock(IRootFolder::class);
 		$root->method('getUserFolder')->willReturn($userFolder);
 
-		return new SensitiveContent($config, $prefs, $this->createMock(ImmichDb::class), $this->createMock(ImmichClient::class),
+		return new SensitiveContent($config, $prefs, $db ?? $this->createMock(ImmichDb::class), $immich ?? $this->createMock(ImmichClient::class),
 			$assets ?? $this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class),
 			$privateArea ?? $this->createMock(PrivateArea::class), $factory,
 			$this->createMock(LoggerInterface::class));
@@ -205,5 +205,43 @@ class SensitiveContentTest extends TestCase {
 
 		$res = $service->review('u', 'visible', '', 0, 10);
 		$this->assertSame([1, 3], array_column($res['items'], 'fileId'));
+	}
+
+	public function testRebuildPreservesMarksSavedDuringBuild(): void {
+		$db = $this->createMock(ImmichDb::class);
+		$pdo = $this->createMock(\PDO::class);
+		$stmt = $this->createMock(\PDOStatement::class);
+		$stmt->method('fetchColumn')->willReturn(0);
+		$stmt->method('fetch')->willReturn(false);
+		$stmt->method('fetchAll')->willReturn([]);
+		$pdo->method('query')->willReturn($stmt);
+		$pdo->method('prepare')->willReturn($stmt);
+		$db->method('pdo')->willReturn($pdo);
+
+		$immich = $this->createMock(ImmichClient::class);
+		$immich->method('json')->willReturn(['machineLearning' => ['clip' => ['enabled' => true, 'modelName' => 'ViT-B-32']]]);
+
+		$service = null;
+		$assets = $this->createMock(AssetSearch::class);
+		$assets->method('ownScope')->willReturnCallback(function () use (&$service) {
+			// Mark file 2 while rebuild is in progress (simulating 1 second elapsed)
+			sleep(1);
+			$service->mark('u', [2 => true]);
+			return null;
+		});
+
+		$service = $this->service($assets, null, $db, $immich);
+		$this->files['u.json'] = json_encode(['auto' => [], 'marks' => [], 'terms' => []]);
+
+		$res = $service->rebuild('u');
+		$data = $service->get('u');
+
+		// File 2 mark must be preserved
+		$this->assertSame([2 => true], $data['marks']);
+		$this->assertGreaterThan(0, $data['marksChanged']);
+		// built is set to build start time, so marksChanged >= built and needsRebuild is true
+		$this->assertLessThanOrEqual($data['marksChanged'], $data['built']);
+		$this->assertTrue($service->needsRebuild('u'));
+		$this->assertSame([2 => true], $service->flagged('u'));
 	}
 }
