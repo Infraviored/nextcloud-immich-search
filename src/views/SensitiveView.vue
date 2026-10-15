@@ -170,7 +170,7 @@ const orderLine = computed(() => {
 	if (side.value === 'hidden') {
 		return model.value ? t('Most harmless first') : ''
 	}
-	if (q.value.trim() && searched.value) {
+	if (searched.value) {
 		return t('Closest to “{q}” first', { q: searched.value })
 	}
 	return model.value ? t('Most sensitive-looking first') : ''
@@ -223,7 +223,7 @@ async function load(fresh) {
 	loading.value = true
 	error.value = ''
 	try {
-		const term = side.value === 'visible' ? q.value.trim() : ''
+		const term = side.value === 'visible' ? (fresh ? q.value.trim() : searched.value) : ''
 		const res = await reviewSensitive({ side: side.value, q: term, page: next }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
