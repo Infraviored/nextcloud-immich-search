@@ -19,6 +19,7 @@ use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
+use OCP\Files\IRootFolder;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
@@ -40,6 +41,7 @@ class AdminController extends Controller {
 		private LoggerInterface $logger,
 		private AssetSearch $assets,
 		private IUserSession $userSession,
+		private ?IRootFolder $rootFolder = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -86,6 +88,19 @@ class AdminController extends Controller {
 	public function excludeFolder(int $fileId = 0): JSONResponse {
 		return $this->guard(function () use ($fileId) {
 			$uid = $this->userSession->getUser()?->getUID() ?? '';
+			if ($this->rootFolder !== null) {
+				$node = $this->rootFolder->getUserFolder($uid)->getFirstNodeById($fileId);
+				if ($node !== null) {
+					$owner = $node->getOwner()?->getUID();
+					$ownerFolder = $owner !== null ? $this->rootFolder->getUserFolder($owner) : null;
+					$ownerNode = $ownerFolder?->getFirstNodeById($fileId);
+					$parent = $node->getParent();
+					$ownerParent = $ownerNode?->getParent();
+					if ($parent === null || $ownerParent === null || $parent->getId() !== $ownerParent->getId()) {
+						throw new \InvalidArgumentException($this->l->t('Only folders you own or that are shared as a whole can be ignored'));
+					}
+				}
+			}
 			$path = $this->assets->immichPathOf($uid, $fileId);
 			if ($path === null || !str_contains($path, '/')) {
 				return new JSONResponse(['error' => $this->l->t('This file is not indexed by Glimpse')], Http::STATUS_NOT_FOUND);
@@ -94,15 +109,16 @@ class AdminController extends Controller {
 			if ($ncPath === null || !str_contains($ncPath[1], '/')) {
 				throw new \InvalidArgumentException($this->l->t('The root folder cannot be ignored'));
 			}
+			$folder = '/' . ltrim(substr($ncPath[1], 0, (int)strrpos($ncPath[1], '/')), '/');
 			$pattern = SmallImagePruner::escape(substr($path, 0, strrpos($path, '/'))) . '/**';
-			return $this->pruner->exclusive(function () use ($pattern) {
+			return $this->pruner->exclusive(function () use ($pattern, $folder) {
 				$folders = $this->config->get('excluded_folders');
 				if (in_array($pattern, $folders, true)) {
-					return ['pattern' => $pattern, 'exclusionsApplied' => null];
+					return ['pattern' => $pattern, 'folder' => $folder, 'exclusionsApplied' => null];
 				}
 				$this->config->set('excluded_folders', [...$folders, $pattern]);
 				$applied = $this->index->applyExclusions();
-				return ['pattern' => $pattern, 'exclusionsApplied' => $applied];
+				return ['pattern' => $pattern, 'folder' => $folder, 'exclusionsApplied' => $applied];
 			});
 		});
 	}

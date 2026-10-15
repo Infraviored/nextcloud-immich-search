@@ -16,6 +16,9 @@ use OCA\Glimpse\Service\IndexAdmin;
 use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\AppFramework\Http;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
+use OCP\Files\Node;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUser;
@@ -53,7 +56,7 @@ class AdminControllerTest extends TestCase {
 		$this->pruner->method('exclusive')->willReturnCallback(fn (callable $fn) => $fn());
 	}
 
-	private function controller(): AdminController {
+	private function controller(?IRootFolder $rootFolder = null): AdminController {
 		return new AdminController(
 			$this->createMock(IRequest::class),
 			$this->config,
@@ -64,6 +67,7 @@ class AdminControllerTest extends TestCase {
 			$this->logger,
 			$this->assets,
 			$this->userSession,
+			$rootFolder,
 		);
 	}
 
@@ -84,6 +88,36 @@ class AdminControllerTest extends TestCase {
 		$this->assertSame(['error' => 'The root folder cannot be ignored'], $res->getData());
 	}
 
+	public function testExcludeFolderRejectsSharedFileMovedToDifferentFolder(): void {
+		$root = $this->createMock(IRootFolder::class);
+		$aliceFolder = $this->createMock(Folder::class);
+		$bobFolder = $this->createMock(Folder::class);
+
+		$aliceNode = $this->createMock(Node::class);
+		$bobNode = $this->createMock(Node::class);
+
+		$aliceParent = $this->createMock(Folder::class);
+		$aliceParent->method('getId')->willReturn(100);
+		$aliceNode->method('getParent')->willReturn($aliceParent);
+
+		$bobParent = $this->createMock(Folder::class);
+		$bobParent->method('getId')->willReturn(200);
+		$bobNode->method('getParent')->willReturn($bobParent);
+
+		$bobUser = $this->createMock(IUser::class);
+		$bobUser->method('getUID')->willReturn('bob');
+		$aliceNode->method('getOwner')->willReturn($bobUser);
+
+		$aliceFolder->method('getFirstNodeById')->with(40)->willReturn($aliceNode);
+		$bobFolder->method('getFirstNodeById')->with(40)->willReturn($bobNode);
+
+		$root->method('getUserFolder')->willReturnCallback(fn ($uid) => $uid === 'alice' ? $aliceFolder : $bobFolder);
+
+		$res = $this->controller($root)->excludeFolder(40);
+		$this->assertSame(Http::STATUS_BAD_REQUEST, $res->getStatus());
+		$this->assertSame(['error' => 'Only folders you own or that are shared as a whole can be ignored'], $res->getData());
+	}
+
 	public function testExcludeFolderAlreadyExcludedReturnsWithoutReapplying(): void {
 		$this->config->method('getPathPattern')->willReturn('/mnt/nextcloud/{user}/');
 		$this->assets->method('immichPathOf')->with('alice', 20)->willReturn('/mnt/nextcloud/alice/Photos/pic.jpg');
@@ -94,7 +128,7 @@ class AdminControllerTest extends TestCase {
 
 		$res = $this->controller()->excludeFolder(20);
 		$this->assertSame(Http::STATUS_OK, $res->getStatus());
-		$this->assertSame(['pattern' => '/mnt/nextcloud/alice/Photos/**', 'exclusionsApplied' => null], $res->getData());
+		$this->assertSame(['pattern' => '/mnt/nextcloud/alice/Photos/**', 'folder' => '/Photos', 'exclusionsApplied' => null], $res->getData());
 	}
 
 	public function testExcludeFolderAddsPatternAndAppliesUnderLock(): void {
@@ -111,6 +145,6 @@ class AdminControllerTest extends TestCase {
 
 		$res = $this->controller()->excludeFolder(30);
 		$this->assertSame(Http::STATUS_OK, $res->getStatus());
-		$this->assertSame(['pattern' => '/mnt/nextcloud/alice/Vacation/**', 'exclusionsApplied' => 4], $res->getData());
+		$this->assertSame(['pattern' => '/mnt/nextcloud/alice/Vacation/**', 'folder' => '/Vacation', 'exclusionsApplied' => 4], $res->getData());
 	}
 }

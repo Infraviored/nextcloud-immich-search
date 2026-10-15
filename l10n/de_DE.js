@@ -581,6 +581,7 @@ OC.L10N.register(
         "Ignore folder": "Ordner ignorieren",
         "“{folder}” is ignored from now on": "„{folder}“ wird ab jetzt ignoriert",
         "This file is not indexed by Glimpse": "Diese Datei ist nicht von Glimpse indexiert",
-        "The root folder cannot be ignored": "Der oberste Ordner kann nicht ignoriert werden"
+        "The root folder cannot be ignored": "Der oberste Ordner kann nicht ignoriert werden",
+        "Only folders you own or that are shared as a whole can be ignored": "Nur Ordner, die Sie besitzen oder die als Ganzes geteilt wurden, können ignoriert werden"
     },
 "nplurals=2; plural=(n != 1);");

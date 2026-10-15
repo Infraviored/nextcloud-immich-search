@@ -365,8 +365,8 @@ const deleteButtons = computed(() => [
 async function doIgnore() {
 	dialog.value = null
 	try {
-		await excludeFolder(item.value.fileId)
-		showSuccess(t('“{folder}” is ignored from now on', { folder: folder.value }))
+		const res = await excludeFolder(item.value.fileId)
+		showSuccess(t('“{folder}” is ignored from now on', { folder: res?.folder || folder.value }))
 	} catch (e) {
 		showError(errorMessage(e))
 	}
