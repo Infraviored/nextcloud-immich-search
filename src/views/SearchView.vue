@@ -97,6 +97,7 @@
 			<MediaBrowser
 				:groups="[{ key: 'all', items }]"
 				:person="listedPerson"
+				:term="sensitiveTerm"
 				@removed="drop"
 				@refresh="run(true)"
 				@similar="showSimilar">
@@ -243,6 +244,9 @@ const listedPerson = computed(() => {
 /** Without text or picture to rank by, results come by date. */
 const byDate = computed(() => !(q.value.trim() && !similar.value))
 
+/** The words the results are ranked by (without a recognized person): "Sensitive up to here" saves them */
+const sensitiveTerm = computed(() => similar.value ? '' : (resolved.value ? resolved.value.rest : runQ.value).trim())
+
 const status = computed(() => {
 	if (!searched.value || !items.value.length) {
 		return ''
@@ -309,8 +313,8 @@ async function run(reset, asText = false) {
 	loading.value = true
 	try {
 		const res = await search(similar.value
-			? { similar: similar.value.id, page: nextPage.value, type: type.value, tag: tagId.value }
-			: { q: q.value.trim(), page: nextPage.value, person: personId.value, type: type.value, literal: literal.value, tag: tagId.value }, ctrl.signal)
+			? { similar: similar.value.id, page: nextPage.value, type: type.value, tag: tagId.value, seen: items.value.length }
+			: { q: q.value.trim(), page: nextPage.value, person: personId.value, type: type.value, literal: literal.value, tag: tagId.value, seen: items.value.length }, ctrl.signal)
 		if (ctrl !== controller) {
 			return
 		}

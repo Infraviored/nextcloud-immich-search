@@ -19,6 +19,7 @@ return [
 		['name' => 'page#index', 'url' => '/map', 'verb' => 'GET', 'postfix' => 'map'],
 		['name' => 'page#index', 'url' => '/folders', 'verb' => 'GET', 'postfix' => 'folders'],
 		['name' => 'page#index', 'url' => '/duplicates', 'verb' => 'GET', 'postfix' => 'duplicates'],
+		['name' => 'page#index', 'url' => '/sensitive', 'verb' => 'GET', 'postfix' => 'sensitive'],
 
 		['name' => 'api#search',          'url' => '/api/search',                'verb' => 'GET'],
 		['name' => 'api#thumbnail',       'url' => '/api/assets/{id}/thumbnail', 'verb' => 'GET'],
@@ -64,14 +65,23 @@ return [
 		['name' => 'private#unlock', 'url' => '/api/private/unlock', 'verb' => 'POST'],
 		['name' => 'private#lock', 'url' => '/api/private/lock', 'verb' => 'POST'],
 
+		['name' => 'sensitive#status', 'url' => '/api/sensitive', 'verb' => 'GET'],
+		['name' => 'sensitive#mark', 'url' => '/api/sensitive/marks', 'verb' => 'POST'],
+		['name' => 'sensitive#rebuild', 'url' => '/api/sensitive/rebuild', 'verb' => 'POST'],
+		['name' => 'sensitive#setTerm', 'url' => '/api/sensitive/terms', 'verb' => 'POST'],
+		['name' => 'sensitive#removeTerm', 'url' => '/api/sensitive/terms/remove', 'verb' => 'POST'],
+		['name' => 'sensitive#review', 'url' => '/api/sensitive/review', 'verb' => 'GET'],
+
 		['name' => 'admin#settings', 'url' => '/api/admin/settings', 'verb' => 'GET'],
 		['name' => 'admin#saveSettings', 'url' => '/api/admin/settings', 'verb' => 'PUT'],
 		['name' => 'admin#libraries', 'url' => '/api/admin/libraries', 'verb' => 'GET'],
 		['name' => 'admin#createLibrary', 'url' => '/api/admin/libraries', 'verb' => 'POST'],
 		['name' => 'admin#folderSuggestions', 'url' => '/api/admin/folder-suggestions', 'verb' => 'GET'],
+		['name' => 'admin#excludeFolder', 'url' => '/api/admin/exclude-folder', 'verb' => 'POST'],
 		['name' => 'admin#queueMissing', 'url' => '/api/admin/queue-missing', 'verb' => 'POST'],
 		['name' => 'admin#scan', 'url' => '/api/admin/scan', 'verb' => 'POST'],
 		['name' => 'admin#prune', 'url' => '/api/admin/prune', 'verb' => 'POST'],
+		['name' => 'admin#sensitiveCheck', 'url' => '/api/admin/sensitive-check', 'verb' => 'GET'],
 
 		['name' => 'settings#reindex',    'url' => '/api/settings/reindex',      'verb' => 'POST'],
 	],

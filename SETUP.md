@@ -123,6 +123,11 @@ takes hours for a large collection (README → Hardware has measured rates).
 - **Search inside videos:** needs `ffmpeg` in the Nextcloud container (`which ffmpeg`; AIO has
   it). Enable under *Settings → What gets indexed*. Runs at night by default; to start now:
   `occ glimpse:video-scenes --minutes=30`, progress with `occ glimpse:video-scenes --status`.
+- **Sensitive pictures:** needs the database role from the next point with
+  `GRANT SELECT ON smart_search` and `GRANT SELECT ("originalFileName", "deletedAt", type, "fileCreatedAt", "localDateTime") ON asset`,
+  and the ML service reachable from the Nextcloud container (set its address under *Settings →
+  Connection*). Check with `occ glimpse:sensitive --check`, then allow it under *Settings → What
+  gets indexed*. Each user turns it on for themselves; do not turn it on for anyone.
 - **Keep pictures when they are moved:** README → *Install* → step 5 (a Postgres role that may
   only update asset paths, then `occ glimpse:configure --db-host … --db-user … --db-password-stdin < /path/to/password`).
 

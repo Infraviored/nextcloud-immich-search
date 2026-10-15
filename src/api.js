@@ -30,8 +30,9 @@ export const faceUrl = (id, asset = '') => url(`/api/people/${seg(id)}/face`) + 
 export const fileUrl = (fileId) => generateUrl('/f/' + seg(fileId))
 export const previewUrl = (fileId) => generateUrl('/core/preview?fileId={fileId}&x=256&y=256&a=1&mimeFallback=true', { fileId })
 
-export async function search({ q = '', page = 1, person = '', type = '', literal = false, similar = '', tag = '' }, signal) {
-	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0, similar, tag }, signal })
+// seen: results already loaded; with a filter set (tag, only sensitive) the server stops once all are found
+export async function search({ q = '', page = 1, person = '', type = '', literal = false, similar = '', tag = '', seen = 0 }, signal) {
+	const { data } = await axios.get(url('/api/search'), { params: { q, page, person, type, literal: literal ? 1 : 0, similar, tag, seen }, signal })
 	return data
 }
 
@@ -95,6 +96,15 @@ export async function getFolderSuggestions() {
 	return (await axios.get(url('/api/admin/folder-suggestions'))).data
 }
 
+/**
+ * Admins: stop indexing the folder this file is in (Immich drops its pictures on the next scan).
+ *
+ * @param {number} fileId
+ */
+export async function excludeFolder(fileId) {
+	return (await axios.post(url('/api/admin/exclude-folder'), { fileId })).data
+}
+
 export async function queueMissing() {
 	return (await axios.post(url('/api/admin/queue-missing'))).data
 }
@@ -130,8 +140,8 @@ export async function tagFiles(fileIds, tagIds, newTags) {
 	return (await axios.post(url('/api/files/tag'), { fileIds, tagIds, newTags })).data
 }
 
-export async function timeline({ page = 1, before = '', after = '', type = '', person = '' }, signal) {
-	return (await axios.get(url('/api/timeline'), { params: { page, before, after, type, person }, signal })).data
+export async function timeline({ page = 1, before = '', after = '', type = '', person = '', seen = 0 }, signal) {
+	return (await axios.get(url('/api/timeline'), { params: { page, before, after, type, person, seen }, signal })).data
 }
 
 /**
@@ -264,4 +274,47 @@ export async function publicLink(path) {
 	} catch (e) {
 		throw new Error(e?.response?.data?.ocs?.meta?.message || errorMessage(e), { cause: e })
 	}
+}
+
+export async function getSensitive() {
+	return (await axios.get(url('/api/sensitive'))).data
+}
+
+/**
+ * @param {Object<number, boolean|null>} marks fileId => true (sensitive), false (not), null (back to what the terms say)
+ */
+export async function markSensitive(marks) {
+	return (await axios.post(url('/api/sensitive/marks'), { marks })).data
+}
+
+/**
+ * "Sensitive up to here": the term counts down to this picture.
+ *
+ * @param {string} q the search text
+ * @param {string} assetId the picture's Immich id (for a video found through a still, the still's)
+ */
+export async function setSensitiveTerm(q, assetId) {
+	return (await axios.post(url('/api/sensitive/terms'), { q, assetId })).data
+}
+
+export async function removeSensitiveTerm(q) {
+	return (await axios.post(url('/api/sensitive/terms/remove'), { q })).data
+}
+
+/**
+ * One page of training the sensitive filter.
+ *
+ * @param {{side: 'hidden'|'visible', q?: string, page?: number}} params page: where the previous answer said the next starts
+ * @param {AbortSignal} [signal]
+ */
+export async function reviewSensitive({ side, q = '', page = 0 }, signal) {
+	return (await axios.get(url('/api/sensitive/review'), { params: { side, q, page }, signal })).data
+}
+
+export async function rebuildSensitive() {
+	return (await axios.post(url('/api/sensitive/rebuild'))).data
+}
+
+export async function checkSensitive() {
+	return (await axios.get(url('/api/admin/sensitive-check'))).data
 }

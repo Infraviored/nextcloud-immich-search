@@ -35,6 +35,7 @@
 		<NcCheckboxRadioSwitch v-model="userPrefs.show_videos" type="switch" @update:modelValue="save({ show_videos: $event })">
 			{{ t('Include videos by default') }}
 		</NcCheckboxRadioSwitch>
+
 	</div>
 </template>
 

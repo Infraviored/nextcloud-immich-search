@@ -38,15 +38,18 @@ import IndexingSection from './settings/IndexingSection.vue'
 import PeopleSection from './settings/PeopleSection.vue'
 import PrivateSection from './settings/PrivateSection.vue'
 import SearchSection from './settings/SearchSection.vue'
+import SensitiveSection from './settings/SensitiveSection.vue'
 import StatusSection from './settings/StatusSection.vue'
 import { t } from '../l10n.js'
+import { sensitiveIcon } from '../materialIcons.js'
 import { href, navigate, route } from '../router.js'
 
-const page = loadState('glimpse', 'page', { isAdmin: false })
+const page = loadState('glimpse', 'page', { isAdmin: false, sensitiveAvailable: false })
 
 const sections = [
 	{ id: 'status', name: t('Status'), icon: mdiChartBoxOutline, component: StatusSection },
 	{ id: 'display', name: t('Display'), icon: mdiPaletteOutline, component: DisplaySection },
+	...(page.sensitiveAvailable ? [{ id: 'sensitive', name: t('Sensitive pictures'), icon: sensitiveIcon, component: SensitiveSection }] : []),
 	{ id: 'search', name: t('Nextcloud search'), icon: mdiMagnify, component: SearchSection },
 	{ id: 'private', name: t('Private'), icon: mdiLockOutline, component: PrivateSection },
 	...(page.isAdmin

@@ -481,6 +481,107 @@ OC.L10N.register(
         "Move to folder …": "In Ordner verschieben …",
         "Copy to folder …": "In Ordner kopieren …",
         "Link copied": "Link kopiert",
-        "Could not share: {error}": "Teilen fehlgeschlagen: {error}"
+        "Could not share: {error}": "Teilen fehlgeschlagen: {error}",
+        "Sensitive": "Heikel",
+        "Not sensitive": "Nicht heikel",
+        "All pictures": "Alle Bilder",
+        "Without sensitive pictures": "Ohne heikle Bilder",
+        "Only sensitive pictures": "Nur heikle Bilder",
+        "Sensitive pictures": "Heikle Bilder",
+        "Mark as sensitive": "Als heikel markieren",
+        "Mark as not sensitive": "Als nicht heikel markieren",
+        "Recognises nudity, so you can mark such pictures, hide them or look at only them. Recognised on this server from what Immich already knows about each picture; nothing leaves it. Only you see what is recognised or marked for you.": "Erkennt Nacktheit, damit Sie solche Bilder markieren, ausblenden oder nur sie ansehen können. Erkannt wird auf diesem Server aus dem, was Immich ohnehin über jedes Bild weiß; nichts verlässt ihn. Was für Sie erkannt oder markiert ist, sehen nur Sie.",
+        "Recognise sensitive pictures": "Heikle Bilder erkennen",
+        "Sensitivity": "Empfindlichkeit",
+        "Mark them on the tiles": "Auf den Kacheln kennzeichnen",
+        "Review recognised pictures": "Erkannte Bilder durchsehen",
+        "Recompute now": "Jetzt neu berechnen",
+        "Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count, and the recognition learns from them within the hour.": "Falsch erkannte oder übersehene Bilder markieren Sie im Viewer oder über eine Auswahl. Ihre Markierungen gelten immer, und die Erkennung lernt innerhalb einer Stunde daraus.",
+        "Being computed, this takes a minute …": "Wird berechnet, das dauert etwa eine Minute …",
+        "Last attempt failed: {error}": "Letzter Versuch fehlgeschlagen: {error}",
+        "Last computed {date}.": "Zuletzt berechnet am {date}.",
+        "Lets each user turn on recognition of nudity, to mark such pictures, hide them or see only them. Off for everyone until they turn it on. It uses the search embeddings Immich already has, so it needs the database access from the install guide (with read access to smart_search) and the address of the machine-learning service under Connection.": "Jede Person kann damit eine Erkennung von Nacktheit einschalten, um solche Bilder zu markieren, auszublenden oder nur sie anzusehen. Aus für alle, bis sie es selbst einschalten. Nutzt die Suchvektoren, die Immich schon hat; braucht daher den Datenbankzugang aus der Installationsanleitung (mit Lesezugriff auf smart_search) und die Adresse des Machine-Learning-Dienstes unter Verbindung.",
+        "Allow recognising sensitive pictures": "Erkennen heikler Bilder erlauben",
+        "Immich database: {error}": "Immich-Datenbank: {error}",
+        "Immich database: readable": "Immich-Datenbank: lesbar",
+        "Machine-learning service: {error}": "Machine-Learning-Dienst: {error}",
+        "Machine-learning service: works ({model})": "Machine-Learning-Dienst: funktioniert ({model})",
+        "_{count} picture marked as sensitive_::_{count} pictures marked as sensitive_": [
+            "{count} Bild als heikel markiert",
+            "{count} Bilder als heikel markiert"
+        ],
+        "_{count} picture marked as not sensitive_::_{count} pictures marked as not sensitive_": [
+            "{count} Bild als nicht heikel markiert",
+            "{count} Bilder als nicht heikel markiert"
+        ],
+        "_At this sensitivity {count} picture counts as sensitive._::_At this sensitivity {count} pictures count as sensitive._": [
+            "Bei dieser Empfindlichkeit gilt {count} Bild als heikel.",
+            "Bei dieser Empfindlichkeit gelten {count} Bilder als heikel."
+        ],
+        "_{count} picture marked by you._::_{count} pictures marked by you._": [
+            "{count} Bild von Ihnen markiert.",
+            "{count} Bilder von Ihnen markiert."
+        ],
+        "Sensitive up to here": "Bis hierher heikel",
+        "Mark sensitive pictures": "Heikle Bilder kennzeichnen",
+        "made with another search model, set it again": "mit einem anderen Suchmodell gesetzt, bitte neu setzen",
+        "Remove “{q}”": "„{q}“ entfernen",
+        "Review sensitive pictures": "Heikle Bilder durchsehen",
+        "Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and the pictures most like it follow it.": "Einzelne Bilder markieren Sie im Viewer oder per Auswahl als heikel oder nicht. Ihre Markierung gilt immer für das Bild, und die ähnlichsten Bilder folgen ihr.",
+        "Pictures like your marks: {added} added, {removed} taken out.": "Ähnliche Bilder wie Ihre Markierungen: {added} dazu, {removed} heraus.",
+        "Removed": "Entfernt",
+        "_“{q}”: {count} picture counts as sensitive_::_“{q}”: {count} pictures count as sensitive_": [
+            "„{q}“: {count} Bild gilt als heikel",
+            "„{q}“: {count} Bilder gelten als heikel"
+        ],
+        "_{count} picture counts as sensitive._::_{count} pictures count as sensitive._": [
+            "{count} Bild gilt als heikel.",
+            "{count} Bilder gelten als heikel."
+        ],
+        "Nothing more for this term": "Zu diesem Begriff kommt nichts mehr",
+        "Mark single pictures as sensitive or not in the viewer or with a selection. Your mark always counts for the picture, and from 20 marks on Glimpse learns from them.": "Einzelne Bilder markieren Sie im Viewer oder per Auswahl als heikel oder nicht. Ihre Markierung gilt immer für das Bild, und ab 20 Markierungen lernt Glimpse daraus.",
+        "_{count} more by what Glimpse learned from your marks._::_{count} more by what Glimpse learned from your marks._": [
+            "{count} weiteres nach dem, was Glimpse aus Ihren Markierungen gelernt hat.",
+            "{count} weitere nach dem, was Glimpse aus Ihren Markierungen gelernt hat."
+        ],
+        "Train the sensitive filter": "Filter trainieren",
+        "What should be hidden?": "Was soll ausgeblendet werden?",
+        "_The filter hides {count} picture._::_The filter hides {count} pictures._": [
+            "Der Filter blendet {count} Bild aus.",
+            "Der Filter blendet {count} Bilder aus."
+        ],
+        "The filter hides nothing but what you marked yourself": "Der Filter blendet nur aus, was Sie selbst markiert haben",
+        "Side": "Seite",
+        "Hidden": "Ausgeblendet",
+        "Visible": "Sichtbar",
+        "Learning …": "Lernt …",
+        "Bring back": "Zurückholen",
+        "Sort again": "Neu sortieren",
+        "What the filter lets through, the most sensitive-looking first. Select what it should hide. To look at a new topic, search for it.": "Was der Filter durchlässt, das heikelste zuerst. Wählen Sie aus, was er ausblenden soll. Für ein neues Thema suchen Sie danach.",
+        "Type something the filter should hide, for example “nude breasts”. English words usually work better. Select the matching pictures and hide them.": "Geben Sie etwas ein, das der Filter ausblenden soll, zum Beispiel „nude breasts“. Englische Begriffe funktionieren meist besser. Wählen Sie die passenden Bilder aus und blenden Sie sie aus.",
+        "_The filter learns once you hid {count} picture; {left} to go. Start on “Visible” with a term._::_The filter learns once you hid {count} pictures; {left} to go. Start on “Visible” with a term._": [
+            "Der Filter lernt, sobald Sie {count} Bild ausgeblendet haben; es fehlen noch {left}. Beginnen Sie bei „Sichtbar“ mit einem Begriff.",
+            "Der Filter lernt, sobald Sie {count} Bilder ausgeblendet haben; es fehlen noch {left}. Beginnen Sie bei „Sichtbar“ mit einem Begriff."
+        ],
+        "It learns from {positives} pictures you hid and {negatives} you brought back.": "Er lernt aus {positives} Bildern, die Sie ausgeblendet, und {negatives}, die Sie zurückgeholt haben.",
+        "Learned: {added} more hidden, {removed} fewer.": "Gelernt: {added} mehr ausgeblendet, {removed} weniger.",
+        "Nothing more that looks sensitive": "Nichts mehr, was heikel aussieht",
+        "What the filter hides that you did not mark yourself, the most harmless first. Select what should stay visible and bring it back.": "Was der Filter ausblendet und Sie nicht selbst markiert haben, das harmloseste zuerst. Wählen Sie aus, was sichtbar bleiben soll, und holen Sie es zurück.",
+        "Most harmless first": "Harmloseste zuerst",
+        "Most sensitive-looking first": "Heikelste zuerst",
+        "Closest to “{q}” first": "Am nächsten an „{q}“ zuerst",
+        "Click to enlarge; shift-click or the circle selects": "Klick vergrößert; Shift-Klick oder der Kreis wählt aus",
+        "Sensitive pictures: shown": "Heikle Bilder: sichtbar",
+        "Sensitive pictures: hidden": "Heikle Bilder: ausgeblendet",
+        "Sensitive pictures: only those": "Heikle Bilder: nur diese",
+        "A filter that hides the pictures you consider sensitive. You train it yourself: search for something, hide what matches, then check what it hides. Works with what Immich already knows about each picture; nothing leaves this server. Only you see your marks.": "Ein Filter, der die Bilder ausblendet, die Sie für heikel halten. Sie trainieren ihn selbst: nach etwas suchen, Passendes ausblenden, dann prüfen, was er ausblendet. Er nutzt, was Immich schon über jedes Bild weiß; nichts verlässt diesen Server. Ihre Markierungen sehen nur Sie.",
+        "Ignore this folder …": "Diesen Ordner ignorieren …",
+        "Ignore “{folder}”?": "„{folder}“ ignorieren?",
+        "Glimpse and Immich stop indexing this folder and everything in it, for everyone. Its pictures disappear after the next library scan. You can take it back under Settings → What gets indexed.": "Glimpse und Immich indexieren diesen Ordner samt Inhalt nicht mehr, für alle. Seine Bilder verschwinden nach dem nächsten Scan der Bibliothek. Rückgängig machen können Sie das unter Einstellungen → Was indexiert wird.",
+        "Ignore folder": "Ordner ignorieren",
+        "“{folder}” is ignored from now on": "„{folder}“ wird ab jetzt ignoriert",
+        "This file is not indexed by Glimpse": "Diese Datei ist nicht von Glimpse indexiert",
+        "The root folder cannot be ignored": "Der oberste Ordner kann nicht ignoriert werden",
+        "Only folders you own or that are shared as a whole can be ignored": "Nur Ordner, die Sie besitzen oder die als Ganzes geteilt wurden, können ignoriert werden"
     },
 "nplurals=2; plural=(n != 1);");

@@ -56,6 +56,21 @@ global Nextcloud search or the dashboard, unlocked or not. This is a convenience
 over-the-shoulder views, not encryption: the files themselves are unchanged and visible in
 the Files app as before.
 
+## Sensitive pictures
+
+Off unless the admin allows it and the user turns it on. Glimpse then reads Immich's search
+embeddings from its database (read-only grant on `smart_search`) and keeps, per user in app
+data (`sensitive/<uid>.json`), a score for each file *that user can see* plus their own marks.
+Scores are mapped to file ids through the same permission check as search results, so the
+counts on the settings page and the "only sensitive" list never include anyone else's
+files. Marks are accepted only for files the user can reach. Nobody sees another user's marks
+or scores. Training uses embeddings of all libraries (first guesses), but only numbers ever
+leave the database, and nothing leaves the server: the search terms are encoded by the same
+machine-learning service Immich uses.
+
+This is a filter, not a lock: unlike the private area, switching to "all pictures" needs no
+password.
+
 ## Endpoints
 
 - All API endpoints require a logged-in user; admin settings and index actions require an

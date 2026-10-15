@@ -204,7 +204,8 @@ async function toggleHidden() {
 
 		h2 {
 			margin: 0;
-			font-size: clamp(40px, 5vw, 60px);
+			font-size: clamp(28px, 3vw, 38px);
+			line-height: 1.2;
 		}
 	}
 
@@ -214,10 +215,15 @@ async function toggleHidden() {
 		font-weight: inherit;
 	}
 
+	// Nextcloud gives inputs a fixed height and min height: at this size the text (and the
+	// "Unnamed" placeholder) was cut and pushed down
 	&__name input {
+		box-sizing: content-box;
 		width: 100%;
 		max-width: 640px;
-		height: auto;
+		height: 1.2em !important;
+		min-height: 0 !important;
+		line-height: 1.2;
 		margin: 0;
 		padding: 2px 6px;
 		margin-inline-start: -6px;
@@ -226,7 +232,7 @@ async function toggleHidden() {
 		background: transparent !important;
 		box-shadow: none !important;
 		color: var(--g-text);
-		font-size: clamp(40px, 5vw, 60px);
+		font-size: clamp(28px, 3vw, 38px);
 		caret-color: var(--g-accent-text);
 
 		&::placeholder { color: var(--g-muted); }
@@ -255,7 +261,7 @@ async function toggleHidden() {
 		}
 
 		&__title h2, &__name input {
-			font-size: 36px;
+			font-size: 28px;
 		}
 	}
 }

@@ -21,13 +21,41 @@
 							@click.prevent="navigate(v.path)">{{ v.label }}</a>
 					</nav>
 					<LensSearch
-						v-if="!narrow && page.configured"
+						v-if="!narrow && page.configured && searchable"
 						v-model="searchText"
 						class="bar__search"
 						:placeholder="t('Search your photos')"
 						@submit="search"
 						@clear="route.name === 'search' && search()" />
 					<div class="bar__tools">
+						<!-- Sensitive content, when turned on: all, without, or only those; everywhere.
+							 Only an icon, as quiet as the others: the eye says which -->
+						<NcActions
+							v-if="sensitiveOn"
+							variant="tertiary"
+							:aria-label="sensitiveLabel"
+							:title="sensitiveLabel">
+							<template #icon>
+								<NcIconSvgWrapper :path="sensitiveModeIcon" />
+							</template>
+							<NcActionButton
+								v-for="m in sensitiveModes"
+								:key="m.value"
+								type="radio"
+								:modelValue="userPrefs.sensitive_mode"
+								:value="m.value"
+								:closeAfterClick="true"
+								@click="setSensitiveMode(m.value)">
+								{{ m.label }}
+							</NcActionButton>
+							<NcActionSeparator />
+							<NcActionButton :closeAfterClick="true" @click="navigate('/sensitive')">
+								<template #icon>
+									<NcIconSvgWrapper :path="mdiSort" />
+								</template>
+								{{ t('Train the sensitive filter') }}
+							</NcActionButton>
+						</NcActions>
 						<NcButton
 							variant="tertiary"
 							:aria-label="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
@@ -74,13 +102,21 @@
 						</NcButton>
 					</template>
 				</NcEmptyContent>
-				<SearchView v-else-if="route.name === 'search'" :key="searchKey + privateState.version" :people="peopleState.people" />
-				<TimelineView v-else-if="route.name === 'timeline'" :key="'t' + (route.query.at || '') + privateState.version" />
-				<MapView v-else-if="route.name === 'map'" :key="'m' + privateState.version" />
-				<FolderView v-else-if="route.name === 'folders'" :key="'f' + privateState.version" />
-				<PeopleView v-else-if="route.name === 'people'" :key="'p' + privateState.version" />
-				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + privateState.version" />
-				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + privateState.version" />
+				<SearchView v-else-if="route.name === 'search'" :key="searchKey + version" :people="peopleState.people" />
+				<TimelineView v-else-if="route.name === 'timeline'" :key="'t' + (route.query.at || '') + version" />
+				<MapView v-else-if="route.name === 'map'" :key="'m' + version" />
+				<FolderView v-else-if="route.name === 'folders'" :key="'f' + version" />
+				<PeopleView v-else-if="route.name === 'people'" :key="'p' + version" />
+				<PersonView v-else-if="route.name === 'person'" :id="route.id" :key="route.id + version" />
+				<DuplicatesView v-else-if="route.name === 'duplicates'" :key="'d' + version" />
+				<SensitiveView v-else-if="route.name === 'sensitive' && sensitiveOn" :key="'s' + version" />
+				<NcEmptyContent
+					v-else-if="route.name === 'sensitive'"
+					:name="t('Sensitive pictures')">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiEyeOffOutline" />
+					</template>
+				</NcEmptyContent>
 				<SettingsView v-else-if="route.name === 'settings'" />
 				<!-- Opened from the Files sidebar: ?faces=<assetId>&name=<file name> -->
 				<FacesDialog
@@ -95,7 +131,7 @@
 		<Teleport to="body">
 			<div v-if="narrow && !selectionActive" class="dock">
 				<LensSearch
-					v-if="page.configured"
+					v-if="page.configured && searchable"
 					v-model="searchText"
 					class="dock__search"
 					:placeholder="t('Search your photos')"
@@ -120,9 +156,12 @@
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiEyeCheckOutline, mdiEyeOffOutline, mdiEyeOutline, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiSort } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
@@ -137,6 +176,7 @@ import MapView from './views/MapView.vue'
 import PeopleView from './views/PeopleView.vue'
 import PersonView from './views/PersonView.vue'
 import SearchView from './views/SearchView.vue'
+import SensitiveView from './views/SensitiveView.vue'
 import SettingsView from './views/SettingsView.vue'
 import TimelineView from './views/TimelineView.vue'
 import { t } from './l10n.js'
@@ -145,6 +185,7 @@ import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
+import { sensitiveModes, sensitiveOn, sensitiveState, setSensitiveMode } from './sensitive.js'
 import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
@@ -170,6 +211,22 @@ watch(() => !!viewerState.current, (open) => document.body.classList.toggle('gli
 
 // Private people come and go with the lock
 watch(() => privateState.version, () => reloadPeople())
+
+// Navigating to /sensitive while the feature is off redirects
+watch([() => route.name, sensitiveOn], ([name, on]) => {
+	if (name === 'sensitive' && !on) {
+		navigate(page.sensitiveAvailable ? '/settings/sensitive' : '/')
+	}
+}, { immediate: true })
+
+/** Views load again when locking or the sensitive mode changes what they may show. */
+const version = computed(() => privateState.version + '.' + sensitiveState.version)
+
+/** On the button while not everything is shown, so the filter is never forgotten. */
+const sensitiveLabel = computed(() => ({ hide: t('Sensitive pictures: hidden'), only: t('Sensitive pictures: only those') })[userPrefs.sensitive_mode] ?? t('Sensitive pictures: shown'))
+const sensitiveModeIcon = computed(() => ({ hide: mdiEyeOffOutline, only: mdiEyeCheckOutline })[userPrefs.sensitive_mode] ?? mdiEyeOutline)
+/** Pages where searching makes no sense have no search pill */
+const searchable = computed(() => !['settings', 'sensitive', 'duplicates'].includes(route.name))
 
 /** The text in the search pill; it shows the current search while one is open. */
 const searchText = ref(route.name === 'search' ? (route.query.q || '') : '')

@@ -27,6 +27,12 @@ class UserPrefs {
 		'show_videos' => ['bool', true],
 		// Ask for the Nextcloud password before showing private pictures
 		'private_password' => ['bool', true],
+		// Sensitive content (SensitiveContent): only with the admin's sensitive_detection
+		'sensitive_enabled' => ['bool', false],
+		// all: everything, marked; hide: without sensitive pictures; only: just those
+		'sensitive_mode' => ['enum:all,hide,only', 'all'],
+		// The mark on tiles
+		'sensitive_badge' => ['bool', true],
 	];
 
 	public function __construct(
@@ -40,7 +46,11 @@ class UserPrefs {
 		if ($raw === '') {
 			return $default;
 		}
-		return $type === 'bool' ? $raw === '1' : $raw;
+		return match (true) {
+			$type === 'bool' => $raw === '1',
+			str_starts_with($type, 'int:') => (int)$raw,
+			default => $raw,
+		};
 	}
 
 	public function set(string $uid, string $key, mixed $value): void {
@@ -70,6 +80,13 @@ class UserPrefs {
 		$type = self::PREFS[$key][0];
 		if ($type === 'bool') {
 			return $value ? '1' : '0';
+		}
+		if (str_starts_with($type, 'int:')) {
+			[$min, $max] = array_map('intval', explode('-', substr($type, 4)));
+			if (!is_numeric($value)) {
+				throw new \InvalidArgumentException($key);
+			}
+			return (string)max($min, min($max, (int)$value));
 		}
 		$raw = is_scalar($value) ? (string)$value : '';
 		if (!in_array($raw, explode(',', substr($type, 5)), true)) {

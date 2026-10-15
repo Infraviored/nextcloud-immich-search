@@ -124,6 +124,22 @@
 				@update:modelValue="saveHours" />
 		</div>
 
+		<h3>{{ t('Sensitive pictures') }}</h3>
+		<p class="hint">
+			{{ t('Lets each user turn on recognition of nudity, to mark such pictures, hide them or see only them. Off for everyone until they turn it on. It uses the search embeddings Immich already has, so it needs the database access from the install guide (with read access to smart_search) and the address of the machine-learning service under Connection.') }}
+		</p>
+		<NcCheckboxRadioSwitch v-model="s.sensitive_detection" type="switch" @update:modelValue="saveSensitive">
+			{{ t('Allow recognising sensitive pictures') }}
+		</NcCheckboxRadioSwitch>
+		<ul v-if="sensitiveCheck" class="indexing__check">
+			<li :class="sensitiveCheck.database ? 'indexing__check--bad' : 'indexing__check--ok'">
+				{{ sensitiveCheck.database ? t('Immich database: {error}', { error: sensitiveCheck.database }) : t('Immich database: readable') }}
+			</li>
+			<li :class="sensitiveCheck.ml ? 'indexing__check--bad' : 'indexing__check--ok'">
+				{{ sensitiveCheck.ml ? t('Machine-learning service: {error}', { error: sensitiveCheck.ml }) : t('Machine-learning service: works ({model})', { model: sensitiveCheck.model }) }}
+			</li>
+		</ul>
+
 		<h3>{{ t('Libraries per user') }}</h3>
 		<p class="hint">
 			{{ t('Every Nextcloud user whose files should be searchable needs a read-only mount in the Immich container and a library.') }}
@@ -167,7 +183,7 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import { adminSettings, loadAdminSettings, saveAdmin } from '../../adminSettings.js'
-import { createLibrary, getFolderSuggestions, getLibraries, pruneSmall } from '../../api.js'
+import { checkSensitive, createLibrary, getFolderSuggestions, getLibraries, pruneSmall } from '../../api.js'
 import { useAction } from '../../composables/useAction.js'
 import { n, t } from '../../l10n.js'
 import { serialSaver } from '../../serialSaver.js'
@@ -293,6 +309,19 @@ function saveMinSize() {
 	save({ min_size: Number(minSize.value) || 0 })
 }
 
+/** What it needs, checked when shown and when turned on. */
+const sensitiveCheck = ref(null)
+async function loadSensitiveCheck() {
+	sensitiveCheck.value = await act(checkSensitive)
+}
+
+async function saveSensitive(on) {
+	await save({ sensitive_detection: on })
+	if (on) {
+		loadSensitiveCheck()
+	}
+}
+
 async function addLibrary(uid) {
 	const res = await act(() => createLibrary(uid), t('Library created, scan started'))
 	if (res) {
@@ -305,12 +334,26 @@ onMounted(async () => {
 	minSize.value = String(s.value.min_size ?? 256)
 	libs.value = await act(getLibraries)
 	suggestions.value = (await act(getFolderSuggestions)) ?? []
+	if (s.value.sensitive_detection) {
+		loadSensitiveCheck()
+	}
 })
 </script>
 
 <style scoped lang="scss">
 .indexing {
 	max-width: 760px;
+
+	&__check {
+		margin: 4px 0 0;
+		padding: 0;
+		list-style: none;
+
+		li::before { margin-inline-end: 6px; }
+	}
+
+	&__check--ok::before { content: '✓'; color: var(--color-success-text, var(--color-success)); }
+	&__check--bad::before { content: '✗'; color: var(--color-error-text, var(--color-error)); }
 
 	h3 { margin-top: 24px; }
 	h4 { margin: 16px 0 4px; }

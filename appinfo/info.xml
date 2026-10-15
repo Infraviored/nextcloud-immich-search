@@ -39,6 +39,11 @@ a Photos album and share it, download as ZIP, or delete.
 Folders, people and single pictures that only appear after unlocking with your password, and
 never in the global search or on the dashboard.
 
+### Sensitive pictures (optional)
+Off unless the admin allows it and you turn it on: recognises nudity from what Immich already
+knows, marks it on the tiles, and lets you hide it or see only it. You correct it with one tap
+and it learns from that.
+
 ### Nextcloud permissions decide
 One shared index, but every user only ever sees files they can open in Nextcloud: their own and
 those shared with them. Thumbnails, faces, map markers, memories and duplicates are checked the
@@ -53,7 +58,7 @@ Immich to the Nextcloud data directory, Nextcloud cron, and ffmpeg on the Nextcl
 search inside videos). Setup guide:
 [README](https://github.com/Infraviored/nextcloud-immich-search#install).
 	]]></description>
-	<version>4.7.0</version>
+	<version>4.11.2</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>
@@ -82,11 +87,13 @@ search inside videos). Setup guide:
 		<job>OCA\Glimpse\BackgroundJob\PruneSmallImages</job>
 		<job>OCA\Glimpse\BackgroundJob\PruneTileCache</job>
 		<job>OCA\Glimpse\BackgroundJob\IndexVideoScenes</job>
+		<job>OCA\Glimpse\BackgroundJob\UpdateSensitive</job>
 	</background-jobs>
 	<commands>
 		<command>OCA\Glimpse\Command\Configure</command>
 		<command>OCA\Glimpse\Command\PeopleIndexCommand</command>
 		<command>OCA\Glimpse\Command\PruneCommand</command>
+		<command>OCA\Glimpse\Command\SensitiveCommand</command>
 		<command>OCA\Glimpse\Command\VideoScenesCommand</command>
 	</commands>
 	<settings>

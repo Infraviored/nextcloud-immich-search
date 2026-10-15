@@ -14,7 +14,9 @@ use OCA\Glimpse\Controller\PrivateController;
 use OCA\Glimpse\Service\IndexAdmin;
 use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\UserPrefs;
+use OCP\BackgroundJob\IJobList;
 use OCP\IRequest;
 use OCP\ISession;
 use OCP\IUser;
@@ -53,7 +55,8 @@ class PrivateControllerTest extends TestCase {
 		$session = $this->createMock(ISession::class);
 		$session->method('get')->willReturnCallback(fn ($k) => $this->session[$k] ?? null);
 		return new PrefsController($this->createMock(IRequest::class), $this->userSession, $this->prefs,
-			$this->createMock(IndexAdmin::class), $this->createMock(Permissions::class), $this->area, $session);
+			$this->createMock(IndexAdmin::class), $this->createMock(Permissions::class), $this->area, $session,
+			$this->createMock(SensitiveContent::class), $this->createMock(IJobList::class));
 	}
 
 	public function testLockedShowsOnlyCounts(): void {

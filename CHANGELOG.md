@@ -3,6 +3,50 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.11.2] - unreleased
+
+### Added
+- Viewer: the picture's folder right above the actions, a click opens it in Glimpse. Admins
+  can *Ignore this folder …* in the info sheet: it joins the excluded folders and Immich drops
+  its pictures on the next scan.
+
+### Fixed
+- Viewer: no "Open sidebar" any more; it needs the Files app's sidebar, which Glimpse does not
+  have (the info sheet has the same).
+- Person page: the name is smaller, and "Unnamed" is no longer cut off and pushed down.
+
+## [4.10.8] - unreleased
+
+### Added
+- **Sensitive pictures (optional).** Each user decides what counts:
+  - *Terms*: search, select the last result that still counts, *Sensitive up to here*; the
+    search is saved with that picture's similarity as its limit.
+  - *Marks* by hand always win for their picture. From 20 marks as sensitive on, a linear SVM
+    is trained per user on them (plus a fixed sample of the library as "probably not"), and
+    pictures on its sensitive side count too, also new ones.
+    Solved to the end (dual coordinate descent, as LIBLINEAR), so the same marks always give
+    the same model and a few new marks move it a little. Each build logs at debug level what
+    it learned (`Sensitive: ...`): marks it gets wrong, how it scores the new marks before and
+    after, how many pictures came and went.
+  - *Train the sensitive filter* (`/sensitive`), one page with two sides, back and forth:
+    *Hidden* shows what the filter hides, the least sensitive-looking first, to bring back
+    what it hides too much; *Visible* what it lets through, the most sensitive-looking first,
+    or sorted by a search term to start or for a new topic. Each mark is saved at once and the
+    filter learns again in the background; no steps, no threshold to set: the boundary is the
+    one learned from the marks. A click selects, shift-click a range.
+  No extra model, no extra container: Immich's search embeddings are read from its database.
+  Each user can show all pictures (sensitive ones marked on their tile), hide them, or see only
+  them; "only" lists straight from the database, and marking takes a picture out of a filtered
+  view at once. Applies to search, timeline, map, folders, people and memories; hiding also to
+  the Nextcloud search bar and the dashboard. Off until the admin allows it
+  (`sensitive_detection`) and the user turns it on under *Settings → Sensitive pictures*. Needs read access
+  to Immich's `smart_search` table and a few `asset` columns (README), and the machine-learning
+  service's address. New: `occ glimpse:sensitive`, the hourly `UpdateSensitive` job.
+
+### Changed
+- The Immich database connection moved out of `MoveTracker` into `ImmichDb`, shared by moves
+  and sensitive pictures.
+
 ## [4.7.0] - 2026-10-14
 
 ### Added

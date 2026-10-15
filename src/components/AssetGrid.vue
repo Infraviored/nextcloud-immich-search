@@ -7,7 +7,9 @@
   Grid of search hits with multi-select.
     mouse:  checkbox on hover; once something is selected, a click toggles; shift-click selects a range
     touch:  long-press selects; once something is selected, a tap toggles
-  Otherwise a click opens the file (event "open").
+  Otherwise a click opens the file (event "open"). With clickOpens (training the sensitive
+  filter) a click always opens, also while selecting; shift-click, ctrl-click and the circle
+  in the corner select.
 -->
 <template>
 	<div class="grid" :class="'grid--' + prefs.tileSize" role="list">
@@ -42,31 +44,40 @@
 					<NcIconSvgWrapper :path="mdiPlay" :size="18" />
 					<span v-if="item.at" class="tile__at">{{ clock(item.at) }}</span>
 				</span>
+				<span
+					v-if="item.sensitive && sensitiveBadge"
+					class="tile__sensitive"
+					:title="t('Sensitive')">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="sensitiveIcon" /></svg>
+					<span class="hidden-visually">{{ t('Sensitive') }}</span>
+				</span>
 			</button>
 			<button
 				class="tile__check"
 				type="button"
 				:aria-label="selected.has(item.fileId) ? t('Deselect') : t('Select')"
 				@click.stop="toggle(item, $event.shiftKey)">
-				<NcIconSvgWrapper :path="selected.has(item.fileId) ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="24" />
+				<NcIconSvgWrapper :path="selected.has(item.fileId) ? mdiCheckCircle : mdiCheckboxBlankCircleOutline" :size="22" />
 			</button>
-			<a
-				class="tile__folder"
-				:href="fileUrl(item.fileId)"
-				:title="t('Show in folder')"
-				:aria-label="t('Show in folder')"
-				@click.stop>
-				<NcIconSvgWrapper :path="mdiFolderOutline" :size="18" />
-			</a>
-			<button
-				v-if="item.id"
-				class="tile__similar"
-				type="button"
-				:title="t('Similar pictures')"
-				:aria-label="t('Similar pictures')"
-				@click.stop="emit('similar', item)">
-				<NcIconSvgWrapper :path="mdiImageMultipleOutline" :size="18" />
-			</button>
+			<div v-if="!clickOpens" class="tile__tools">
+				<a
+					class="tile__tool"
+					:href="fileUrl(item.fileId)"
+					:title="t('Show in folder')"
+					:aria-label="t('Show in folder')"
+					@click.stop>
+					<NcIconSvgWrapper :path="mdiFolderOutline" :size="18" />
+				</a>
+				<button
+					v-if="item.id"
+					class="tile__tool"
+					type="button"
+					:title="t('Similar pictures')"
+					:aria-label="t('Similar pictures')"
+					@click.stop="emit('similar', item)">
+					<NcIconSvgWrapper :path="mdiImageMultipleOutline" :size="18" />
+				</button>
+			</div>
 		</div>
 	</div>
 </template>
@@ -77,12 +88,16 @@ import { computed, onBeforeUnmount, onMounted } from 'vue'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import { fileUrl, previewUrl, thumbnailUrl } from '../api.js'
 import { t } from '../l10n.js'
+import { sensitiveIcon } from '../materialIcons.js'
 import { prefs } from '../prefs.js'
+import { sensitiveBadge } from '../sensitive.js'
 
 const props = defineProps({
 	items: { type: Array, required: true },
 	/** Set of selected file ids; the parent owns it (and the selection rules). */
 	selected: { type: Set, required: true },
+	/** A click always opens, also while selecting; shift-, ctrl-click and the corner select */
+	clickOpens: { type: Boolean, default: false },
 })
 
 /**
@@ -136,7 +151,7 @@ function onClick(item, event) {
 		pressed = false // the long-press already selected it
 		return
 	}
-	if (selecting.value || event.shiftKey || event.ctrlKey || event.metaKey) {
+	if (event.shiftKey || event.ctrlKey || event.metaKey || (selecting.value && !props.clickOpens)) {
 		toggle(item, event.shiftKey)
 	} else {
 		emit('open', item)
@@ -292,47 +307,78 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 		font-variant-numeric: tabular-nums;
 	}
 
-	&__check, &__folder, &__similar {
+	// Counted as sensitive: small and in the corner nothing else uses
+	&__sensitive {
 		position: absolute;
+		bottom: 6px;
+		left: 6px;
+		display: flex;
+		padding: 2px;
+		border-radius: 6px;
+		background: rgba(20, 22, 43, 0.72);
+		color: #fff;
+		pointer-events: none;
+
+		svg {
+			width: 16px;
+			height: 16px;
+			fill: currentColor;
+		}
+	}
+
+	// Nextcloud styles every button (padding, min sizes, margins): reset them all here
+	&__check, &__tool {
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		box-sizing: border-box;
 		margin: 0;
 		padding: 0;
+		min-width: 0;
+		min-height: 0;
 		border: 0;
 		border-radius: 50%;
-		opacity: 0;
-		transition: opacity 0.12s ease;
+		color: #fff;
 		cursor: pointer;
 	}
 
 	&__check {
-		top: 4px;
-		left: 4px;
-		width: 34px;
-		height: 34px;
-		min-height: 0;
-		background: transparent;
-		color: #fff;
-		filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.7));
-	}
-
-	&__folder, &__similar {
+		position: absolute;
 		top: 6px;
-		right: 6px;
-		width: 30px;
-		height: 30px;
-		min-height: 0;
-		background: rgba(20, 22, 43, 0.72);
-		color: #fff;
+		left: 6px;
+		width: 28px;
+		height: 28px;
+		background: rgba(20, 22, 43, 0.45);
+		opacity: 0;
+		transition: opacity 0.12s ease;
 
 		&:hover, &:focus-visible {
-			background: rgba(20, 22, 43, 0.92);
+			background: rgba(20, 22, 43, 0.7);
 		}
 	}
 
-	&__similar {
-		right: 42px;
+	// One quiet pill in the other corner, the buttons inside it
+	&__tools {
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		display: flex;
+		gap: 2px;
+		padding: 2px;
+		border-radius: 999px;
+		background: rgba(20, 22, 43, 0.6);
+		opacity: 0;
+		transition: opacity 0.12s ease;
+	}
+
+	&__tool {
+		width: 28px;
+		height: 28px;
+		background: none;
+
+		&:hover, &:focus-visible {
+			background: rgba(255, 255, 255, 0.16);
+		}
 	}
 
 	// The tools take the corner the video mark sits in
@@ -341,7 +387,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 	}
 
 	&:hover, &:focus-within {
-		.tile__check, .tile__folder, .tile__similar { opacity: 1; }
+		.tile__check, .tile__tools { opacity: 1; }
 	}
 
 	&--selected {
@@ -354,8 +400,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 
 		.tile__check, .tile__check:hover {
 			opacity: 1;
+			background: #fff;
 			color: var(--g-accent);
-			filter: drop-shadow(0 0 1px rgba(20, 22, 43, 0.9));
 		}
 	}
 }
@@ -363,7 +409,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 // Touch screens have no hover: checkboxes show while selecting; "show in folder"
 // moves to the selection bar (one picture selected) instead of cluttering every tile.
 @media (hover: none) {
-	.tile__folder, .tile__similar { display: none; }
+	.tile__tools { display: none; }
 	.tile:hover .tile__play { opacity: 1; }
 	.grid:has(.tile--selected) .tile__check { opacity: 1; }
 }

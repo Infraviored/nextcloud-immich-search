@@ -20,6 +20,7 @@
 			:photosEnabled="page.photosEnabled"
 			:memoriesPaths="page.memoriesPaths"
 			:person="peopleState.canManage ? person : null"
+			:term="term"
 			@clear="selected = new Set()"
 			@selectAll="selected = new Set(allItems.map((i) => i.fileId))"
 			@move="doTransfer('move', $event)"
@@ -30,6 +31,8 @@
 			@similar="$emit('similar', singleSelected)"
 			@faces="dialog = 'faces'"
 			@private="doPrivate"
+			@sensitive="doSensitive"
+			@upToHere="doUpToHere"
 			@delete="dialog = 'delete'"
 			@notPerson="dialog = 'notPerson'"
 			@timeline="navigate('/timeline', { at: singleSelected.date.slice(0, 10) })" />
@@ -92,9 +95,12 @@ import { usePictureActions } from '../composables/usePictureActions.js'
 import { useTransfer } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
 import { peopleState, reloadPeople } from '../people.js'
+import { userPrefs } from '../prefs.js'
 import { privateState, setPrivateFiles } from '../private.js'
 import { navigate } from '../router.js'
 import { pruneSelection, selectionActive, toggleSelection } from '../selection.js'
+import { markItems, sensitiveUpToHere } from '../sensitive.js'
+import { leavingView } from '../sensitiveRules.js'
 import { openInViewer } from '../viewer.js'
 
 const props = defineProps({
@@ -102,6 +108,8 @@ const props = defineProps({
 	groups: { type: Array, required: true },
 	/** {id, name}: the pictures are this person's; offers correcting wrong faces */
 	person: { type: Object, default: null },
+	/** The text of a search, results best first: offers "Sensitive up to here" */
+	term: { type: String, default: '' },
 })
 /**
  * removed: file ids that left this view (moved or deleted)
@@ -237,6 +245,33 @@ async function doPrivate(on) {
 			emit('removed', ids)
 		}
 	}
+}
+
+/**
+ * By hand, as sensitive or not; the tiles change, and pictures the sensitive filter no longer
+ * lets through leave the view.
+ *
+ * @param {boolean} on
+ */
+async function doSensitive(on) {
+	const ids = selected.value
+	selected.value = new Set()
+	let gone = []
+	const res = await markItems(allItems.value.filter((i) => ids.has(i.fileId)), on, {
+		// Undo brings back what the filter took out
+		onUndo: () => gone.length && emit('refresh'),
+	})
+	// "Without sensitive" or "only sensitive": what no longer fits leaves the view at once
+	gone = leavingView(res?.sensitive, userPrefs.sensitive_mode)
+	if (gone.length) {
+		emit('removed', gone)
+	}
+}
+
+async function doUpToHere() {
+	const item = singleSelected.value
+	selected.value = new Set()
+	await sensitiveUpToHere(props.term, item, allItems.value)
 }
 
 async function doDelete() {

@@ -18,6 +18,7 @@ use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\MapIndex;
 use OCA\Glimpse\Service\Permissions;
 use OCA\Glimpse\Service\PrivateArea;
+use OCA\Glimpse\Service\SensitiveContent;
 use OCA\Glimpse\Service\TileProxy;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -46,6 +47,7 @@ class BrowseController extends Controller {
 		private MapIndex $map,
 		private TileProxy $tiles,
 		private PrivateArea $privateArea,
+		private SensitiveContent $sensitive,
 		private Permissions $permissions,
 		private IL10N $l,
 		private LoggerInterface $logger,
@@ -58,8 +60,8 @@ class BrowseController extends Controller {
 	 * @param string $after ISO date: from this point forward to today, oldest first
 	 */
 	#[NoAdminRequired]
-	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = '', string $person = ''): Response {
-		return $this->guard(function () use ($page, $before, $type, $after, $person) {
+	public function timeline(int $page = 1, string $before = '', string $type = '', string $after = '', string $person = '', int $seen = 0): Response {
+		return $this->guard(function () use ($page, $before, $type, $after, $person, $seen) {
 			if ($person !== '') {
 				if (!preg_match(AssetSearch::UUID, $person)) {
 					return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
@@ -69,8 +71,10 @@ class BrowseController extends Controller {
 					return ['items' => [], 'nextPage' => null] + ($page === 1 ? ['years' => []] : []);
 				}
 			}
-			$res = $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person);
-			$res['items'] = $this->privateArea->filter($this->uid(), $res['items']);
+			// "Only sensitive": straight from the list instead of paging through everything
+			$res = ($person === '' ? $this->sensitive->onlyPage($this->uid(), '', $before !== '' ? $before : null, $after !== '' ? $after : null, $type, $page, self::PAGE_SIZE) : null)
+				?? $this->assets->timeline($this->uid(), $before !== '' ? $before : null, $page, self::PAGE_SIZE, $type, $after !== '' ? $after : null, $person, $this->sensitive->onlyFiles($this->uid()), max(0, $seen));
+			$res['items'] = $this->filter($res['items']);
 			$seenYear = null;
 			if ($page === 1 && $before === '' && $after === '' && isset($res['items'][0]['date'])) {
 				$seenYear = (int)substr((string)$res['items'][0]['date'], 0, 4);
@@ -78,7 +82,8 @@ class BrowseController extends Controller {
 			if ($page !== 1) {
 				return $res;
 			}
-			if ($person !== '' && $before === '' && $after === '' && $res['items'] === []) {
+			// In "only sensitive" mode pictures can be sparse; years of other pictures would only confuse
+			if (($person !== '' && $before === '' && $after === '' && $res['items'] === []) || $this->sensitive->mode($this->uid()) === 'only') {
 				return $res + ['years' => []];
 			}
 			return $res + ['years' => $person !== '' ? $this->assets->personYears($this->uid(), $person, $seenYear) : $this->assets->years($this->uid(), $seenYear)];
@@ -89,14 +94,14 @@ class BrowseController extends Controller {
 	public function memories(string $date = ''): Response {
 		$date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : date('Y-m-d');
 		return $this->guard(fn () => array_values(array_filter(array_map(
-			fn ($m) => ['year' => $m['year'], 'items' => $this->privateArea->filter($this->uid(), $m['items'])],
+			fn ($m) => ['year' => $m['year'], 'items' => $this->filter($m['items'])],
 			$this->discover->onThisDay($this->uid(), $date)), static fn ($m) => $m['items'] !== [])));
 	}
 
 	#[NoAdminRequired]
 	public function duplicates(): Response {
 		return $this->guard(fn () => array_values(array_filter(array_map(
-			fn ($g) => ['items' => $this->privateArea->filter($this->uid(), $g['items'])] + $g,
+			fn ($g) => ['items' => $this->filter($g['items'])] + $g,
 			$this->discover->duplicates($this->uid())), static fn ($g) => count($g['items']) >= 2)));
 	}
 
@@ -128,7 +133,7 @@ class BrowseController extends Controller {
 			if ($locked) {
 				$res['folders'] = array_values(array_filter($res['folders'], fn ($f) => !$this->privateArea->inPrivateFolder($uid, $f['path'])));
 			}
-			$res['items'] = $this->privateArea->filter($uid, $res['items']);
+			$res['items'] = $this->filter($res['items']);
 			return $res + ['private' => false];
 		});
 	}
@@ -136,7 +141,7 @@ class BrowseController extends Controller {
 	#[NoAdminRequired]
 	public function items(string $ids = ''): Response {
 		$fileIds = array_slice(array_filter(array_map('intval', explode(',', $ids))), 0, 1000);
-		return $this->guard(fn () => $this->privateArea->filter($this->uid(), $this->folders->items($this->uid(), $fileIds)));
+		return $this->guard(fn () => $this->filter($this->folders->items($this->uid(), $fileIds)));
 	}
 
 	#[NoAdminRequired]
@@ -144,11 +149,15 @@ class BrowseController extends Controller {
 		$uid = $this->uid();
 		$json = $this->map->forUser($uid);
 		$p = $this->privateArea->get($uid);
-		if (!$this->privateArea->isUnlocked() && ($p['folders'] !== [] || $p['files'] !== [] || $p['assets'] !== [])) {
+		$private = !$this->privateArea->isUnlocked() && ($p['folders'] !== [] || $p['files'] !== [] || $p['assets'] !== []);
+		$sensitive = $this->sensitive->mode($uid) !== 'all';
+		if ($private || $sensitive) {
 			$data = json_decode($json, true);
+			$flagged = $sensitive ? $this->sensitive->flagged($uid) : [];
 			// Markers: [assetId, fileId, lat, lon, video, timestamp, path]
-			$data['markers'] = array_values(array_filter($data['markers'], fn ($m) => !$this->privateArea->isPrivate($uid,
-				['id' => $m[0], 'fileId' => $m[1], 'path' => $m[6] ?? ''])));
+			$data['markers'] = array_values(array_filter($data['markers'], fn ($m) => !($private && $this->privateArea->isPrivate($uid,
+				['id' => $m[0], 'fileId' => $m[1], 'path' => $m[6] ?? '']))
+				&& (!$sensitive || $this->sensitive->keeps($uid, (int)$m[1], $flagged))));
 			$json = json_encode($data);
 		}
 		// Not cached by the browser: unlocking must show the private markers right away.
@@ -167,6 +176,11 @@ class BrowseController extends Controller {
 		} catch (\Throwable $e) {
 			return new JSONResponse(['error' => 'tile'], Http::STATUS_NOT_FOUND);
 		}
+	}
+
+	/** Without private pictures (unless unlocked); sensitive ones marked or filtered by the user's mode. */
+	private function filter(array $items): array {
+		return $this->sensitive->apply($this->uid(), $this->privateArea->filter($this->uid(), $items));
 	}
 
 	private function guard(callable $fn): Response {
