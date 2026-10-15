@@ -86,7 +86,7 @@
 					v-else-if="route.name === 'sensitive'"
 					:name="t('Sensitive pictures')">
 					<template #icon>
-						<NcIconSvgWrapper :path="mdiEyeOffOutline" />
+						<NcIconSvgWrapper :path="sensitiveIcon" />
 					</template>
 				</NcEmptyContent>
 				<SettingsView v-else-if="route.name === 'settings'" />
@@ -150,6 +150,7 @@ import SettingsView from './views/SettingsView.vue'
 import TimelineView from './views/TimelineView.vue'
 import { t } from './l10n.js'
 import { peopleState, reloadPeople } from './people.js'
+import { sensitiveIcon } from './materialIcons.js'
 import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
@@ -191,7 +192,6 @@ watch([() => route.name, sensitiveOn], ([name, on]) => {
 /** Views load again when locking or the sensitive mode changes what they may show. */
 const version = computed(() => privateState.version + '.' + sensitiveState.version)
 
-/** On the button while not everything is shown, so the filter is never forgotten. */
 /** Pages where searching makes no sense have no search pill */
 const searchable = computed(() => !['settings', 'sensitive', 'duplicates'].includes(route.name))
 

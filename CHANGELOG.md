@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.11.3] - unreleased
+## [4.11.4] - unreleased
 
 ### Changed
 - Sensitive pictures are quieter: no eye in the bar any more (what to show is under
