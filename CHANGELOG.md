@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.11.1] - unreleased
+## [4.11.2] - unreleased
 
 ### Added
 - Viewer: the picture's folder right above the actions, a click opens it in Glimpse. Admins
