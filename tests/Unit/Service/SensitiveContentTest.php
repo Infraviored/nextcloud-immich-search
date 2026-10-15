@@ -34,7 +34,7 @@ class SensitiveContentTest extends TestCase {
 	private array $prefs = [];
 	private bool $allowed = true;
 
-	private function service(): SensitiveContent {
+	private function service(?AssetSearch $assets = null, ?PrivateArea $privateArea = null): SensitiveContent {
 		$folder = $this->createMock(ISimpleFolder::class);
 		$folder->method('getFile')->willReturnCallback(function ($name) {
 			if (!isset($this->files[$name])) {
@@ -66,7 +66,7 @@ class SensitiveContentTest extends TestCase {
 
 		return new SensitiveContent($config, $prefs, $this->createMock(ImmichDb::class), $this->createMock(ImmichClient::class),
 			$assets ?? $this->createMock(AssetSearch::class), $root, $this->createMock(IClientService::class), $this->createMock(IConfig::class),
-			$this->createMock(PrivateArea::class), $factory,
+			$privateArea ?? $this->createMock(PrivateArea::class), $factory,
 			$this->createMock(LoggerInterface::class));
 	}
 
