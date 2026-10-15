@@ -492,7 +492,6 @@
         "Recognises nudity, so you can mark such pictures, hide them or look at only them. Recognised on this server from what Immich already knows about each picture; nothing leaves it. Only you see what is recognised or marked for you.": "Erkennt Nacktheit, damit du solche Bilder markieren, ausblenden oder nur sie ansehen kannst. Erkannt wird auf diesem Server aus dem, was Immich ohnehin über jedes Bild weiß; nichts verlässt ihn. Was für dich erkannt oder markiert ist, siehst nur du.",
         "Recognise sensitive pictures": "Heikle Bilder erkennen",
         "Sensitivity": "Empfindlichkeit",
-        "Mark them on the tiles": "Auf den Kacheln kennzeichnen",
         "Review recognised pictures": "Erkannte Bilder durchsehen",
         "Recompute now": "Jetzt neu berechnen",
         "Mark pictures that were recognised wrongly, or missed, in the viewer or with a selection. Your marks always count, and the recognition learns from them within the hour.": "Falsch erkannte oder übersehene Bilder markierst du im Viewer oder über eine Auswahl. Deine Markierungen gelten immer, und die Erkennung lernt innerhalb einer Stunde daraus.",
@@ -581,7 +580,9 @@
         "“{folder}” is ignored from now on": "„{folder}“ wird ab jetzt ignoriert",
         "This file is not indexed by Glimpse": "Diese Datei ist nicht von Glimpse indexiert",
         "The root folder cannot be ignored": "Der oberste Ordner kann nicht ignoriert werden",
-        "Only folders you own or that are shared as a whole can be ignored": "Nur Ordner, die du besitzt oder die als Ganzes geteilt wurden, können ignoriert werden"
+        "Only folders you own or that are shared as a whole can be ignored": "Nur Ordner, die du besitzt oder die als Ganzes geteilt wurden, können ignoriert werden",
+        "Show": "Zeigen",
+        "Show a small mark on sensitive pictures": "Heikle Bilder mit einer kleinen Markierung zeigen"
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }

@@ -28,34 +28,6 @@
 						@submit="search"
 						@clear="route.name === 'search' && search()" />
 					<div class="bar__tools">
-						<!-- Sensitive content, when turned on: all, without, or only those; everywhere.
-							 Only an icon, as quiet as the others: the eye says which -->
-						<NcActions
-							v-if="sensitiveOn"
-							variant="tertiary"
-							:aria-label="sensitiveLabel"
-							:title="sensitiveLabel">
-							<template #icon>
-								<NcIconSvgWrapper :path="sensitiveModeIcon" />
-							</template>
-							<NcActionButton
-								v-for="m in sensitiveModes"
-								:key="m.value"
-								type="radio"
-								:modelValue="userPrefs.sensitive_mode"
-								:value="m.value"
-								:closeAfterClick="true"
-								@click="setSensitiveMode(m.value)">
-								{{ m.label }}
-							</NcActionButton>
-							<NcActionSeparator />
-							<NcActionButton :closeAfterClick="true" @click="navigate('/sensitive')">
-								<template #icon>
-									<NcIconSvgWrapper :path="mdiSort" />
-								</template>
-								{{ t('Train the sensitive filter') }}
-							</NcActionButton>
-						</NcActions>
 						<NcButton
 							variant="tertiary"
 							:aria-label="privateState.unlocked ? t('Hide private pictures') : t('Show private pictures')"
@@ -156,12 +128,9 @@
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiEyeCheckOutline, mdiEyeOffOutline, mdiEyeOutline, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiSort } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import NcActionButton from '@nextcloud/vue/components/NcActionButton'
-import NcActions from '@nextcloud/vue/components/NcActions'
-import NcActionSeparator from '@nextcloud/vue/components/NcActionSeparator'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcContent from '@nextcloud/vue/components/NcContent'
@@ -185,7 +154,7 @@ import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
-import { sensitiveModes, sensitiveOn, sensitiveState, setSensitiveMode } from './sensitive.js'
+import { sensitiveOn, sensitiveState } from './sensitive.js'
 import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
@@ -223,8 +192,6 @@ watch([() => route.name, sensitiveOn], ([name, on]) => {
 const version = computed(() => privateState.version + '.' + sensitiveState.version)
 
 /** On the button while not everything is shown, so the filter is never forgotten. */
-const sensitiveLabel = computed(() => ({ hide: t('Sensitive pictures: hidden'), only: t('Sensitive pictures: only those') })[userPrefs.sensitive_mode] ?? t('Sensitive pictures: shown'))
-const sensitiveModeIcon = computed(() => ({ hide: mdiEyeOffOutline, only: mdiEyeCheckOutline })[userPrefs.sensitive_mode] ?? mdiEyeOutline)
 /** Pages where searching makes no sense have no search pill */
 const searchable = computed(() => !['settings', 'sensitive', 'duplicates'].includes(route.name))
 

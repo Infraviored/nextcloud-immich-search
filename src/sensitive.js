@@ -22,7 +22,7 @@ export const sensitiveState = reactive({ version: 0 })
 export const sensitiveOn = computed(() => !!page.sensitiveAvailable && !!userPrefs.sensitive_enabled)
 
 /** Show the mark on tiles. */
-export const sensitiveBadge = computed(() => sensitiveOn.value && userPrefs.sensitive_badge !== false)
+export const sensitiveBadge = computed(() => sensitiveOn.value && userPrefs.sensitive_badge === true)
 
 export const sensitiveModes = [
 	{ value: 'all', label: t('All pictures') },

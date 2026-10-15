@@ -32,7 +32,7 @@ class UserPrefs {
 		// all: everything, marked; hide: without sensitive pictures; only: just those
 		'sensitive_mode' => ['enum:all,hide,only', 'all'],
 		// The mark on tiles
-		'sensitive_badge' => ['bool', true],
+		'sensitive_badge' => ['bool', false],
 	];
 
 	public function __construct(

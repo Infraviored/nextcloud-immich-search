@@ -3,6 +3,13 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.11.3] - unreleased
+
+### Changed
+- Sensitive pictures are quieter: no eye in the bar any more (what to show is under
+  *Settings → Sensitive pictures*, the trainer too); the mark on tiles is small and light, and
+  off unless the user turns it on.
+
 ## [4.11.2] - unreleased
 
 ### Added
