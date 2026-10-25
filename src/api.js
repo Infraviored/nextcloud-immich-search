@@ -36,8 +36,15 @@ export async function search({ q = '', page = 1, person = '', type = '', literal
 	return data
 }
 
+let lastWarm = 0
+
 /** Lets Immich load its search model before the first search; fire and forget. */
 export function warmUp() {
+	const now = Date.now()
+	if (now - lastWarm < 60_000) {
+		return
+	}
+	lastWarm = now
 	axios.post(url('/api/warmup')).catch(() => {})
 }
 
