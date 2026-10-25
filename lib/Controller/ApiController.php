@@ -148,6 +148,19 @@ class ApiController extends Controller {
 		});
 	}
 
+	/**
+	 * Lets Immich load its search model now (app or search opened), so the first search does
+	 * not wait for it. The answer carries nothing; clients do not wait for it.
+	 */
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 30, period: 60)]
+	public function warmup(): JSONResponse {
+		return $this->guard(function () {
+			$this->uid();
+			return new JSONResponse(['warming' => $this->search->warmUp()]);
+		});
+	}
+
 	/** The Immich side of a Nextcloud file (Files app integration). */
 	#[NoAdminRequired]
 	public function assetForFile(int $fileId): JSONResponse {

@@ -148,9 +148,10 @@ import SearchView from './views/SearchView.vue'
 import SensitiveView from './views/SensitiveView.vue'
 import SettingsView from './views/SettingsView.vue'
 import TimelineView from './views/TimelineView.vue'
+import { warmUp } from './api.js'
 import { t } from './l10n.js'
-import { peopleState, reloadPeople } from './people.js'
 import { sensitiveIcon } from './materialIcons.js'
+import { peopleState, reloadPeople } from './people.js'
 import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
@@ -226,6 +227,7 @@ function onWidth() {
 onMounted(() => {
 	phone.addEventListener('change', onWidth)
 	if (page.configured) {
+		warmUp()
 		reloadPeople()
 		loadPrivate()
 	}

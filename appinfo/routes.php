@@ -22,6 +22,7 @@ return [
 		['name' => 'page#index', 'url' => '/sensitive', 'verb' => 'GET', 'postfix' => 'sensitive'],
 
 		['name' => 'api#search',          'url' => '/api/search',                'verb' => 'GET'],
+		['name' => 'api#warmup', 'url' => '/api/warmup', 'verb' => 'POST'],
 		['name' => 'api#thumbnail',       'url' => '/api/assets/{id}/thumbnail', 'verb' => 'GET'],
 		['name' => 'api#assetForFile', 'url' => '/api/files/{fileId}/asset', 'verb' => 'GET'],
 

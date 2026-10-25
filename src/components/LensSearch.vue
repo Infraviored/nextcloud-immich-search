@@ -15,6 +15,7 @@
 			enterkeyhint="search"
 			:placeholder="placeholder"
 			:aria-label="label || placeholder"
+			@focus="warmUp"
 			@input="$emit('update:modelValue', $event.target.value)"
 			@blur="$emit('blur')">
 		<button
@@ -33,6 +34,7 @@ import { mdiClose } from '@mdi/js'
 import { ref } from 'vue'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import LensMark from './LensMark.vue'
+import { warmUp } from '../api.js'
 import { t } from '../l10n.js'
 
 defineProps({

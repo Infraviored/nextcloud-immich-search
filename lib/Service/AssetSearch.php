@@ -34,6 +34,7 @@ use OCP\Share\IShare;
  * the file still resolves for the user: a revoked share ends access right away.
  */
 class AssetSearch {
+	private const WARMUP_EVERY = 60;
 	public const UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
 	private const TYPES = ['IMAGE', 'VIDEO'];
 	private const GRANT_TTL = 86400;
@@ -61,6 +62,7 @@ class AssetSearch {
 	/** @var array<string, array{0: ?string, 1: ?Node}> */
 	private array $owners = [];
 	private ?int $minSize = null;
+	private ICache $warm;
 
 	public function __construct(
 		private ImmichClient $immich,
@@ -74,6 +76,21 @@ class AssetSearch {
 		$this->grants = $cacheFactory->createDistributed('glimpse_grants_v2');
 		$this->yearCache = $cacheFactory->createDistributed('glimpse_years');
 		$this->videos = $cacheFactory->createDistributed('glimpse_videos');
+		$this->warm = $cacheFactory->createDistributed('glimpse_warmup');
+	}
+
+	/**
+	 * A one-hit text search, so Immich's machine learning loads its text model before the user
+	 * has finished typing: it unloads after idle time and the first search then waits for the
+	 * load. Once a minute at most, whoever asks; false when skipped.
+	 */
+	public function warmUp(): bool {
+		if ($this->warm->get('last') !== null) {
+			return false;
+		}
+		$this->warm->set('last', 1, self::WARMUP_EVERY);
+		$this->immich->json('POST', '/search/smart', ['query' => 'photo', 'page' => 1, 'size' => 1]);
+		return true;
 	}
 
 	/**
