@@ -508,4 +508,44 @@ class AssetSearchTest extends TestCase {
 		$this->assertCount(1, $res['items']);
 		$this->assertNull($res['nextPage'], 'all files in onlyFiles found, ends with nextPage null even on subsequent pages');
 	}
+
+	public function testWarmUpRunsOnceEveryMinute(): void {
+		$stored = null;
+		$cache = $this->createMock(ICache::class);
+		$cache->expects($this->once())
+			->method('set')
+			->with('last', 1, 60)
+			->willReturnCallback(function ($k, $v) use (&$stored) {
+				$stored = $v;
+				return true;
+			});
+		$cache->method('get')
+			->with('last')
+			->willReturnCallback(fn () => $stored);
+
+		$caches = $this->createMock(ICacheFactory::class);
+		$caches->method('createDistributed')->willReturn($cache);
+
+		$immich = $this->createMock(ImmichClient::class);
+		$immich->expects($this->once())
+			->method('json')
+			->with('POST', '/search/smart', ['query' => 'photo', 'page' => 1, 'size' => 1])
+			->willReturn(['assets' => []]);
+
+		$search = new AssetSearch(
+			$immich,
+			new Config($this->createMock(IConfig::class), $this->createMock(ICrypto::class)),
+			$this->createMock(IRootFolder::class),
+			$this->createMock(IUserManager::class),
+			$caches,
+			$this->createMock(IShareManager::class),
+		);
+
+		// First call: cache empty, sets 'last' with TTL 60, calls Immich once, returns true
+		$this->assertTrue($search->warmUp());
+
+		// Second call: 'last' is set, returns false, makes no Immich call
+		$this->assertFalse($search->warmUp());
+	}
 }
+
