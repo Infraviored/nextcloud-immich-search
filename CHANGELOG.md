@@ -3,7 +3,7 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.12.0] - unreleased
+## [4.12.1] - unreleased
 
 ### Added
 - The search model warms up when Glimpse opens and when the search field gets focus

@@ -521,7 +521,9 @@ class AssetSearchTest extends TestCase {
 			});
 		$cache->method('get')
 			->with('last')
-			->willReturnCallback(fn () => $stored);
+			->willReturnCallback(function () use (&$stored) {
+				return $stored;
+			});
 
 		$caches = $this->createMock(ICacheFactory::class);
 		$caches->method('createDistributed')->willReturn($cache);

@@ -58,7 +58,7 @@ Immich to the Nextcloud data directory, Nextcloud cron, and ffmpeg on the Nextcl
 search inside videos). Setup guide:
 [README](https://github.com/Infraviored/nextcloud-immich-search#install).
 	]]></description>
-	<version>4.12.0</version>
+	<version>4.12.1</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>
