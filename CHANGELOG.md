@@ -3,14 +3,21 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.11.4] - unreleased
+## [4.12.0] - unreleased
+
+### Added
+- The search model warms up when Glimpse opens and when the search field gets focus
+  (`POST /api/warmup`, once a minute at most): Immich's machine learning unloads its text model
+  after idle time, and the first search then waited for the load. Now it loads while you type.
+
+## [4.11.4] - 2026-10-24
 
 ### Changed
 - Sensitive pictures are quieter: no eye in the bar any more (what to show is under
   *Settings → Sensitive pictures*, the trainer too); the mark on tiles is small and light, and
   off unless the user turns it on.
 
-## [4.11.2] - unreleased
+## [4.11.2] - 2026-10-24
 
 ### Added
 - Viewer: the picture's folder right above the actions, a click opens it in Glimpse. Admins
@@ -22,7 +29,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), ve
   have (the info sheet has the same).
 - Person page: the name is smaller, and "Unnamed" is no longer cut off and pushed down.
 
-## [4.10.8] - unreleased
+## [4.10.8] - 2026-10-24
 
 ### Added
 - **Sensitive pictures (optional).** Each user decides what counts:

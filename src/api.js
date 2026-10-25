@@ -36,6 +36,11 @@ export async function search({ q = '', page = 1, person = '', type = '', literal
 	return data
 }
 
+/** Lets Immich load its search model before the first search; fire and forget. */
+export function warmUp() {
+	axios.post(url('/api/warmup')).catch(() => {})
+}
+
 export async function listPeople() {
 	return (await axios.get(url('/api/people'))).data
 }
