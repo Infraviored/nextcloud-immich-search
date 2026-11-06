@@ -380,6 +380,16 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 		}
 	}
 
+	// Nextcloud's global button rules outweigh the plain classes: its margin pushes a button out
+	// of line, and the icon inside stops being centred
+	button.tile__check, button.tile__tool {
+		margin: 0;
+	}
+
+	button.tile__check :deep(.icon-vue), button.tile__tool :deep(.icon-vue) {
+		display: flex;
+	}
+
 	// The tools take the corner the video mark sits in
 	&:hover .tile__play, &:focus-within .tile__play {
 		opacity: 0;

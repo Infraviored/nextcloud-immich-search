@@ -3,6 +3,12 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.12.4] - unreleased
+
+### Fixed
+- The tools on a tile line up again: the similar pictures button sat lower than the folder button,
+  with its icon off centre.
+
 ## [4.12.3] - unreleased
 
 ### Changed
