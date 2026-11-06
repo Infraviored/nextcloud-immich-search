@@ -18,7 +18,7 @@
 								:class="{ 'bar__shield--safe': !sensitiveVisible }"
 								variant="tertiary"
 								size="small"
-								:disabled="!sensitiveVisible"
+								:disabled="!sensitiveVisible || sensitiveSaving"
 								:aria-label="t('Without sensitive pictures')"
 								:title="t('Without sensitive pictures')"
 								@click="setSensitiveMode('hide')">
@@ -174,7 +174,7 @@ import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
-import { sensitiveOn, sensitiveState, sensitiveVisible, setSensitiveMode } from './sensitive.js'
+import { sensitiveOn, sensitiveSaving, sensitiveState, sensitiveVisible, setSensitiveMode } from './sensitive.js'
 import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
