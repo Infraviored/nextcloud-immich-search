@@ -269,7 +269,10 @@ onMounted(() => {
 		route.name = start.name
 	}
 })
-onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
+onBeforeUnmount(() => {
+	clearTimeout(shieldTimer)
+	phone.removeEventListener('change', onWidth)
+})
 </script>
 
 <style scoped lang="scss">
