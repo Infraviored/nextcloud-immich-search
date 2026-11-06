@@ -19,8 +19,8 @@
 								variant="tertiary"
 								size="small"
 								:disabled="!sensitiveVisible || sensitiveSaving"
-								:aria-label="t('Without sensitive pictures')"
-								:title="t('Without sensitive pictures')"
+								:aria-label="sensitiveVisible ? t('Hide sensitive pictures') : t('Without sensitive pictures')"
+								:title="sensitiveVisible ? t('Hide sensitive pictures') : t('Without sensitive pictures')"
 								@click="setSensitiveMode('hide')">
 								<template #icon>
 									<NcIconSvgWrapper :path="sensitiveVisible ? mdiShieldOffOutline : mdiShieldCheckOutline" :size="18" />

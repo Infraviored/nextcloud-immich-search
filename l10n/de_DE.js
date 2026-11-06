@@ -213,6 +213,7 @@ OC.L10N.register(
         "Glimpse is not set up yet": "Glimpse ist noch nicht eingerichtet",
         "Hide": "Ausblenden",
         "Hide private pictures": "Private Bilder verbergen",
+        "Hide sensitive pictures": "Heikle Bilder ausblenden",
         "ICO (icons)": "ICO (Icons)",
         "Immich address": "Immich-Adresse",
         "Immich answered with HTTP %s": "Immich antwortet mit HTTP %s",
