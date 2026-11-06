@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { leavingView } from '../../src/sensitiveRules.js'
+import { leavingView, nextSensitiveMode } from '../../src/sensitiveRules.js'
 
 describe('leavingView', () => {
 	const answer = { 1: true, 2: false, 3: true }
@@ -23,5 +23,12 @@ describe('leavingView', () => {
 
 	it('copes with no answer', () => {
 		expect(leavingView(null, 'hide')).toEqual([])
+	})
+})
+
+describe('nextSensitiveMode', () => {
+	it('only ever moves towards fewer sensitive pictures', () => {
+		expect(nextSensitiveMode('only')).toBe('all')
+		expect(nextSensitiveMode('all')).toBe('hide')
 	})
 })

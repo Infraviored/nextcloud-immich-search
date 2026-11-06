@@ -9,7 +9,21 @@
 		<NcAppContent :pageTitle="t('Glimpse')">
 			<div class="glimpse" :class="{ 'glimpse--narrow': narrow }">
 				<header class="bar">
-					<a class="bar__brand g-display" :href="href(startPath)" @click.prevent="navigate(startPath)">Glimpse</a>
+					<div class="bar__name">
+						<a class="bar__brand g-display" :href="href(startPath)" @click.prevent="navigate(startPath)">Glimpse</a>
+						<NcButton
+							v-if="sensitiveVisible"
+							class="bar__shield"
+							variant="tertiary"
+							size="small"
+							:aria-label="sensitiveLabel"
+							:title="sensitiveLabel"
+							@click="stepSensitiveMode">
+							<template #icon>
+								<NcIconSvgWrapper :path="userPrefs.sensitive_mode === 'only' ? mdiShieldAlertOutline : mdiShieldOffOutline" :size="18" />
+							</template>
+						</NcButton>
+					</div>
 					<nav v-if="!narrow" class="tabs" :aria-label="t('Glimpse')">
 						<a
 							v-for="v in views"
@@ -128,7 +142,7 @@
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiShieldAlertOutline, mdiShieldOffOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
@@ -156,10 +170,12 @@ import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
-import { sensitiveOn, sensitiveState } from './sensitive.js'
+import { sensitiveModes, sensitiveOn, sensitiveState, sensitiveVisible, stepSensitiveMode } from './sensitive.js'
 import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
+
+const sensitiveLabel = computed(() => sensitiveModes.find((m) => m.value === userPrefs.sensitive_mode)?.label)
 
 // Searching has no tab: the search pill is always there.
 const views = [
@@ -266,6 +282,17 @@ onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 	padding: 14px 28px;
 	background: var(--g-scrim);
 	backdrop-filter: blur(12px);
+
+	&__name {
+		display: flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 2px;
+	}
+
+	&__shield {
+		color: var(--g-muted);
+	}
 
 	&__brand {
 		flex: 0 0 auto;
