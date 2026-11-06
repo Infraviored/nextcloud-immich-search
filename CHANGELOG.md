@@ -3,6 +3,12 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.12.2] - unreleased
+
+### Added
+- A small shield next to the name while sensitive pictures can show. A click hides them; the safe
+  shield confirms it and fades out.
+
 ## [4.12.1] - unreleased
 
 ### Added
