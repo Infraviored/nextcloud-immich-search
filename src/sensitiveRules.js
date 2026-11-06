@@ -19,14 +19,3 @@ export function leavingView(sensitive, mode) {
 		.filter(([, on]) => (mode === 'hide' ? on : !on))
 		.map(([id]) => Number(id))
 }
-
-/**
- * What a tap on the shield switches to. It only ever moves towards fewer sensitive pictures,
- * so someone looking at the screen never gets "only sensitive" by accident.
- *
- * @param {'all'|'only'} mode
- * @return {'all'|'hide'}
- */
-export function nextSensitiveMode(mode) {
-	return mode === 'only' ? 'all' : 'hide'
-}

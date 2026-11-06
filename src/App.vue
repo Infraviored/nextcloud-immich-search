@@ -11,18 +11,22 @@
 				<header class="bar">
 					<div class="bar__name">
 						<a class="bar__brand g-display" :href="href(startPath)" @click.prevent="navigate(startPath)">Glimpse</a>
-						<NcButton
-							v-if="sensitiveVisible"
-							class="bar__shield"
-							variant="tertiary"
-							size="small"
-							:aria-label="sensitiveLabel"
-							:title="sensitiveLabel"
-							@click="stepSensitiveMode">
-							<template #icon>
-								<NcIconSvgWrapper :path="userPrefs.sensitive_mode === 'only' ? mdiShieldAlertOutline : mdiShieldOffOutline" :size="18" />
-							</template>
-						</NcButton>
+						<Transition name="bar__shield">
+							<NcButton
+								v-if="sensitiveVisible || shieldSafe"
+								class="bar__shield"
+								:class="{ 'bar__shield--safe': !sensitiveVisible }"
+								variant="tertiary"
+								size="small"
+								:disabled="!sensitiveVisible"
+								:aria-label="t('Without sensitive pictures')"
+								:title="t('Without sensitive pictures')"
+								@click="setSensitiveMode('hide')">
+								<template #icon>
+									<NcIconSvgWrapper :path="sensitiveVisible ? mdiShieldOffOutline : mdiShieldCheckOutline" :size="18" />
+								</template>
+							</NcButton>
+						</Transition>
 					</div>
 					<nav v-if="!narrow" class="tabs" :aria-label="t('Glimpse')">
 						<a
@@ -142,7 +146,7 @@
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiShieldAlertOutline, mdiShieldOffOutline } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiShieldCheckOutline, mdiShieldOffOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
@@ -170,12 +174,23 @@ import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
-import { sensitiveModes, sensitiveOn, sensitiveState, sensitiveVisible, stepSensitiveMode } from './sensitive.js'
+import { sensitiveOn, sensitiveState, sensitiveVisible, setSensitiveMode } from './sensitive.js'
 import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
 
-const sensitiveLabel = computed(() => sensitiveModes.find((m) => m.value === userPrefs.sensitive_mode)?.label)
+// After sensitive pictures went away the safe shield says so for a moment, then fades out
+const shieldSafe = ref(false)
+let shieldTimer
+watch(sensitiveVisible, (visible, was) => {
+	clearTimeout(shieldTimer)
+	shieldSafe.value = was && !visible
+	if (shieldSafe.value) {
+		shieldTimer = setTimeout(() => {
+			shieldSafe.value = false
+		}, 1200)
+	}
+})
 
 // Searching has no tab: the search pill is always there.
 const views = [
@@ -292,6 +307,20 @@ onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 
 	&__shield {
 		color: var(--g-muted);
+
+		&--safe,
+		&--safe:disabled {
+			color: var(--g-accent-text, var(--g-accent));
+			opacity: 1;
+		}
+
+		&-leave-active {
+			transition: opacity 0.4s ease;
+		}
+
+		&-leave-to {
+			opacity: 0;
+		}
 	}
 
 	&__brand {

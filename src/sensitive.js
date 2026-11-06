@@ -9,7 +9,6 @@ import { computed, reactive } from 'vue'
 import { errorMessage, markSensitive, setSensitiveTerm } from './api.js'
 import { n, t } from './l10n.js'
 import { saveUserPrefs, userPrefs } from './prefs.js'
-import { nextSensitiveMode } from './sensitiveRules.js'
 
 const page = loadState('glimpse', 'page', { sensitiveAvailable: false })
 
@@ -33,11 +32,6 @@ export const sensitiveModes = [
 
 /** Sensitive pictures can show right now: the shield next to the name says so. */
 export const sensitiveVisible = computed(() => sensitiveOn.value && userPrefs.sensitive_mode !== 'hide')
-
-/** The shield's tap. */
-export function stepSensitiveMode() {
-	return setSensitiveMode(nextSensitiveMode(userPrefs.sensitive_mode))
-}
 
 /**
  * @param {'all'|'hide'|'only'} mode
