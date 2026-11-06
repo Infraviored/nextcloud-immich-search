@@ -9,7 +9,25 @@
 		<NcAppContent :pageTitle="t('Glimpse')">
 			<div class="glimpse" :class="{ 'glimpse--narrow': narrow }">
 				<header class="bar">
-					<a class="bar__brand g-display" :href="href(startPath)" @click.prevent="navigate(startPath)">Glimpse</a>
+					<div class="bar__name">
+						<a class="bar__brand g-display" :href="href(startPath)" @click.prevent="navigate(startPath)">Glimpse</a>
+						<Transition name="bar__shield">
+							<NcButton
+								v-if="sensitiveVisible || shieldSafe"
+								class="bar__shield"
+								:class="{ 'bar__shield--safe': !sensitiveVisible }"
+								variant="tertiary"
+								size="small"
+								:disabled="!sensitiveVisible || sensitiveSaving"
+								:aria-label="sensitiveVisible ? t('Hide sensitive pictures') : t('Without sensitive pictures')"
+								:title="sensitiveVisible ? t('Hide sensitive pictures') : t('Without sensitive pictures')"
+								@click="setSensitiveMode('hide')">
+								<template #icon>
+									<NcIconSvgWrapper :path="sensitiveVisible ? mdiShieldOffOutline : mdiShieldCheckOutline" :size="18" />
+								</template>
+							</NcButton>
+						</Transition>
+					</div>
 					<nav v-if="!narrow" class="tabs" :aria-label="t('Glimpse')">
 						<a
 							v-for="v in views"
@@ -128,7 +146,7 @@
 </template>
 
 <script setup>
-import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline } from '@mdi/js'
+import { mdiCogOutline, mdiContentDuplicate, mdiImageSearchOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiShieldCheckOutline, mdiShieldOffOutline } from '@mdi/js'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
@@ -156,10 +174,23 @@ import { userPrefs } from './prefs.js'
 import { loadPrivate, privateState, togglePrivate } from './private.js'
 import { href, navigate, replaceQuery, route } from './router.js'
 import { selectionActive } from './selection.js'
-import { sensitiveOn, sensitiveState } from './sensitive.js'
+import { sensitiveOn, sensitiveSaving, sensitiveState, sensitiveVisible, setSensitiveMode } from './sensitive.js'
 import { viewerState } from './viewer.js'
 
 const page = loadState('glimpse', 'page', { configured: false, isAdmin: false })
+
+// After sensitive pictures went away the safe shield says so for a moment, then fades out
+const shieldSafe = ref(false)
+let shieldTimer
+watch(sensitiveVisible, (visible, was) => {
+	clearTimeout(shieldTimer)
+	shieldSafe.value = was && !visible
+	if (shieldSafe.value) {
+		shieldTimer = setTimeout(() => {
+			shieldSafe.value = false
+		}, 1200)
+	}
+})
 
 // Searching has no tab: the search pill is always there.
 const views = [
@@ -238,7 +269,10 @@ onMounted(() => {
 		route.name = start.name
 	}
 })
-onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
+onBeforeUnmount(() => {
+	clearTimeout(shieldTimer)
+	phone.removeEventListener('change', onWidth)
+})
 </script>
 
 <style scoped lang="scss">
@@ -266,6 +300,31 @@ onBeforeUnmount(() => phone.removeEventListener('change', onWidth))
 	padding: 14px 28px;
 	background: var(--g-scrim);
 	backdrop-filter: blur(12px);
+
+	&__name {
+		display: flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 2px;
+	}
+
+	&__shield {
+		color: var(--g-muted);
+
+		&--safe,
+		&--safe:disabled {
+			color: var(--g-accent-text, var(--g-accent));
+			opacity: 1;
+		}
+
+		&-leave-active {
+			transition: opacity 0.4s ease;
+		}
+
+		&-leave-to {
+			opacity: 0;
+		}
+	}
 
 	&__brand {
 		flex: 0 0 auto;

@@ -5,7 +5,7 @@
 
 import { showError, showSuccess, showUndo } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { errorMessage, markSensitive, setSensitiveTerm } from './api.js'
 import { n, t } from './l10n.js'
 import { saveUserPrefs, userPrefs } from './prefs.js'
@@ -30,18 +30,27 @@ export const sensitiveModes = [
 	{ value: 'only', label: t('Only sensitive pictures') },
 ]
 
+/** Sensitive pictures can show right now: the shield next to the name says so. */
+export const sensitiveVisible = computed(() => sensitiveOn.value && userPrefs.sensitive_mode !== 'hide')
+
+/** In-flight guard: a second click while saving is pending does nothing. */
+export const sensitiveSaving = ref(false)
+
 /**
  * @param {'all'|'hide'|'only'} mode
  */
 export async function setSensitiveMode(mode) {
-	if (userPrefs.sensitive_mode === mode) {
+	if (sensitiveSaving.value || userPrefs.sensitive_mode === mode) {
 		return
 	}
+	sensitiveSaving.value = true
 	try {
 		await saveUserPrefs({ sensitive_mode: mode })
 		sensitiveState.version++
 	} catch (e) {
 		showError(errorMessage(e))
+	} finally {
+		sensitiveSaving.value = false
 	}
 }
 

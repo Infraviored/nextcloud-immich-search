@@ -138,7 +138,6 @@ class SensitiveContentTest extends TestCase {
 		$this->assertSame([4 => true], $this->service()->flagged('u'));
 	}
 
-
 	public function testSetTermRejectsUnseenPicture(): void {
 		$assets = $this->createMock(AssetSearch::class);
 		$assets->method('maySee')->willReturn(false);

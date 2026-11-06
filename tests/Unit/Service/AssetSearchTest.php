@@ -550,4 +550,3 @@ class AssetSearchTest extends TestCase {
 		$this->assertFalse($search->warmUp());
 	}
 }
-
