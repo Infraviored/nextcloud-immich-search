@@ -108,7 +108,7 @@
 					</NcActionButton>
 					<NcActionButton :closeAfterClick="true" @click="$emit('sensitive', false)">
 						<template #icon>
-							<NcIconSvgWrapper :path="sensitiveIcon" />
+							<NcIconSvgWrapper :path="notSensitiveIcon" />
 						</template>
 						{{ t('Mark as not sensitive') }}
 					</NcActionButton>
@@ -213,7 +213,7 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { fileUrl, inMemories, memoriesUrl } from '../api.js'
 import { recentTargets as recent } from '../composables/useTransfer.js'
 import { n, t } from '../l10n.js'
-import { sensitiveIcon } from '../materialIcons.js'
+import { notSensitiveIcon, sensitiveIcon } from '../materialIcons.js'
 import { sensitiveOn } from '../sensitive.js'
 import { downloadZip } from '../zip.js'
 

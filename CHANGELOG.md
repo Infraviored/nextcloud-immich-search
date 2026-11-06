@@ -3,6 +3,12 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.12.3] - unreleased
+
+### Changed
+- Sensitive pictures show the shield everywhere: viewer, tiles, selection and settings, instead of
+  the crossed-out eye.
+
 ## [4.12.2] - unreleased
 
 ### Added
