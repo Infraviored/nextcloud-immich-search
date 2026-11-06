@@ -180,6 +180,25 @@ Abnahme: Ein neues 64×64-PNG in Nextcloud erzeugt keinen Analyse-Job mehr (prü
 | 5 | 6, 7 | Gesichter und Privates |
 | 6 | 8, 9 | Integration und Release |
 
+## Vorschläge
+
+### Flashback (Florian, 2026-11-06)
+
+Vorbild: die Erinnerungen in Snapchat. Oben auf der Startseite liegt eine Reihe großer Karten
+mit einem Foto und einem Titel wie „Flashback vom 1. November“. Antippen spielt die Bilder
+dieses Tages nacheinander ab.
+
+- **Aufbau auf „An diesem Tag“:** `/memories` liefert schon die Bilder eines Tages aus früheren
+  Jahren. Neu wären die Karten, das Abspielen und die Auswahl der Tage.
+- **Auch die letzten Tage:** Snapchat zeigt nicht nur das heutige Datum. Sinnvoll wäre eine Karte
+  je Tag der letzten Tage, damit ein verpasster Flashback nicht weg ist.
+- **Web und App:** zuerst die App, dort passt die Geste am besten; im Web dieselben Karten über
+  der Zeitleiste.
+- **Filter:** Private und heikle Bilder gelten wie überall; das Titelbild darf nie ein heikles
+  Bild sein, auch nicht im Modus „alle“.
+
+Noch offen: Wo genau die Reihe steht, und ob eine Benachrichtigung dazukommt.
+
 ## Offene Fragen
 
 1. ~~Name der App für den Store~~ – entschieden: Glimpse.
