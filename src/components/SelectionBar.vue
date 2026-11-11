@@ -160,6 +160,18 @@
 						</template>
 						{{ t('Show in folder') }}
 					</NcActionLink>
+					<NcActionButton :closeAfterClick="true" @click="showOnlyFolder">
+						<template #icon>
+							<NcIconSvgWrapper :path="mdiFolderEyeOutline" />
+						</template>
+						{{ t('Show only this folder') }}
+					</NcActionButton>
+					<NcActionButton v-if="singleFolder !== '/'" :closeAfterClick="true" @click="doHideFolder">
+						<template #icon>
+							<NcIconSvgWrapper :path="mdiFolderOffOutline" />
+						</template>
+						{{ t('Hide this folder') }}
+					</NcActionButton>
 					<NcActionLink :href="shareHref">
 						<template #icon>
 							<NcIconSvgWrapper :path="mdiShareVariantOutline" />
@@ -188,7 +200,9 @@ import {
 	mdiContentCopy,
 	mdiDownload,
 	mdiFaceRecognition,
+	mdiFolderEyeOutline,
 	mdiFolderMove,
+	mdiFolderOffOutline,
 	mdiFolderOutline,
 	mdiImageAlbum,
 	mdiImageFilterHdr,
@@ -212,8 +226,10 @@ import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { fileUrl, inMemories, memoriesUrl } from '../api.js'
 import { recentTargets as recent } from '../composables/useTransfer.js'
+import { hideFolder } from '../hiddenFolders.js'
 import { n, t } from '../l10n.js'
 import { notSensitiveIcon, sensitiveIcon } from '../materialIcons.js'
+import { navigate } from '../router.js'
 import { sensitiveOn } from '../sensitive.js'
 import { downloadZip } from '../zip.js'
 
@@ -232,7 +248,26 @@ const props = defineProps({
 	/** The text of the search the pictures come from, best first: offers "Sensitive up to here" */
 	term: { type: String, default: '' },
 })
-defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'sensitive', 'upToHere', 'delete', 'notPerson', 'timeline'])
+const emit = defineEmits(['clear', 'selectAll', 'move', 'copy', 'favorite', 'tag', 'album', 'similar', 'faces', 'private', 'sensitive', 'upToHere', 'delete', 'notPerson', 'timeline'])
+
+const singleFolder = computed(() => props.single?.path ? props.single.path.slice(0, props.single.path.lastIndexOf('/')) || '/' : '/')
+
+function showOnlyFolder() {
+	emit('clear')
+	navigate('/folders', { path: singleFolder.value })
+}
+
+async function doHideFolder() {
+	const fileId = props.single?.fileId
+	emit('clear')
+	if (fileId) {
+		try {
+			await hideFolder(fileId)
+		} catch {
+			// handled in hideFolder
+		}
+	}
+}
 
 const shareHref = computed(() => {
 	const dir = props.single.path.slice(0, props.single.path.lastIndexOf('/')) || '/'

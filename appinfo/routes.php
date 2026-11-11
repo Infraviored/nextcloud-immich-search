@@ -66,6 +66,10 @@ return [
 		['name' => 'private#unlock', 'url' => '/api/private/unlock', 'verb' => 'POST'],
 		['name' => 'private#lock', 'url' => '/api/private/lock', 'verb' => 'POST'],
 
+		['name' => 'hidden_folders#get', 'url' => '/api/hidden-folders', 'verb' => 'GET'],
+		['name' => 'hidden_folders#hide', 'url' => '/api/hidden-folders', 'verb' => 'POST'],
+		['name' => 'hidden_folders#set', 'url' => '/api/hidden-folders', 'verb' => 'PUT'],
+
 		['name' => 'sensitive#status', 'url' => '/api/sensitive', 'verb' => 'GET'],
 		['name' => 'sensitive#mark', 'url' => '/api/sensitive/marks', 'verb' => 'POST'],
 		['name' => 'sensitive#rebuild', 'url' => '/api/sensitive/rebuild', 'verb' => 'POST'],

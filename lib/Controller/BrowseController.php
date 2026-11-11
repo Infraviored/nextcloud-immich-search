@@ -14,6 +14,7 @@ use OCA\Glimpse\Service\AssetSearch;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\Discover;
 use OCA\Glimpse\Service\FolderBrowser;
+use OCA\Glimpse\Service\HiddenFolders;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\MapIndex;
 use OCA\Glimpse\Service\Permissions;
@@ -51,6 +52,7 @@ class BrowseController extends Controller {
 		private Permissions $permissions,
 		private IL10N $l,
 		private LoggerInterface $logger,
+		private ?HiddenFolders $hiddenFolders = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -125,16 +127,17 @@ class BrowseController extends Controller {
 		return $this->guard(function () use ($path) {
 			$uid = $this->uid();
 			$res = $this->folders->list($uid, $path);
+			$hidden = $this->hiddenFolders?->isHidden($uid, $res['path']) ?? false;
 			// A private folder stays closed until unlocked; its private subfolders are not listed.
 			$locked = !$this->privateArea->isUnlocked();
 			if ($locked && $this->privateArea->inPrivateFolder($uid, $res['path'])) {
-				return ['path' => $res['path'], 'folders' => [], 'items' => [], 'truncated' => false, 'private' => true];
+				return ['path' => $res['path'], 'folders' => [], 'items' => [], 'truncated' => false, 'private' => true, 'hidden' => $hidden];
 			}
 			if ($locked) {
 				$res['folders'] = array_values(array_filter($res['folders'], fn ($f) => !$this->privateArea->inPrivateFolder($uid, $f['path'])));
 			}
-			$res['items'] = $this->filter($res['items']);
-			return $res + ['private' => false];
+			$res['items'] = $this->sensitive->apply($uid, $this->privateArea->filter($uid, $res['items']));
+			return $res + ['private' => false, 'hidden' => $hidden];
 		});
 	}
 
@@ -151,13 +154,15 @@ class BrowseController extends Controller {
 		$p = $this->privateArea->get($uid);
 		$private = !$this->privateArea->isUnlocked() && ($p['folders'] !== [] || $p['files'] !== [] || $p['assets'] !== []);
 		$sensitive = $this->sensitive->mode($uid) !== 'all';
-		if ($private || $sensitive) {
+		$hasHidden = $this->hiddenFolders !== null && $this->hiddenFolders->get($uid) !== [];
+		if ($private || $sensitive || $hasHidden) {
 			$data = json_decode($json, true);
 			$flagged = $sensitive ? $this->sensitive->flagged($uid) : [];
 			// Markers: [assetId, fileId, lat, lon, video, timestamp, path]
 			$data['markers'] = array_values(array_filter($data['markers'], fn ($m) => !($private && $this->privateArea->isPrivate($uid,
 				['id' => $m[0], 'fileId' => $m[1], 'path' => $m[6] ?? '']))
-				&& (!$sensitive || $this->sensitive->keeps($uid, (int)$m[1], $flagged))));
+				&& (!$sensitive || $this->sensitive->keeps($uid, (int)$m[1], $flagged))
+				&& !($hasHidden && $this->hiddenFolders->isHidden($uid, (string)($m[6] ?? '')))));
 			$json = json_encode($data);
 		}
 		// Not cached by the browser: unlocking must show the private markers right away.
@@ -178,9 +183,13 @@ class BrowseController extends Controller {
 		}
 	}
 
-	/** Without private pictures (unless unlocked); sensitive ones marked or filtered by the user's mode. */
+	/** Without private pictures (unless unlocked); sensitive ones marked or filtered by the user's mode; without hidden folders. */
 	private function filter(array $items): array {
-		return $this->sensitive->apply($this->uid(), $this->privateArea->filter($this->uid(), $items));
+		$filtered = $this->privateArea->filter($this->uid(), $items);
+		if ($this->hiddenFolders !== null) {
+			$filtered = $this->hiddenFolders->filter($this->uid(), $filtered);
+		}
+		return $this->sensitive->apply($this->uid(), $filtered);
 	}
 
 	private function guard(callable $fn): Response {

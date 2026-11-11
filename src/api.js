@@ -330,3 +330,15 @@ export async function rebuildSensitive() {
 export async function checkSensitive() {
 	return (await axios.get(url('/api/admin/sensitive-check'))).data
 }
+
+export async function getHiddenFolders() {
+	return (await axios.get(url('/api/hidden-folders'))).data
+}
+
+export async function hideFolder(fileId) {
+	return (await axios.post(url('/api/hidden-folders'), { fileId })).data
+}
+
+export async function setHiddenFolders(folders) {
+	return (await axios.put(url('/api/hidden-folders'), { folders })).data
+}

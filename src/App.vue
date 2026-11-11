@@ -167,6 +167,7 @@ import SensitiveView from './views/SensitiveView.vue'
 import SettingsView from './views/SettingsView.vue'
 import TimelineView from './views/TimelineView.vue'
 import { warmUp } from './api.js'
+import { hiddenFoldersState } from './hiddenFolders.js'
 import { t } from './l10n.js'
 import { sensitiveIcon } from './materialIcons.js'
 import { peopleState, reloadPeople } from './people.js'
@@ -222,7 +223,7 @@ watch([() => route.name, sensitiveOn], ([name, on]) => {
 }, { immediate: true })
 
 /** Views load again when locking or the sensitive mode changes what they may show. */
-const version = computed(() => privateState.version + '.' + sensitiveState.version)
+const version = computed(() => privateState.version + '.' + sensitiveState.version + '.' + hiddenFoldersState.version)
 
 /** Pages where searching makes no sense have no search pill */
 const searchable = computed(() => !['settings', 'sensitive', 'duplicates'].includes(route.name))
