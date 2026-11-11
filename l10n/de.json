@@ -583,7 +583,14 @@
         "The root folder cannot be ignored": "Der oberste Ordner kann nicht ignoriert werden",
         "Only folders you own or that are shared as a whole can be ignored": "Nur Ordner, die du besitzt oder die als Ganzes geteilt wurden, können ignoriert werden",
         "Show": "Zeigen",
-        "Show a small mark on sensitive pictures": "Heikle Bilder mit einer kleinen Markierung zeigen"
+        "Show a small mark on sensitive pictures": "Heikle Bilder mit einer kleinen Markierung zeigen",
+        "Show only this folder": "Nur diesen Ordner zeigen",
+        "Hide this folder": "Diesen Ordner ausblenden",
+        "“{folder}” hidden": "„{folder}“ ausgeblendet",
+        "Hidden folders": "Ausgeblendete Ordner",
+        "Hide a folder from a picture's menu.": "Einen Ordner über das Menü eines Bildes ausblenden.",
+        "This folder is hidden from your timeline and search": "Dieser Ordner ist in deiner Zeitleiste und Suche ausgeblendet",
+        "The root folder cannot be hidden": "Der oberste Ordner kann nicht ausgeblendet werden"
     },
     "pluralForm": "nplurals=2; plural=(n != 1);"
 }

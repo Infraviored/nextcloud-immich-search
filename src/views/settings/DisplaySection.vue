@@ -36,12 +36,33 @@
 			{{ t('Include videos by default') }}
 		</NcCheckboxRadioSwitch>
 
+		<h3>{{ t('Hidden folders') }}</h3>
+		<p v-if="!hiddenFolders.length" class="hint">
+			{{ t("Hide a folder from a picture's menu.") }}
+		</p>
+		<ul v-else class="list">
+			<li v-for="f in hiddenFolders" :key="f">
+				<code>{{ f }}</code>
+				<NcButton variant="tertiary" :aria-label="t('Remove')" @click="removeFolder(f)">
+					<template #icon>
+						<NcIconSvgWrapper :path="mdiClose" />
+					</template>
+				</NcButton>
+			</li>
+		</ul>
 	</div>
 </template>
 
 <script setup>
+import { mdiClose } from '@mdi/js'
+import { showError } from '@nextcloud/dialogs'
+import { onMounted, ref } from 'vue'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
+import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
+import { errorMessage, getHiddenFolders, setHiddenFolders } from '../../api.js'
 import { useAction } from '../../composables/useAction.js'
+import { hiddenFoldersState } from '../../hiddenFolders.js'
 import { t } from '../../l10n.js'
 import { prefs, saveUserPrefs, userPrefs } from '../../prefs.js'
 
@@ -60,10 +81,45 @@ const views = [
 	{ value: 'folders', label: t('Folders') },
 ]
 
+const hiddenFolders = ref([])
+
+onMounted(async () => {
+	try {
+		hiddenFolders.value = (await getHiddenFolders()).folders || []
+	} catch {
+		hiddenFolders.value = []
+	}
+})
+
+async function removeFolder(f) {
+	const next = hiddenFolders.value.filter((x) => x !== f)
+	try {
+		const res = await setHiddenFolders(next)
+		hiddenFolders.value = res.folders || next
+		hiddenFoldersState.version++
+	} catch (e) {
+		showError(errorMessage(e))
+	}
+}
+
 const save = (changes) => act(() => saveUserPrefs(changes), t('Saved'))
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .hint { color: var(--color-text-maxcontrast); }
 h3 { margin-top: 20px; }
+
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 0;
+	list-style: none;
+
+	li {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+}
 </style>

@@ -12,6 +12,7 @@ namespace OCA\Glimpse\Controller;
 use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\AssetSearch;
 use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\HiddenFolders;
 use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\PeopleNames;
@@ -47,6 +48,7 @@ class ApiController extends Controller {
 		private TagFilter $tagFilter,
 		private IL10N $l,
 		private LoggerInterface $logger,
+		private ?HiddenFolders $hiddenFolders = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -175,7 +177,11 @@ class ApiController extends Controller {
 
 	/** Leave out what the user marked private, unless unlocked; sensitive pictures by their mode. */
 	private function private(string $uid, array $res): array {
-		$res['items'] = $this->sensitive->apply($uid, $this->privateArea->filter($uid, $res['items']));
+		$items = $this->privateArea->filter($uid, $res['items']);
+		if ($this->hiddenFolders !== null) {
+			$items = $this->hiddenFolders->filter($uid, $items);
+		}
+		$res['items'] = $this->sensitive->apply($uid, $items);
 		return $res;
 	}
 

@@ -12,6 +12,7 @@ namespace OCA\Glimpse\Search;
 use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\AssetSearch;
 use OCA\Glimpse\Service\Config;
+use OCA\Glimpse\Service\HiddenFolders;
 use OCA\Glimpse\Service\PeopleNames;
 use OCA\Glimpse\Service\PrivateArea;
 use OCA\Glimpse\Service\SensitiveContent;
@@ -45,6 +46,7 @@ class ImmichProvider implements IProvider {
 		private IURLGenerator $url,
 		IFactory $l10nFactory,
 		private LoggerInterface $logger,
+		private ?HiddenFolders $hiddenFolders = null,
 	) {
 		// The app's translations, also when built outside the app's DI container.
 		$this->l = $l10nFactory->get(Application::APP_ID);
@@ -95,8 +97,12 @@ class ImmichProvider implements IProvider {
 		}
 
 		// Private pictures never show up here, not even when unlocked in the app; sensitive ones
-		// not when the user hides them.
-		$entries = array_map(fn (array $a) => $this->entry($a), $this->sensitive->apply($uid, $this->privateArea->filter($uid, $res['items'], false), true));
+		// not when the user hides them; drop hidden folders.
+		$unhidden = $this->privateArea->filter($uid, $res['items'], false);
+		if ($this->hiddenFolders !== null) {
+			$unhidden = $this->hiddenFolders->filter($uid, $unhidden);
+		}
+		$entries = array_map(fn (array $a) => $this->entry($a), $this->sensitive->apply($uid, $unhidden, true));
 		if ($query->getCursor() === null && $entries !== [] && $this->config->get('search_open_all')) {
 			// The search bar cannot select or move; this hands the search over to the app.
 			array_unshift($entries, new SearchResultEntry(

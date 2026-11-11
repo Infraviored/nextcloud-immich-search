@@ -12,6 +12,7 @@ namespace OCA\Glimpse\Dashboard;
 use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\Discover;
+use OCA\Glimpse\Service\HiddenFolders;
 use OCA\Glimpse\Service\PrivateArea;
 use OCA\Glimpse\Service\SensitiveContent;
 use OCP\Dashboard\IAPIWidgetV2;
@@ -36,6 +37,7 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 		private IConfig $serverConfig,
 		IFactory $l10nFactory,
 		private LoggerInterface $logger,
+		private ?HiddenFolders $hiddenFolders = null,
 	) {
 		$this->l = $l10nFactory->get(Application::APP_ID);
 	}
@@ -77,7 +79,11 @@ class MemoriesWidget implements IAPIWidgetV2, IIconWidget {
 			$today = new \DateTimeImmutable('now', $this->timezone($userId));
 			foreach ($this->discover->onThisDay($userId, $today->format('Y-m-d')) as $memory) {
 				// Never private pictures on the dashboard; sensitive ones not when the user hides them
-				foreach ($this->sensitive->apply($userId, $this->privateArea->filter($userId, $memory['items'], false), true) as $a) {
+				$unhidden = $this->privateArea->filter($userId, $memory['items'], false);
+				if ($this->hiddenFolders !== null) {
+					$unhidden = $this->hiddenFolders->filter($userId, $unhidden);
+				}
+				foreach ($this->sensitive->apply($userId, $unhidden, true) as $a) {
 					$years = (int)$today->format('Y') - $memory['year'];
 					$items[] = new WidgetItem(
 						$a['name'],

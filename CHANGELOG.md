@@ -3,6 +3,15 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.13.0] - unreleased
+
+### Added
+- Hide folders from timeline, search, map, memories and people samples per user (`GET/POST/PUT /api/hidden-folders`).
+- Quick "Show only this folder" action on open pictures and selection bar to view the folder gallery.
+- "Hide this folder" action on open pictures and selection bar with an undo toast.
+- Slim notice with "Show again" button when browsing a hidden folder.
+- List of hidden folders under *Settings → Display* to review and unhide folders.
+
 ## [4.12.4] - unreleased
 
 ### Fixed

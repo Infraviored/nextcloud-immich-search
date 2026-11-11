@@ -13,6 +13,7 @@ use OCA\Glimpse\AppInfo\Application;
 use OCA\Glimpse\Service\AssetSearch;
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\FaceCropper;
+use OCA\Glimpse\Service\HiddenFolders;
 use OCA\Glimpse\Service\ImmichClient;
 use OCA\Glimpse\Service\ImmichException;
 use OCA\Glimpse\Service\PeopleIndex;
@@ -54,6 +55,7 @@ class PeopleController extends Controller {
 		private Config $config,
 		private IL10N $l,
 		private LoggerInterface $logger,
+		private ?HiddenFolders $hiddenFolders = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -156,7 +158,7 @@ class PeopleController extends Controller {
 			$hide = $this->sensitive->mode($this->uid()) === 'hide' ? $this->sensitive->flagged($this->uid()) : [];
 			foreach ($res['items'] ?? [] as $a) {
 				$item = $this->assets->visibleItem($this->uid(), $a);
-				if ($item !== null && !isset($hide[$item['fileId']])) {
+				if ($item !== null && !isset($hide[$item['fileId']]) && !($this->hiddenFolders?->isHidden($this->uid(), (string)($item['path'] ?? '')) ?? false)) {
 					$ids[] = $a['id'];
 				}
 			}

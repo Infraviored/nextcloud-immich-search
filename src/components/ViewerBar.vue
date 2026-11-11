@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import { mdiFolderOffOutline, mdiOpenInNew } from '@mdi/js'
+import { mdiFolderEyeOutline, mdiFolderOffOutline, mdiOpenInNew } from '@mdi/js'
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import { loadState } from '@nextcloud/initial-state'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
@@ -139,6 +139,7 @@ import TagDialog from './TagDialog.vue'
 import { errorMessage, excludeFolder, faceUrl, getFaces, publicLink } from '../api.js'
 import { usePictureActions } from '../composables/usePictureActions.js'
 import { useTransfer } from '../composables/useTransfer.js'
+import { hideFolder } from '../hiddenFolders.js'
 import { n, t } from '../l10n.js'
 import { albumIcon, copyIcon, deleteIcon, downloadIcon, favoriteIcon, folderIcon, infoIcon, moveIcon, sensitiveIcon, shareIcon, similarIcon, tagIcon } from '../materialIcons.js'
 import { navigate } from '../router.js'
@@ -189,8 +190,22 @@ const sheetRows = computed(() => [
 	{ key: 'copy', icon: copyIcon, label: t('Copy to folder …'), run: () => transfer('copy') },
 	page.photosEnabled && { key: 'album', icon: albumIcon, label: t('Add to album …'), run: () => openDialog('album') },
 	{ key: 'tag', icon: tagIcon, label: t('Tag …'), run: () => openDialog('tag') },
+	{ key: 'show-only-folder', icon: mdiFolderEyeOutline, label: t('Show only this folder'), run: () => go('/folders', { path: folder.value }) },
+	folder.value !== '/' && { key: 'hide-folder', icon: mdiFolderOffOutline, label: t('Hide this folder'), run: onHideFolder },
 	page.isAdmin && folder.value !== '/' && { key: 'ignore', icon: mdiFolderOffOutline, label: t('Ignore this folder …'), run: () => openDialog('ignore') },
 ].filter(Boolean))
+
+async function onHideFolder() {
+	const fileId = item.value?.fileId
+	closeViewer()
+	if (fileId) {
+		try {
+			await hideFolder(fileId)
+		} catch {
+			// handled in hideFolder
+		}
+	}
+}
 
 /** Who is in the picture, loaded when the info sheet opens. */
 let loads = 0

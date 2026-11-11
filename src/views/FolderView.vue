@@ -33,6 +33,13 @@
 			</NcButton>
 		</nav>
 
+		<div v-if="data.hidden" class="folders__notice">
+			<span>{{ t('This folder is hidden from your timeline and search') }}</span>
+			<NcButton variant="tertiary" size="small" @click="unhideFolder">
+				{{ t('Show again') }}
+			</NcButton>
+		</div>
+
 		<NcLoadingIcon v-if="loading" :size="32" />
 		<NcEmptyContent v-else-if="data.private" :name="t('Private folder')" :description="t('Unlock the private area to see it.')">
 			<template #icon>
@@ -81,13 +88,15 @@
 
 <script setup>
 import { mdiFolderOutline, mdiHomeOutline, mdiLock, mdiLockOpenVariantOutline } from '@mdi/js'
+import { showError } from '@nextcloud/dialogs'
 import { computed, onMounted, ref } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import MediaBrowser from '../components/MediaBrowser.vue'
-import { errorMessage, folder } from '../api.js'
+import { errorMessage, folder, getHiddenFolders, setHiddenFolders } from '../api.js'
+import { hiddenFoldersState } from '../hiddenFolders.js'
 import { n, t } from '../l10n.js'
 import { isPrivateFolder, privateState, setPrivateLists, togglePrivate } from '../private.js'
 import { navigate, replaceQuery, route } from '../router.js'
@@ -150,12 +159,38 @@ function similar(item) {
 	navigate('/', { similar: item.id, name: item.name })
 }
 
+async function unhideFolder() {
+	try {
+		const current = (await getHiddenFolders()).folders || []
+		const target = data.value.path
+		const next = current.filter((f) => f !== target && !target.startsWith(f + '/'))
+		await setHiddenFolders(next)
+		data.value.hidden = false
+		hiddenFoldersState.version++
+	} catch (e) {
+		showError(errorMessage(e))
+	}
+}
+
 onMounted(load)
 </script>
 
 <style scoped lang="scss">
 .folders {
 	&__spacer { flex: 1; }
+
+	&__notice {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 6px 12px;
+		margin-bottom: 12px;
+		border-radius: var(--border-radius-large);
+		background-color: var(--color-background-hover);
+		color: var(--color-text-maxcontrast);
+		font-size: 0.9rem;
+	}
 
 	&__crumbs {
 		display: flex;
