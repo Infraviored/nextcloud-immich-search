@@ -19,22 +19,20 @@ use Psr\Log\LoggerInterface;
  *
  * Immich can only exclude by path, not by size, and reads the size only after importing.
  * So this runs right behind it: images whose shorter side is below the minimum are
- * trashed in Immich (the Nextcloud file is untouched – the mount is read-only) and their
- * path is added to the libraries' exclusion patterns, so they are not imported again when
- * Immich empties its trash. A folder that holds only tiny images is excluded as a whole,
- * but only for the file types found there ("icons/*.{gif,png}"): videos and photos of
- * other types that land there later are still indexed.
+ * trashed in Immich (the Nextcloud file is untouched – the mount is read-only). A trashed
+ * library asset stays trashed across library scans. Once Immich empties its trash, the
+ * file is imported again and the next run (every 15 minutes) trashes it again.
+ *
+ * The paths are deliberately NOT written into the libraries' exclusion patterns any more:
+ * Immich turns all patterns into one case-insensitive regex that Postgres runs against
+ * every asset of the library when it marks offline files. With ~1,800 paths (245 kB) that
+ * single query ran for hours at 100 % CPU (2026-11-14).
  *
  * Only assets of the Nextcloud libraries are looked at (library set, path under the path
  * pattern): what the service account uploaded itself has no copy in Nextcloud.
  *
- * Immich allows at most 128 exclusion patterns per library, so the entries are packed into
- * brace patterns "{/a/x.png,/b/icons/*.png,…}" (see pack()). Each must stay under 10000
- * characters: longer ones make Immich's disk crawl fail for the whole library (tested on
- * 3.2: 7.6 kB works and excludes; 28 kB and 70 kB break the scan).
- *
- * State: "pruned_entries" is the list of entries (escaped globs) the exclusion patterns are
- * built from; "pruned_paths" maps each entry to the real path it stands for (file, or the
+ * State: "pruned_entries" is the list of entries (escaped globs) for what was taken out,
+ * a whole folder of tiny images as "icons/*.{gif,png}" (counted on the admin page); "pruned_paths" maps each entry to the real path it stands for (file, or the
  * folder of a folder entry), so a full run can tell which entries still matter.
  *
  * Tested on Immich 3.2: a trashed library asset stays trashed across library scans.
@@ -45,13 +43,10 @@ class SmallImagePruner {
 	private const PAGE = 1000;
 	/** A folder with at least this many tiny images and no normal one is excluded as a whole. */
 	private const FOLDER_MIN = 3;
-	/** Longest brace pattern, safely under Immich's 10000-character limit. */
-	private const PACK_MAX = 8000;
 
 	public function __construct(
 		private ImmichClient $immich,
 		private Config $config,
-		private IndexAdmin $index,
 		private IRootFolder $rootFolder,
 		private ILockingProvider $locks,
 		private LoggerInterface $logger,
@@ -86,23 +81,16 @@ class SmallImagePruner {
 	}
 
 	/**
-	 * Forget every entry and write the exclusions without them. The way out when the list
-	 * no longer fits Immich's limits; a full run afterwards builds it up again (it sees the
-	 * images trashed before, too).
+	 * Forget every entry; a full run afterwards builds the list up again (it sees the images
+	 * trashed before, too).
 	 *
-	 * @return int exclusion patterns written per library, summed
 	 * @throws LockedException when a run is going on
 	 */
-	public function reset(): int {
-		return $this->exclusive(function () {
-			// Written first, saved after: a failure leaves the old entries, which still match Immich.
-			$applied = $this->index->applyExclusions(false, []);
-			$this->clear();
-			return $applied;
-		});
+	public function reset(): void {
+		$this->exclusive(fn () => $this->clear());
 	}
 
-	/** Forget every entry, without touching Immich (the caller applies the exclusions). Hold the lock. */
+	/** Forget every entry. Hold the lock. */
 	public function clear(): void {
 		$this->config->setState('pruned_entries', []);
 		$this->config->setState('pruned_paths', []);
@@ -171,9 +159,6 @@ class SmallImagePruner {
 		$entries = array_map('strval', $entries);
 
 		if ($entries !== $oldEntries) {
-			// Exclude first, then save, then trash: a failed write keeps the old list (which is
-			// what Immich has), and a failed trash call is fine as the next scan skips them.
-			$this->index->applyExclusions(false, $entries);
 			$this->config->setState('pruned_entries', $entries);
 			$this->config->setState('pruned_paths', $paths);
 		}
@@ -320,34 +305,5 @@ class SmallImagePruner {
 	 */
 	public static function escape(string $path): string {
 		return preg_replace('/[\\\\*?\[\]{}()!+@,]/', '?', $path);
-	}
-
-	/**
-	 * Pack entries into as few brace patterns as fit PACK_MAX characters each.
-	 *
-	 * @param list<string> $entries escaped paths or folder globs
-	 * @return list<string>
-	 */
-	public static function pack(array $entries, int $max = self::PACK_MAX): array {
-		$out = [];
-		$chunk = [];
-		$len = 2;
-		foreach ($entries as $e) {
-			if ($chunk !== [] && $len + strlen($e) + 1 > $max) {
-				$out[] = self::brace($chunk);
-				$chunk = [];
-				$len = 2;
-			}
-			$chunk[] = $e;
-			$len += strlen($e) + 1;
-		}
-		if ($chunk !== []) {
-			$out[] = self::brace($chunk);
-		}
-		return $out;
-	}
-
-	private static function brace(array $chunk): string {
-		return count($chunk) === 1 ? $chunk[0] : '{' . implode(',', $chunk) . '}';
 	}
 }

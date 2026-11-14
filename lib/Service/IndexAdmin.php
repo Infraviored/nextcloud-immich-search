@@ -144,8 +144,7 @@ class IndexAdmin {
 		}
 		$me = $this->immich->json('GET', '/users/me');
 		$path = rtrim(str_replace(Config::USER_PLACEHOLDER, $uid, $this->config->getPathPattern()), '/');
-		// Only this user's pruned entries, packed for this library, like applyExclusions() does.
-		$patterns = $this->managedPatterns([$path]);
+		$patterns = $this->managedPatterns();
 		self::checkLimit(count($patterns));
 		$this->rememberManaged($patterns);
 		$lib = $this->immich->json('POST', '/libraries', [
@@ -161,18 +160,15 @@ class IndexAdmin {
 	/**
 	 * Write the configured exclusions into every library and rescan. Patterns the admin
 	 * added in Immich by hand are kept: only the ones this app wrote before are replaced.
-	 *
-	 * @param ?list<string> $prunedEntries entries of SmallImagePruner to write instead of the
-	 *                                     stored ones (it saves them only once they are written)
 	 */
-	public function applyExclusions(bool $scan = true, ?array $prunedEntries = null): int {
+	public function applyExclusions(bool $scan = true): int {
 		$old = $this->config->getState('managed_patterns');
 		// Check every library before writing any, so a pattern list that does not fit is not
 		// half applied.
 		$plan = [];
 		$all = [];
 		foreach ($this->immich->json('GET', '/libraries') as $lib) {
-			$new = $this->managedPatterns($lib['importPaths'] ?? [], $prunedEntries);
+			$new = $this->managedPatterns();
 			array_push($all, ...$new);
 			$own = array_values(array_diff($lib['exclusionPatterns'] ?? [], $old, $new));
 			self::checkLimit(count($own) + count($new));
@@ -208,11 +204,12 @@ class IndexAdmin {
 	}
 
 	/**
-	 * @param ?array $importPaths only pruned entries under these paths (per library); null = all
-	 * @param ?list<string> $prunedEntries instead of the stored ones
-	 * @return list<string> glob patterns from the excluded formats and folders
+	 * Patterns from the excluded formats and folders. Tiny images taken out by
+	 * SmallImagePruner are not among them: they stay in Immich's trash (see there).
+	 *
+	 * @return list<string>
 	 */
-	public function managedPatterns(?array $importPaths = null, ?array $prunedEntries = null): array {
+	public function managedPatterns(): array {
 		$patterns = [];
 		foreach ($this->config->get('excluded_formats') as $ext) {
 			$ext = ltrim(strtolower($ext), '.*');
@@ -224,20 +221,6 @@ class IndexAdmin {
 		foreach ($this->config->get('excluded_folders') as $folder) {
 			$patterns[] = self::folderPattern($folder);
 		}
-		// Paths of tiny images taken out by SmallImagePruner, packed into a few brace patterns
-		// because Immich allows only 128 patterns per library.
-		$entries = $prunedEntries ?? $this->config->getState('pruned_entries');
-		if ($importPaths !== null) {
-			$entries = array_values(array_filter($entries, static function ($e) use ($importPaths) {
-				foreach ($importPaths as $p) {
-					if (str_starts_with($e, SmallImagePruner::escape(rtrim($p, '/')) . '/')) {
-						return true;
-					}
-				}
-				return false;
-			}));
-		}
-		array_push($patterns, ...SmallImagePruner::pack($entries));
 		return array_values(array_unique($patterns));
 	}
 

@@ -3,7 +3,15 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
-## [4.13.0] - unreleased
+## [4.13.1] - 2026-11-14
+
+### Fixed
+- Tiny images are no longer written into Immich's exclusion patterns; they stay in Immich's
+  trash and are trashed again should Immich empty it. With ~1,800 paths the patterns became one
+  245 kB regex that kept Postgres at 100 % CPU for hours during every library scan. An upgrade
+  step rewrites the patterns once without them.
+
+## [4.13.0] - 2026-11-13
 
 ### Added
 - Hide folders from timeline, search, map, memories and people samples per user (`GET/POST/PUT /api/hidden-folders`).
