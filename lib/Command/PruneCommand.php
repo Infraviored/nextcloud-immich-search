@@ -18,8 +18,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * occ glimpse:prune [--full] — take tiny images out of Immich now.
- * occ glimpse:prune --reset [--full] — forget every entry (e.g. when the exclusion patterns no
- * longer fit Immich's limit), and with --full build them up again right away.
+ * occ glimpse:prune --reset [--full] — forget every entry, and with --full build the list up
+ * again right away.
  */
 class PruneCommand extends Command {
 	public function __construct(
@@ -32,14 +32,14 @@ class PruneCommand extends Command {
 		$this->setName('glimpse:prune')
 			->setDescription('Take images below the minimum size out of Immich (normally every 15 minutes, new images only)')
 			->addOption('full', null, InputOption::VALUE_NONE, 'Check every image, not only new ones')
-			->addOption('reset', null, InputOption::VALUE_NONE, 'Forget every taken-out image and write the exclusion patterns without them first');
+			->addOption('reset', null, InputOption::VALUE_NONE, 'Forget every taken-out image first');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
 		try {
 			if ($input->getOption('reset')) {
 				$this->pruner->reset();
-				$output->writeln('Entries cleared, exclusion patterns written without them');
+				$output->writeln('Entries cleared');
 				if (!$input->getOption('full')) {
 					return self::SUCCESS;
 				}

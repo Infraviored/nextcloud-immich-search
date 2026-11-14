@@ -60,7 +60,6 @@ class IndexAdminTest extends TestCase {
 			}
 			if ($m === 'PUT') {
 				// Every pattern of this run is recorded before the first library is written.
-				$this->assertContains('/m/bob/x.png', $config->getState('managed_patterns'));
 				$this->assertContains('**/*.ico', $config->getState('managed_patterns'));
 				if ($e === '/libraries/b') {
 					throw new \RuntimeException('Immich down');
@@ -70,18 +69,37 @@ class IndexAdminTest extends TestCase {
 			return [];
 		});
 		try {
-			$this->admin($config, $immich)->applyExclusions(false, ['/m/alice/a.png', '/m/bob/x.png']);
+			$this->admin($config, $immich)->applyExclusions(false);
 			$this->fail('expected the error to come through');
 		} catch (\RuntimeException) {
 		}
-		// Admin's own pattern kept, the old managed one replaced, only alice's entry for alice.
-		$this->assertSame(['mine/**', '**/*.svg', '**/*.SVG', '/m/alice/a.png'], $puts['/libraries/a']);
+		// Admin's own pattern kept, the old managed one replaced.
+		$this->assertSame(['mine/**', '**/*.svg', '**/*.SVG'], $puts['/libraries/a']);
 		// Still known as ours after the failure, so the next run replaces them.
-		$this->assertEqualsCanonicalizing(['**/*.ico', '**/*.svg', '**/*.SVG', '/m/alice/a.png', '/m/bob/x.png'], $config->getState('managed_patterns'));
+		$this->assertEqualsCanonicalizing(['**/*.ico', '**/*.svg', '**/*.SVG'], $config->getState('managed_patterns'));
+	}
+
+	public function testTinyImagePathsAreNoLongerWritten(): void {
+		$config = $this->config(['excluded_formats' => '["svg"]', 'path_pattern' => '/m/{user}/']);
+		$old = '{/m/alice/a.png,/m/alice/icons/*.{gif,png}}';
+		$config->setState('managed_patterns', ['**/*.svg', '**/*.SVG', $old]);
+		$config->setState('pruned_entries', ['/m/alice/a.png', '/m/alice/icons/*.{gif,png}']);
+		$immich = $this->createMock(ImmichClient::class);
+		$puts = [];
+		$immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use (&$puts) {
+			if ($m === 'GET') {
+				return [['id' => 'a', 'importPaths' => ['/m/alice'], 'exclusionPatterns' => ['**/*.svg', '**/*.SVG', '{/m/alice/a.png,/m/alice/icons/*.{gif,png}}', 'mine/**']]];
+			}
+			$puts[$e] = $b['exclusionPatterns'];
+			return [];
+		});
+		$this->assertSame(2, $this->admin($config, $immich)->applyExclusions(false));
+		$this->assertSame(['mine/**', '**/*.svg', '**/*.SVG'], $puts['/libraries/a']);
+		$this->assertSame(['**/*.svg', '**/*.SVG'], $config->getState('managed_patterns'));
 	}
 
 	public function testTooManyPatternsWritesNothing(): void {
-		$config = $this->config(['excluded_formats' => '[]', 'path_pattern' => '/m/{user}/']);
+		$config = $this->config(['excluded_formats' => '["svg"]', 'path_pattern' => '/m/{user}/']);
 		$libs = [
 			['id' => 'a', 'importPaths' => ['/m/alice'], 'exclusionPatterns' => []],
 			['id' => 'b', 'importPaths' => ['/m/bob'], 'exclusionPatterns' => array_map(fn ($i) => "own$i/**", range(1, 128))],
@@ -92,10 +110,10 @@ class IndexAdminTest extends TestCase {
 			return $libs;
 		});
 		$this->expectException(\InvalidArgumentException::class);
-		$this->admin($config, $immich)->applyExclusions(false, ['/m/bob/x.png']);
+		$this->admin($config, $immich)->applyExclusions(false);
 	}
 
-	public function testNewLibraryGetsOnlyItsUsersEntries(): void {
+	public function testNewLibraryGetsNoTinyImagePaths(): void {
 		$config = $this->config(['excluded_formats' => '[]', 'path_pattern' => '/m/{user}/']);
 		$config->setState('pruned_entries', ['/m/alice/a.png', '/m/bob/b.png']);
 		$users = $this->createMock(IUserManager::class);
@@ -111,7 +129,6 @@ class IndexAdminTest extends TestCase {
 		});
 		$this->admin($config, $immich, $users)->createLibrary('bob');
 		$this->assertSame(['/m/bob'], $created['importPaths']);
-		$this->assertSame(['/m/bob/b.png'], $created['exclusionPatterns']);
-		$this->assertContains('/m/bob/b.png', $config->getState('managed_patterns'));
+		$this->assertSame([], $created['exclusionPatterns']);
 	}
 }

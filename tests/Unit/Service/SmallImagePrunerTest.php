@@ -11,7 +11,6 @@ namespace OCA\Glimpse\Tests\Unit\Service;
 
 use OCA\Glimpse\Service\Config;
 use OCA\Glimpse\Service\ImmichClient;
-use OCA\Glimpse\Service\IndexAdmin;
 use OCA\Glimpse\Service\SmallImagePruner;
 use OCP\Files\IRootFolder;
 use OCP\IConfig;
@@ -30,18 +29,6 @@ class SmallImagePrunerTest extends TestCase {
 		$this->assertSame('/a?b.png', SmallImagePruner::escape('/a,b.png'));
 	}
 
-	public function testPacksIntoBracePatternsUnderTheLimit(): void {
-		$entries = array_map(fn ($i) => "/m/u/f$i.png", range(1, 10));
-		$this->assertSame(['{' . implode(',', $entries) . '}'], SmallImagePruner::pack($entries));
-		$packed = SmallImagePruner::pack($entries, 40);
-		$this->assertGreaterThan(1, count($packed));
-		foreach ($packed as $p) {
-			$this->assertLessThanOrEqual(40, strlen($p));
-		}
-		$this->assertSame(['/only/one.png'], SmallImagePruner::pack(['/only/one.png']));
-		$this->assertSame([], SmallImagePruner::pack([]));
-	}
-
 	private function config(array $preset = []): Config {
 		$app = $preset;
 		$iconfig = $this->createMock(IConfig::class);
@@ -54,7 +41,7 @@ class SmallImagePrunerTest extends TestCase {
 		return new Config($iconfig, $this->createMock(ICrypto::class));
 	}
 
-	private function pruner(Config $config, array $items, IndexAdmin $index, array &$deleted, ?ILockingProvider $locks = null): SmallImagePruner {
+	private function pruner(Config $config, array $items, array &$deleted, ?ILockingProvider $locks = null): SmallImagePruner {
 		$immich = $this->createMock(ImmichClient::class);
 		$immich->method('json')->willReturnCallback(function ($m, $e, $b = null) use ($items, &$deleted) {
 			if ($m === 'DELETE') {
@@ -63,7 +50,7 @@ class SmallImagePrunerTest extends TestCase {
 			}
 			return ['assets' => ['items' => $items, 'nextPage' => null]];
 		});
-		return new SmallImagePruner($immich, $config, $index, $this->createMock(IRootFolder::class),
+		return new SmallImagePruner($immich, $config, $this->createMock(IRootFolder::class),
 			$locks ?? $this->createMock(ILockingProvider::class), $this->createMock(LoggerInterface::class));
 	}
 
@@ -71,7 +58,7 @@ class SmallImagePrunerTest extends TestCase {
 		return $extra + ['id' => $id, 'originalPath' => $path, 'width' => $w, 'height' => $w, 'libraryId' => 'lib'];
 	}
 
-	public function testTrashesTinyImagesAndExcludesThem(): void {
+	public function testTrashesTinyImagesAndRemembersThem(): void {
 		$config = $this->config(['path_pattern' => '/m/{user}/']);
 		$items = [
 			// icons/: three tiny, nothing else -> whole folder, but only for their types
@@ -84,41 +71,16 @@ class SmallImagePrunerTest extends TestCase {
 			self::img('up', '/m/u/Photos/upload.png', 10, ['libraryId' => null]),
 			self::img('ot', '/elsewhere/x.png', 10),
 		];
-		$index = $this->createMock(IndexAdmin::class);
-		$written = null;
-		$index->expects($this->once())->method('applyExclusions')->willReturnCallback(function ($scan, $entries) use (&$written, $config) {
-			$this->assertFalse($scan);
-			// Not saved before Immich has them.
-			$this->assertSame([], $config->getState('pruned_entries'));
-			$written = $entries;
-			return 1;
-		});
 		$deleted = [];
 
-		$r = $this->pruner($config, $items, $index, $deleted)->run(true);
+		$r = $this->pruner($config, $items, $deleted)->run(true);
 
 		$this->assertSame(6, $r['checked']);
 		$this->assertSame(4, $r['pruned']);
 		$this->assertEqualsCanonicalizing(['i1', 'i2', 'i3', 'p2'], $deleted);
 		$expected = ['/m/u/Photos/old.png', '/m/u/Photos/tiny ?1?.jpg', '/m/u/icons/*.{gif,png}'];
-		$this->assertSame($expected, $written);
 		$this->assertSame($expected, $config->getState('pruned_entries'));
 		$this->assertSame('/m/u/icons', $config->getState('pruned_paths')['/m/u/icons/*.{gif,png}']);
-	}
-
-	public function testNothingIsSavedWhenImmichRefusesThePatterns(): void {
-		$config = $this->config(['path_pattern' => '/m/{user}/']);
-		$config->setState('pruned_entries', ['/m/u/a.png']);
-		$index = $this->createMock(IndexAdmin::class);
-		$index->method('applyExclusions')->willThrowException(new \InvalidArgumentException('Too many'));
-		$deleted = [];
-		try {
-			$this->pruner($config, [self::img('x', '/m/u/b.png', 10)], $index, $deleted)->run();
-			$this->fail('expected the error to come through');
-		} catch (\InvalidArgumentException) {
-		}
-		$this->assertSame(['/m/u/a.png'], $config->getState('pruned_entries'));
-		$this->assertSame([], $deleted);
 	}
 
 	public function testFullRunDropsEntriesThatNoLongerMatter(): void {
@@ -139,8 +101,6 @@ class SmallImagePrunerTest extends TestCase {
 	public function testFolderGlobIsLimitedToTheTinyTypes(): void {
 		$this->assertSame('/m/u/icons/*.png', SmallImagePruner::folderGlob('/m/u/icons', ['png', 'png']));
 		$this->assertSame('/m/u/Art ?1?/*.{GIF,png}', SmallImagePruner::folderGlob('/m/u/Art (1)', ['png', 'GIF']));
-		// A folder glob packs into a brace list like any other entry.
-		$this->assertSame(['{/m/a.png,/m/u/icons/*.{gif,png}}'], SmallImagePruner::pack(['/m/a.png', '/m/u/icons/*.{gif,png}']));
 		// Not as a whole when one tiny file has no extension: that would need "folder/*".
 		$entries = SmallImagePruner::entries(['a' => '/m/x/a', 'b' => '/m/x/b.png', 'c' => '/m/x/c.png'], ['/m/x' => [3, 0, ['' => true, 'png' => true]]], true);
 		$this->assertSame(['/m/x/a', '/m/x/b.png', '/m/x/c.png'], array_keys($entries));
@@ -161,17 +121,12 @@ class SmallImagePrunerTest extends TestCase {
 		$this->assertNull(SmallImagePruner::nextcloudPath('/mnt/nextcloud/{user}/', '/elsewhere/a.jpg'));
 	}
 
-	public function testResetWritesFirstThenForgets(): void {
+	public function testResetForgetsEveryEntry(): void {
 		$config = $this->config();
 		$config->setState('pruned_entries', ['/m/u/a.png']);
 		$config->setState('pruned_paths', ['/m/u/a.png' => '/m/u/a.png']);
-		$index = $this->createMock(IndexAdmin::class);
-		$index->expects($this->once())->method('applyExclusions')->with(false, [])->willReturnCallback(function () use ($config) {
-			$this->assertSame(['/m/u/a.png'], $config->getState('pruned_entries'));
-			return 3;
-		});
 		$deleted = [];
-		$this->assertSame(3, $this->pruner($config, [], $index, $deleted)->reset());
+		$this->pruner($config, [], $deleted)->reset();
 		$this->assertSame([], $config->getState('pruned_entries'));
 		$this->assertSame([], $config->getState('pruned_paths'));
 	}
@@ -181,10 +136,8 @@ class SmallImagePrunerTest extends TestCase {
 		$locks->method('acquireLock')->with(SmallImagePruner::LOCK, ILockingProvider::LOCK_EXCLUSIVE)
 			->willThrowException(new LockedException(SmallImagePruner::LOCK));
 		$locks->expects($this->never())->method('releaseLock');
-		$index = $this->createMock(IndexAdmin::class);
-		$index->expects($this->never())->method('applyExclusions');
 		$deleted = [];
 		$this->expectException(LockedException::class);
-		$this->pruner($this->config(), [], $index, $deleted, $locks)->run(true);
+		$this->pruner($this->config(), [], $deleted, $locks)->run(true);
 	}
 }
