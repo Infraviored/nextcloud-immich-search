@@ -74,20 +74,20 @@ jobs:
             -signature <(openssl base64 -d -A < build/archive.sig) "$tarball"
           rm -f "$key"
       - name: Keep the signed tarball (dry run)
-        if: github.ref_type != 'tag'
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP }}-${{ env.VERSION }}-signed
           path: build/${{ env.APP }}-${{ env.VERSION }}.tar.gz
       - name: GitHub release
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" "build/$APP-$VERSION.tar.gz" \
             --title "$GITHUB_REF_NAME" --notes-file <(awk "/^## \\[${VERSION}\\]/{f=1;next} /^## \\[/{f=0} f" CHANGELOG.md)
       - name: Nextcloud App Store
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         env:
           APPSTORE_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
         run: |
