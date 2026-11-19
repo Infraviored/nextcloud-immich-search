@@ -1,16 +1,26 @@
 # SPDX-FileCopyrightText: 2026 Florian Schneider
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Tag vX.Y.Z (matching <version> in appinfo/info.xml) -> GitHub release with the
-# installable tarball (unpack into custom_apps/).
+# Tag vX.Y.Z (matching <version> in appinfo/info.xml) -> signed tarball, GitHub release,
+# Nextcloud App Store release. Started by hand (workflow_dispatch) it is a dry run: it
+# builds and signs, uploads the tarball as a workflow artifact and publishes nothing.
+#
+# Secrets: APP_PRIVATE_KEY (the key behind .github/appstore/glimpse.crt) and
+# APPSTORE_TOKEN (apps.nextcloud.com -> Account -> API token). See docs/RELEASE.md.
 name: Release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+env:
+  APP: glimpse
+  # Only used to run `occ integrity:sign-app`; any supported server branch will do.
+  SERVER_BRANCH: stable31
 
 jobs:
   release:
@@ -21,19 +31,74 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
+          extensions: gd, zip, intl, mbstring, pdo_sqlite, sqlite3, xml, curl
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Tag matches info.xml
+      - name: Version
         run: |
           v=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' appinfo/info.xml)
-          test "v$v" = "$GITHUB_REF_NAME" || { echo "info.xml says $v, tag is $GITHUB_REF_NAME"; exit 1; }
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            test "v$v" = "$GITHUB_REF_NAME" || { echo "info.xml says $v, tag is $GITHUB_REF_NAME"; exit 1; }
+          fi
+      - name: info.xml matches the App Store schema
+        run: |
+          sudo apt-get install -y -qq libxml2-utils >/dev/null
+          curl -fsSL https://apps.nextcloud.com/schema/apps/info.xsd -o "$RUNNER_TEMP/info.xsd"
+          xmllint --noout --schema "$RUNNER_TEMP/info.xsd" appinfo/info.xml
       - run: npm ci
       - run: make dist
-      - name: Publish
+      - name: Sign
+        env:
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          test -n "$APP_PRIVATE_KEY" || { echo "secret APP_PRIVATE_KEY is missing"; exit 1; }
+          key="$RUNNER_TEMP/$APP.key"
+          (umask 077; printf '%s\n' "$APP_PRIVATE_KEY" > "$key")
+          server="$RUNNER_TEMP/server"
+          git clone -q --depth 1 --branch "$SERVER_BRANCH" --recurse-submodules --shallow-submodules \
+            https://github.com/nextcloud/server.git "$server"
+          php "$server/occ" maintenance:install --database sqlite \
+            --admin-user ci --admin-pass "$(openssl rand -hex 16)" >/dev/null
+          tarball="build/$APP-$VERSION.tar.gz"
+          rm -rf build/sign && mkdir -p build/sign && tar -xzf "$tarball" -C build/sign
+          php "$server/occ" integrity:sign-app --privateKey="$key" \
+            --certificate="$PWD/.github/appstore/$APP.crt" --path="$PWD/build/sign/$APP"
+          test -s "build/sign/$APP/appinfo/signature.json"
+          tar -czf "$tarball" -C build/sign "$APP"
+          # Signature of the whole archive, checked by the App Store against the certificate
+          openssl dgst -sha512 -sign "$key" "$tarball" | openssl base64 -A > build/archive.sig
+          openssl dgst -sha512 -verify <(openssl x509 -in ".github/appstore/$APP.crt" -pubkey -noout) \
+            -signature <(openssl base64 -d -A < build/archive.sig) "$tarball"
+          rm -f "$key"
+      - name: Keep the signed tarball (dry run)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP }}-${{ env.VERSION }}-signed
+          path: build/${{ env.APP }}-${{ env.VERSION }}.tar.gz
+      - name: GitHub release
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/glimpse-*.tar.gz \
-            --title "$GITHUB_REF_NAME" --notes-file <(awk "/^## \\[${GITHUB_REF_NAME#v}\\]/{f=1;next} /^## \\[/{f=0} f" CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" "build/$APP-$VERSION.tar.gz" \
+            --title "$GITHUB_REF_NAME" --notes-file <(awk "/^## \\[${VERSION}\\]/{f=1;next} /^## \\[/{f=0} f" CHANGELOG.md)
+      - name: Nextcloud App Store
+        if: github.ref_type == 'tag'
+        env:
+          APPSTORE_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
+        run: |
+          test -n "$APPSTORE_TOKEN" || { echo "secret APPSTORE_TOKEN is missing"; exit 1; }
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$APP-$VERSION.tar.gz"
+          jq -n --arg d "$url" --rawfile s build/archive.sig \
+            '{download: $d, signature: ($s | rtrimstr("\n")), nightly: false}' > build/appstore.json
+          code=$(curl -sS -o build/appstore.out -w '%{http_code}' -X POST \
+            https://apps.nextcloud.com/api/v1/apps/releases \
+            -H "Authorization: Token $APPSTORE_TOKEN" -H 'Content-Type: application/json' \
+            --data @build/appstore.json)
+          cat build/appstore.out; echo
+          case "$code" in 200|201) echo "App Store: $APP $VERSION published ($code)";;
+            *) echo "App Store answered $code"; exit 1;; esac
