@@ -3,6 +3,16 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.13.2] - 2026-11-19
+
+### Fixed
+- `appinfo/info.xml` validates against the Nextcloud App Store schema again
+  (`repair-steps` must come before `commands`).
+
+### Added
+- Releases are signed and published to the Nextcloud App Store automatically by the
+  release workflow; CI validates `info.xml` against the App Store schema.
+
 ## [4.13.1] - 2026-11-14
 
 ### Fixed
