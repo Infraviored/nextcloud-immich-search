@@ -100,7 +100,7 @@ jobs:
           code=$(curl -sS -o build/appstore.out -w '%{http_code}' -X POST \
             https://apps.nextcloud.com/api/v1/apps/releases \
             -H "Authorization: Token $APPSTORE_TOKEN" -H 'Content-Type: application/json' \
-            --data @build/appstore.json)
+            --data-binary @build/appstore.json)
           cat build/appstore.out; echo
           case "$code" in 200|201) echo "App Store: $APP $VERSION published ($code)";;
             *) echo "App Store answered $code"; exit 1;; esac
