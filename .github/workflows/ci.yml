@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get install -y -qq libxml2-utils >/dev/null
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils >/dev/null
       - run: |
           curl -fsSL https://apps.nextcloud.com/schema/apps/info.xsd -o "$RUNNER_TEMP/info.xsd"
           xmllint --noout --schema "$RUNNER_TEMP/info.xsd" appinfo/info.xml
