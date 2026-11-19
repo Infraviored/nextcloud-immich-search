@@ -57,6 +57,7 @@ jobs:
           test -n "$APP_PRIVATE_KEY" || { echo "secret APP_PRIVATE_KEY is missing"; exit 1; }
           key="$RUNNER_TEMP/$APP.key"
           (umask 077; printf '%s\n' "$APP_PRIVATE_KEY" > "$key")
+          trap 'rm -f "$key"' EXIT
           server="$RUNNER_TEMP/server"
           git clone -q --depth 1 --branch "$SERVER_BRANCH" --recurse-submodules --shallow-submodules \
             https://github.com/nextcloud/server.git "$server"
