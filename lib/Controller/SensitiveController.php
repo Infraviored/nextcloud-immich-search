@@ -38,7 +38,11 @@ class SensitiveController extends Controller {
 	public function status(): JSONResponse {
 		$uid = $this->uid();
 		if (!$this->sensitive->isEnabled($uid)) {
-			return new JSONResponse(['available' => $this->sensitive->isAvailable(), 'enabled' => false]);
+			return new JSONResponse([
+				'available' => $this->sensitive->isAvailable(),
+				'enabled' => false,
+				'invitations' => $this->sensitive->invitationsForUser($uid),
+			]);
 		}
 		return new JSONResponse(['available' => true, 'enabled' => true, 'queued' => $this->queued($uid)] + $this->sensitive->status($uid));
 	}
@@ -115,6 +119,115 @@ class SensitiveController extends Controller {
 			return new JSONResponse(['error' => 'side'], Http::STATUS_BAD_REQUEST);
 		}
 		return new JSONResponse($this->sensitive->review($uid, $side, $q, $page, self::REVIEW_PAGE));
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function inviteMember(string $uid = '', string $role = 'editor'): JSONResponse {
+		$actingUid = $this->uid();
+		if (!$this->sensitive->isEnabled($actingUid)) {
+			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
+		}
+		try {
+			$this->sensitive->inviteMember($actingUid, $uid, $role);
+		} catch (\DomainException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return $this->status();
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function updateMemberRole(string $memberUid = '', string $role = 'editor'): JSONResponse {
+		$actingUid = $this->uid();
+		if (!$this->sensitive->isEnabled($actingUid)) {
+			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
+		}
+		try {
+			$this->sensitive->updateMemberRole($actingUid, $memberUid, $role);
+		} catch (\DomainException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return $this->status();
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function removeMember(string $memberUid = ''): JSONResponse {
+		$actingUid = $this->uid();
+		if (!$this->sensitive->isEnabled($actingUid)) {
+			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
+		}
+		try {
+			$this->sensitive->removeMember($actingUid, $memberUid);
+		} catch (\DomainException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return $this->status();
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function leaveFilter(): JSONResponse {
+		$actingUid = $this->uid();
+		if (!$this->sensitive->isEnabled($actingUid)) {
+			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
+		}
+		try {
+			$this->sensitive->leaveFilter($actingUid);
+		} catch (\DomainException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return $this->status();
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function switchFilter(string $filterId = ''): JSONResponse {
+		$actingUid = $this->uid();
+		if (!$this->sensitive->isEnabled($actingUid)) {
+			return new JSONResponse(['error' => 'off'], Http::STATUS_CONFLICT);
+		}
+		try {
+			$this->sensitive->switchFilter($actingUid, $filterId);
+		} catch (\DomainException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return $this->status();
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function acceptInvitation(string $id = ''): JSONResponse {
+		$actingUid = $this->uid();
+		try {
+			$this->sensitive->acceptInvitation($actingUid, $id);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return $this->status();
+	}
+
+	#[NoAdminRequired]
+	#[UserRateLimit(limit: 60, period: 300)]
+	public function declineInvitation(string $id = ''): JSONResponse {
+		$actingUid = $this->uid();
+		try {
+			$this->sensitive->declineInvitation($actingUid, $id);
+		} catch (\InvalidArgumentException $e) {
+			return new JSONResponse(['error' => $e->getMessage()], Http::STATUS_BAD_REQUEST);
+		}
+		return $this->status();
 	}
 
 	private function rebuilt(string $uid): JSONResponse {

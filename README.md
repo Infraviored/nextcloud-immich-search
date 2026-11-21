@@ -367,11 +367,23 @@ model; with another model, the slider and corrections matter more. The recogniti
 concepts, not body parts: beach photos, art or close-ups of skin can be caught, and some
 pictures slip through.
 
+**Shared filters:** Users can invite other Nextcloud users to share a sensitive filter (*Settings →
+Sensitive pictures*).
+- **Roles:** *Editor* trains the classifier together with the owner; corrections are pooled, with newer
+  marks winning any conflict. *User* uses the trained classifier; their corrections act as personal
+  local exceptions without retraining the shared filter.
+- **Privacy:** Members share the trained model parameters, terms, and aggregate counts, never each
+  other's pictures, file names, or personal paths.
+- **Invitations:** Invited users receive a notification under *Settings → Sensitive pictures* and choose
+  whether to accept or decline. An owner can manage roles and members; members can leave at any time
+  to return to their own personal filter.
+- **CLI:** An admin can share a filter directly: `occ glimpse:sensitive:share <owner> <member> [--role=editor]`.
+
 Every user can set:
 
 | Section | What you set |
 |---|---|
-| Display | Tile size, start view, whether videos are included by default; sensitive pictures (on/off, sensitivity, mark on tiles) |
+| Display | Tile size, start view, whether videos are included by default; sensitive pictures (on/off, sensitivity, mark on tiles, shared filter) |
 | Nextcloud search | Whether your own search bar shows photos |
 | Private | Your private folders and people, and whether unlocking asks for your password |
 
@@ -383,6 +395,7 @@ Every user can set:
 | Video scene indexing | every 5 minutes (up to 2 min budget) in night window | `occ glimpse:video-scenes [--minutes=N] [--limit=N]` |
 | Take tiny images out of Immich | every 15 minutes, new images only | `occ glimpse:prune [--full] [--reset]` |
 | Sensitive pictures, per user who turned them on | hourly, when something changed | `occ glimpse:sensitive [user …] [--check]` |
+| Share sensitive filter | – | `occ glimpse:sensitive:share <owner> <member> [--role=editor]` |
 | Map tile cache cleanup | daily | – |
 | Connection | – | `occ glimpse:configure` |
 

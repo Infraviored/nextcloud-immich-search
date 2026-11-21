@@ -28,10 +28,29 @@ class SensitiveCommand extends Command {
 		$this->setName('glimpse:sensitive')
 			->setDescription('Sensitive content: check the setup, or recompute it for users who turned it on')
 			->addArgument('user', InputArgument::OPTIONAL | InputArgument::IS_ARRAY, 'Recompute for these users (default: all who turned it on)')
-			->addOption('check', null, InputOption::VALUE_NONE, 'Only check database access and the machine-learning service');
+			->addOption('check', null, InputOption::VALUE_NONE, 'Only check database access and the machine-learning service')
+			->addOption('role', null, InputOption::VALUE_REQUIRED, 'Role when sharing: editor or user', 'editor');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
+		$users = (array)$input->getArgument('user');
+		if (($users[0] ?? '') === 'share') {
+			$owner = (string)($users[1] ?? '');
+			$member = (string)($users[2] ?? '');
+			$role = (string)$input->getOption('role') ?: 'editor';
+			if ($owner === '' || $member === '') {
+				$output->writeln('<error>Usage: occ glimpse:sensitive share <owner> <member> [--role=editor]</error>');
+				return self::FAILURE;
+			}
+			try {
+				$this->sensitive->share($owner, $member, $role);
+				$output->writeln(sprintf('Shared %s\'s filter with %s (role: %s)', $owner, $member, $role));
+				return self::SUCCESS;
+			} catch (\Throwable $e) {
+				$output->writeln('<error>' . $e->getMessage() . '</error>');
+				return self::FAILURE;
+			}
+		}
 		$check = $this->sensitive->check();
 		$output->writeln('Database:         ' . ($check['database'] ?? 'ok'));
 		$output->writeln('Machine learning: ' . ($check['ml'] ?? 'ok') . ($check['model'] !== null ? ' (' . $check['model'] . ')' : ''));
@@ -39,7 +58,7 @@ class SensitiveCommand extends Command {
 		if ($input->getOption('check')) {
 			return $check['database'] === null && $check['ml'] === null ? self::SUCCESS : self::FAILURE;
 		}
-		$users = $input->getArgument('user') ?: $this->sensitive->users();
+		$users = $users ?: $this->sensitive->users();
 		$failed = false;
 		foreach ($users as $uid) {
 			$start = microtime(true);

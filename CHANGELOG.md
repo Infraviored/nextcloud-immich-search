@@ -3,6 +3,26 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.14.0] - 2026-11-21
+
+### Added
+- Shared sensitive filters: multiple Nextcloud users can collaborate on training and using a shared
+  sensitive filter (*Settings → Sensitive pictures*).
+- Roles for shared filters: *Editor* trains the classifier with corrections; *User* applies the filter
+  with personal local exceptions.
+- Pooled training: hand marks from the owner and editors are combined when training the model, with
+  newer marks taking precedence on conflict. A user's own mark always overrides locally.
+- Invitation workflow: owners invite Nextcloud users with a role; invited members receive a pending
+  invitation notice in Settings to accept or decline.
+- Member management: owners can change member roles, cancel invitations, or remove members; members
+  can leave a shared filter at any time and return to their personal filter.
+- Indicator in the sensitive pictures view showing "Gemeinsamer Filter mit <name>" when using a shared filter.
+- Console command `occ glimpse:sensitive:share <owner> <member> [--role=editor]` (also available as
+  `occ glimpse:sensitive share`) to share filters via CLI.
+- Automatic lazy migration and repair step (`MigrateSensitiveFilters`) to convert existing per-user filter
+  models to shared filter storage.
+
+
 ## [4.13.3] - 2026-11-21
 
 ### Fixed

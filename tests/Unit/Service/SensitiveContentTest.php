@@ -34,22 +34,31 @@ class SensitiveContentTest extends TestCase {
 	private array $prefs = [];
 	private bool $allowed = true;
 
-	private function service(?AssetSearch $assets = null, ?PrivateArea $privateArea = null, ?ImmichDb $db = null, ?ImmichClient $immich = null): SensitiveContent {
+	private function mockFolder(string $prefix = ''): ISimpleFolder {
 		$folder = $this->createMock(ISimpleFolder::class);
-		$folder->method('getFile')->willReturnCallback(function ($name) {
-			if (!isset($this->files[$name])) {
+		$folder->method('getFile')->willReturnCallback(function ($name) use ($prefix) {
+			$key = $prefix !== '' ? $prefix . '/' . $name : $name;
+			if (!isset($this->files[$key])) {
 				throw new NotFoundException();
 			}
 			$f = $this->createMock(ISimpleFile::class);
-			$f->method('getContent')->willReturn($this->files[$name]);
+			$f->method('getContent')->willReturn($this->files[$key]);
 			return $f;
 		});
-		$folder->method('newFile')->willReturnCallback(function ($name, $content) {
-			$this->files[$name] = $content;
+		$folder->method('newFile')->willReturnCallback(function ($name, $content) use ($prefix) {
+			$key = $prefix !== '' ? $prefix . '/' . $name : $name;
+			$this->files[$key] = $content;
 			return $this->createMock(ISimpleFile::class);
 		});
+		$folder->method('getFolder')->willReturnCallback(fn ($name) => $this->mockFolder($prefix !== '' ? $prefix . '/' . $name : $name));
+		$folder->method('newFolder')->willReturnCallback(fn ($name) => $this->mockFolder($prefix !== '' ? $prefix . '/' . $name : $name));
+		return $folder;
+	}
+
+	private function service(?AssetSearch $assets = null, ?PrivateArea $privateArea = null, ?ImmichDb $db = null, ?ImmichClient $immich = null): SensitiveContent {
+		$folder = $this->mockFolder();
 		$appData = $this->createMock(IAppData::class);
-		$appData->method('getFolder')->willReturn($folder);
+		$appData->method('getFolder')->willReturnCallback(fn ($name) => $name === 'sensitive' ? $folder : $this->mockFolder($name));
 		$factory = $this->createMock(IAppDataFactory::class);
 		$factory->method('get')->willReturn($appData);
 
@@ -171,17 +180,9 @@ class SensitiveContentTest extends TestCase {
 
 		$this->files['u.json'] = json_encode(['auto' => [], 'marks' => [], 'terms' => [], 'svm' => ['w' => [0.1], 'b' => 0.0]]);
 
-		$folder = $this->createMock(ISimpleFolder::class);
-		$folder->method('getFile')->willReturnCallback(function ($name) {
-			if (!isset($this->files[$name])) {
-				throw new NotFoundException();
-			}
-			$f = $this->createMock(ISimpleFile::class);
-			$f->method('getContent')->willReturn($this->files[$name]);
-			return $f;
-		});
+		$folder = $this->mockFolder();
 		$appData = $this->createMock(IAppData::class);
-		$appData->method('getFolder')->willReturn($folder);
+		$appData->method('getFolder')->willReturnCallback(fn ($name) => $name === 'sensitive' ? $folder : $this->mockFolder($name));
 		$factory = $this->createMock(IAppDataFactory::class);
 		$factory->method('get')->willReturn($appData);
 

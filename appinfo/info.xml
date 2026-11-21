@@ -58,7 +58,7 @@ Immich to the Nextcloud data directory, Nextcloud cron, and ffmpeg on the Nextcl
 search inside videos). Setup guide:
 [README](https://github.com/Infraviored/nextcloud-immich-search#install).
 	]]></description>
-	<version>4.13.3</version>
+	<version>4.14.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author>Florian Schneider</author>
 	<namespace>Glimpse</namespace>
@@ -92,6 +92,7 @@ search inside videos). Setup guide:
 	<repair-steps>
 		<post-migration>
 			<step>OCA\Glimpse\Migration\DropPrunedPatterns</step>
+			<step>OCA\Glimpse\Migration\MigrateSensitiveFilters</step>
 		</post-migration>
 	</repair-steps>
 	<commands>
@@ -99,6 +100,7 @@ search inside videos). Setup guide:
 		<command>OCA\Glimpse\Command\PeopleIndexCommand</command>
 		<command>OCA\Glimpse\Command\PruneCommand</command>
 		<command>OCA\Glimpse\Command\SensitiveCommand</command>
+		<command>OCA\Glimpse\Command\SensitiveShareCommand</command>
 		<command>OCA\Glimpse\Command\VideoScenesCommand</command>
 	</commands>
 	<settings>
