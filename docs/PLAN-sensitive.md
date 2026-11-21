@@ -136,3 +136,34 @@ Voraussetzungen, die der Admin-Schalter prüft und anzeigt: Datenbankzugang konf
 - **Markieren entfernt nicht sofort aus der Liste.** Zum Durchsehen ruhiger; die Kachel ändert ihr
   Zeichen, beim nächsten Laden ist das Bild weg. Rückgängig über den Toast.
 - Der ML-Dienst brauchte bei uns Zugang zum Nextcloud-Netz (Immich-Compose, `networks`).
+
+## Gemeinsame Filter (4.14.0)
+
+Mehrere Nextcloud-Nutzer können denselben Filter gemeinsam trainieren und nutzen.
+
+### Datenhaltung und Rollen
+
+- **Filter-Objekt** in `sensitive/filters/<filterId>.json`:
+  `owner`, `members: {<uid>: <role>}`, `terms`, `svm`, `threshold`, `modelChanged`, `learned`, `built`.
+  Rollen:
+  - `owner`: Volle Kontrolle über Mitglieder und Rollen, Einladungen verwalten, Schwellenwert/Begriffe ändern, trainiert mit.
+  - `editor`: Trainiert mit (eigene Korrekturen fließen in das gemeinsame Modell ein).
+  - `user`: Nutzt das trainierte Modell. Eigene Markierungen wirken nur als lokale Ausnahme, ohne das gemeinsame Modell zu verändern.
+- **Markierungen und Ergebnisse bleiben pro Nutzer** in `sensitive/<uid>.json`:
+  `marks` (persönliche Handmarkierungen: `fileId -> {positive: bool, at: int, assetId?: string}`),
+  `auto`, `assets`, `counts`.
+  Beim gemeinsamen Training poolt Glimpse die Markierungen von Owner und allen Editoren.
+  Bei Konflikten (gleiches Bild unterschiedlich markiert) gewinnt die neuere Markierung (`at`).
+  Lokal gilt: die persönliche Handmarkierung des Nutzers schlägt das Modellergebnis immer.
+- **Filter-Auswahl**:
+  `UserPrefs::sensitive_filter` speichert die aktive Filter-ID. Beim Verlassen eines gemeinsamen
+  Filters oder Ablehnen wird auf den persönlichen Filter zurückgewechselt.
+- **Einladungen**:
+  `sensitive/invitations/<uid>.json` speichert offene Einladungen (`filterId`, `owner`, `role`, `at`).
+  Einladungen können in den Einstellungen angenommen oder abgelehnt werden.
+- **Privatsphäre**:
+  Mitglieder sehen geteilte Begriffe, den Schwellenwert und aggregierte Zahlen, aber niemals Dateinamen,
+  Pfade oder Bilder anderer Nutzer.
+- **Befehle**:
+  `occ glimpse:sensitive:share <owner> <member> [--role=editor]` (bzw. `occ glimpse:sensitive share`)
+  teilt einen Filter direkt auf der Konsole ohne Bestätigungsdialog.

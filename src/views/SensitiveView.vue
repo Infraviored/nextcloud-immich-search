@@ -16,6 +16,9 @@
 		<h2 class="g-display sort__title">
 			{{ t('Train the sensitive filter') }}
 		</h2>
+		<p v-if="sharedFilterLine" class="sort__shared">
+			{{ sharedFilterLine }}
+		</p>
 		<div class="sort__sides" role="group" :aria-label="t('Side')">
 			<button
 				v-for="s in sides"
@@ -115,6 +118,7 @@ import { sensitiveIcon } from '../materialIcons.js'
 import { replaceQuery, route } from '../router.js'
 import { selectionActive, toggleSelection } from '../selection.js'
 import { markItems } from '../sensitive.js'
+import { formatSharedFilterLine } from '../sensitiveFilter.js'
 import { openInViewer } from '../viewer.js'
 
 /** Visible first: one starts by hiding something */
@@ -152,6 +156,8 @@ let controller = null
 
 const model = computed(() => !!status.value?.model)
 const minPositive = computed(() => status.value?.minPositive ?? 20)
+
+const sharedFilterLine = computed(() => formatSharedFilterLine(status.value?.filter))
 
 const learnedLine = computed(() => {
 	const s = status.value
@@ -379,6 +385,12 @@ onBeforeUnmount(() => {
 
 .sort__title {
 	margin: 8px 0 12px;
+}
+
+.sort__shared {
+	margin: -6px 0 14px;
+	color: var(--color-text-maxcontrast);
+	font-weight: 500;
 }
 
 .sort__sides {

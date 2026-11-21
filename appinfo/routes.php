@@ -76,6 +76,13 @@ return [
 		['name' => 'sensitive#setTerm', 'url' => '/api/sensitive/terms', 'verb' => 'POST'],
 		['name' => 'sensitive#removeTerm', 'url' => '/api/sensitive/terms/remove', 'verb' => 'POST'],
 		['name' => 'sensitive#review', 'url' => '/api/sensitive/review', 'verb' => 'GET'],
+		['name' => 'sensitive#inviteMember', 'url' => '/api/sensitive/filter/members', 'verb' => 'POST'],
+		['name' => 'sensitive#updateMemberRole', 'url' => '/api/sensitive/filter/members/{memberUid}', 'verb' => 'PUT'],
+		['name' => 'sensitive#removeMember', 'url' => '/api/sensitive/filter/members/{memberUid}', 'verb' => 'DELETE'],
+		['name' => 'sensitive#leaveFilter', 'url' => '/api/sensitive/filter/leave', 'verb' => 'POST'],
+		['name' => 'sensitive#switchFilter', 'url' => '/api/sensitive/filter/switch', 'verb' => 'POST'],
+		['name' => 'sensitive#acceptInvitation', 'url' => '/api/sensitive/invitations/accept', 'verb' => 'POST'],
+		['name' => 'sensitive#declineInvitation', 'url' => '/api/sensitive/invitations/decline', 'verb' => 'POST'],
 
 		['name' => 'admin#settings', 'url' => '/api/admin/settings', 'verb' => 'GET'],
 		['name' => 'admin#saveSettings', 'url' => '/api/admin/settings', 'verb' => 'PUT'],

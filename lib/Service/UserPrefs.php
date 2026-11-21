@@ -33,6 +33,8 @@ class UserPrefs {
 		'sensitive_mode' => ['enum:all,hide,only', 'all'],
 		// The mark on tiles
 		'sensitive_badge' => ['bool', false],
+		// Active sensitive filter (filterId; empty defaults to the user's own uid)
+		'sensitive_filter' => ['string', ''],
 	];
 
 	public function __construct(
@@ -80,6 +82,9 @@ class UserPrefs {
 		$type = self::PREFS[$key][0];
 		if ($type === 'bool') {
 			return $value ? '1' : '0';
+		}
+		if ($type === 'string') {
+			return is_scalar($value) ? (string)$value : '';
 		}
 		if (str_starts_with($type, 'int:')) {
 			[$min, $max] = array_map('intval', explode('-', substr($type, 4)));

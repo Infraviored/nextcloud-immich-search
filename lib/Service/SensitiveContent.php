@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace OCA\Glimpse\Service;
 
 use OCA\Glimpse\AppInfo\Application;
+use OCA\Glimpse\BackgroundJob\RebuildSensitive;
+use OCP\BackgroundJob\IJobList;
 use OCP\Files\AppData\IAppDataFactory;
 use OCP\Files\IAppData;
 use OCP\Files\IRootFolder;
@@ -17,6 +19,7 @@ use OCP\Files\NotFoundException;
 use OCP\Files\SimpleFS\ISimpleFolder;
 use OCP\Http\Client\IClientService;
 use OCP\IConfig;
+use OCP\IUserManager;
 use OCP\Lock\ILockingProvider;
 use Psr\Log\LoggerInterface;
 
@@ -39,16 +42,22 @@ use Psr\Log\LoggerInterface;
  * whether the model learns from the marks and how far it moves.
  *
  * Stored per user in app data, `sensitive/<uid>.json`:
- * {"terms": [{"q", "min", "model"}], "marks": {fileId: bool}, "auto": [fileId],
+ * {"marks": {fileId: bool}, "markTimes": {fileId: timestamp}, "auto": [fileId],
  *  "assets": {fileId: assetId}, "counts": {q: n}, "byModel": n, "change": {added, removed},
- *  "svm": {"w", "b", "key", "positives", "negatives"} or null, "learned": [positives, negatives],
  *  "signature": "...", "built": time, "error": null}
+ *
+ * Stored per filter in app data, `sensitive/filters/<filterId>.json`:
+ * {"id": filterId, "owner": uid, "members": {uid: role}, "invitations": {uid: ...},
+ *  "terms": [{"q", "min", "model"}], "svm": {"w", "b", "key", "positives", "negatives"} or null,
+ *  "threshold": 0.0, "modelChanged": time, "signature": "...", "learned": [pos, neg], "built": time}
  */
 class SensitiveContent {
 	public const MAX_TERMS = 30;
 	/** The two sides of the review, see review(). */
 	public const SIDES = ['hidden', 'visible'];
 	private const FOLDER = 'sensitive';
+	private const FILTERS_FOLDER = 'filters';
+	private const INVITATIONS_FOLDER = 'invitations';
 	/** Embedded terms per model, shared by all users (not a user's file name). */
 	private const TERMS_FOLDER = 'sensitive-terms';
 	private const MODES = ['all', 'hide', 'only'];
@@ -58,6 +67,8 @@ class SensitiveContent {
 	private IAppData $appData;
 	/** @var array<string, array> */
 	private array $cache = [];
+	/** @var array<string, array> */
+	private array $filterCache = [];
 	private ?string $model = null;
 
 	public function __construct(
@@ -73,6 +84,8 @@ class SensitiveContent {
 		IAppDataFactory $appDataFactory,
 		private LoggerInterface $logger,
 		private ?ILockingProvider $locks = null,
+		private ?IJobList $jobs = null,
+		private ?IUserManager $userManager = null,
 	) {
 		$this->appData = $appDataFactory->get(Application::APP_ID);
 	}
@@ -97,14 +110,383 @@ class SensitiveContent {
 		if (!isset($this->cache[$uid])) {
 			try {
 				$data = json_decode($this->folder(self::FOLDER)->getFile($uid . '.json')->getContent(), true) ?: [];
-			} catch (NotFoundException) {
+			} catch (\Throwable) {
 				$data = [];
 			}
-			// Files of the first version (scores of a trained model) keep only their marks
-			$this->cache[$uid] = $data + ['terms' => [], 'marks' => [], 'auto' => [], 'assets' => [], 'counts' => [], 'byModel' => 0,
-				'svm' => null, 'learned' => [0, 0], 'signature' => '', 'built' => 0, 'error' => null];
+			$filter = $this->getFilter($this->filterId($uid));
+			$this->cache[$uid] = $data + [
+				'terms' => $filter['terms'] ?? [],
+				'marks' => [],
+				'markTimes' => [],
+				'auto' => [],
+				'assets' => [],
+				'counts' => [],
+				'byModel' => 0,
+				'svm' => $filter['svm'] ?? null,
+				'learned' => $filter['learned'] ?? [0, 0],
+				'signature' => '',
+				'built' => 0,
+				'error' => null,
+			];
+			if (isset($filter['terms'])) {
+				$this->cache[$uid]['terms'] = $filter['terms'];
+				$this->cache[$uid]['svm'] = $filter['svm'];
+				$this->cache[$uid]['learned'] = $filter['learned'];
+			}
 		}
 		return $this->cache[$uid];
+	}
+
+	public function userName(string $uid): string {
+		return $this->userManager?->get($uid)?->getDisplayName() ?? $uid;
+	}
+
+	public function filterId(string $uid): string {
+		$filterId = (string)$this->prefs->get($uid, 'sensitive_filter');
+		return $filterId !== '' ? $filterId : $uid;
+	}
+
+	public function getFilter(string $filterId): array {
+		if (isset($this->filterCache[$filterId])) {
+			return $this->filterCache[$filterId];
+		}
+		$folder = $this->filtersFolder();
+		try {
+			$file = $folder->getFile($filterId . '.json');
+			$data = json_decode($file->getContent(), true) ?: [];
+		} catch (\Throwable) {
+			$data = $this->migrateUserFileToFilter($filterId);
+		}
+		$normalized = $this->normalizeFilter($filterId, $data);
+		$this->filterCache[$filterId] = $normalized;
+		return $normalized;
+	}
+
+	public function saveFilter(string $filterId, array $filter): void {
+		$filter = $this->normalizeFilter($filterId, $filter);
+		$this->filtersFolder()->newFile($filterId . '.json', json_encode($filter));
+		$this->filterCache[$filterId] = $filter;
+	}
+
+	private function migrateUserFileToFilter(string $filterId): array {
+		try {
+			$userFile = $this->folder(self::FOLDER)->getFile($filterId . '.json');
+			$userData = json_decode($userFile->getContent(), true) ?: [];
+		} catch (\Throwable) {
+			$userData = [];
+		}
+		$filter = [
+			'id' => $filterId,
+			'owner' => $filterId,
+			'members' => [$filterId => 'owner'],
+			'invitations' => [],
+			'terms' => (array)($userData['terms'] ?? []),
+			'svm' => $userData['svm'] ?? null,
+			'threshold' => 0.0,
+			'modelChanged' => (int)($userData['marksChanged'] ?? $userData['built'] ?? 0),
+			'signature' => (string)($userData['signature'] ?? ''),
+			'learned' => (array)($userData['learned'] ?? [0, 0]),
+			'built' => (int)($userData['built'] ?? 0),
+		];
+		try {
+			$this->filtersFolder()->newFile($filterId . '.json', json_encode($filter));
+		} catch (\Throwable) {
+		}
+		return $filter;
+	}
+
+	private function normalizeFilter(string $filterId, array $data): array {
+		$owner = (string)($data['owner'] ?? $filterId);
+		$members = (array)($data['members'] ?? []);
+		if (!isset($members[$owner])) {
+			$members[$owner] = 'owner';
+		}
+		return $data + [
+			'id' => $filterId,
+			'owner' => $owner,
+			'members' => $members,
+			'invitations' => (array)($data['invitations'] ?? []),
+			'terms' => (array)($data['terms'] ?? []),
+			'svm' => $data['svm'] ?? null,
+			'threshold' => 0.0,
+			'modelChanged' => (int)($data['modelChanged'] ?? 0),
+			'signature' => (string)($data['signature'] ?? ''),
+			'learned' => (array)($data['learned'] ?? [0, 0]),
+			'built' => (int)($data['built'] ?? 0),
+		];
+	}
+
+	public function migrateAll(): int {
+		$folder = $this->folder(self::FOLDER);
+		$filtersFolder = $this->filtersFolder();
+		$migrated = 0;
+		foreach ($folder->getDirectoryListing() as $file) {
+			$name = $file->getName();
+			if (!str_ends_with($name, '.json')) {
+				continue;
+			}
+			$filterId = substr($name, 0, -5);
+			try {
+				$filtersFolder->getFile($filterId . '.json');
+			} catch (\Throwable) {
+				$this->migrateUserFileToFilter($filterId);
+				$migrated++;
+			}
+		}
+		return $migrated;
+	}
+
+	public function roleInFilter(string $uid, ?string $filterId = null): string {
+		$filterId ??= $this->filterId($uid);
+		$filter = $this->getFilter($filterId);
+		if ($filter['owner'] === $uid) {
+			return 'owner';
+		}
+		return $filter['members'][$uid] ?? 'none';
+	}
+
+	public function isFilterOwner(string $uid, ?string $filterId = null): bool {
+		$filterId ??= $this->filterId($uid);
+		return $this->getFilter($filterId)['owner'] === $uid;
+	}
+
+	public function isFilterEditor(string $uid, ?string $filterId = null): bool {
+		$role = $this->roleInFilter($uid, $filterId);
+		return in_array($role, ['owner', 'editor'], true);
+	}
+
+	public function inviteMember(string $actingUid, string $targetUid, string $role = 'editor'): void {
+		$targetUid = trim($targetUid);
+		if ($targetUid === '' || $targetUid === $actingUid) {
+			throw new \InvalidArgumentException('Invalid user');
+		}
+		if ($this->userManager !== null && $this->userManager->get($targetUid) === null) {
+			throw new \InvalidArgumentException('User not found');
+		}
+		if (!in_array($role, ['editor', 'user'], true)) {
+			throw new \InvalidArgumentException('Role must be editor or user');
+		}
+		$filterId = $this->filterId($actingUid);
+		if (!$this->isFilterOwner($actingUid, $filterId)) {
+			throw new \DomainException('Only filter owner can manage members');
+		}
+		$this->withFilterLock($filterId, function () use ($filterId, $actingUid, $targetUid, $role) {
+			$filter = $this->getFilter($filterId);
+			if (isset($filter['members'][$targetUid])) {
+				throw new \DomainException('User is already a member');
+			}
+			$filter['invitations'][$targetUid] = [
+				'role' => $role,
+				'invitedBy' => $actingUid,
+				'invitedAt' => time(),
+			];
+			$this->saveFilter($filterId, $filter);
+			$this->saveUserInvitation($targetUid, $filterId, $actingUid, $role);
+		});
+	}
+
+	public function updateMemberRole(string $actingUid, string $memberUid, string $role): void {
+		if (!in_array($role, ['editor', 'user'], true)) {
+			throw new \InvalidArgumentException('Role must be editor or user');
+		}
+		$filterId = $this->filterId($actingUid);
+		if (!$this->isFilterOwner($actingUid, $filterId)) {
+			throw new \DomainException('Only filter owner can manage members');
+		}
+		if ($memberUid === $actingUid) {
+			throw new \InvalidArgumentException('Cannot change owner role');
+		}
+		$this->withFilterLock($filterId, function () use ($filterId, $memberUid, $role) {
+			$filter = $this->getFilter($filterId);
+			if (!isset($filter['members'][$memberUid])) {
+				throw new \DomainException('Member not found');
+			}
+			$oldRole = $filter['members'][$memberUid];
+			if ($oldRole === $role) {
+				return;
+			}
+			$filter['members'][$memberUid] = $role;
+			$filter['modelChanged'] = time();
+			$this->saveFilter($filterId, $filter);
+		});
+	}
+
+	public function removeMember(string $actingUid, string $memberUid): void {
+		$filterId = $this->filterId($actingUid);
+		if (!$this->isFilterOwner($actingUid, $filterId)) {
+			throw new \DomainException('Only filter owner can manage members');
+		}
+		if ($memberUid === $actingUid) {
+			throw new \InvalidArgumentException('Cannot remove owner');
+		}
+		$this->withFilterLock($filterId, function () use ($filterId, $memberUid) {
+			$filter = $this->getFilter($filterId);
+			$hadPending = isset($filter['invitations'][$memberUid]);
+			unset($filter['invitations'][$memberUid]);
+			$this->removeUserInvitation($memberUid, $filterId);
+
+			if (isset($filter['members'][$memberUid])) {
+				$wasRole = $filter['members'][$memberUid];
+				unset($filter['members'][$memberUid]);
+				if ($this->filterId($memberUid) === $filterId) {
+					$this->prefs->set($memberUid, 'sensitive_filter', $memberUid);
+				}
+				if ($wasRole === 'editor') {
+					$filter['modelChanged'] = time();
+				}
+				$this->saveFilter($filterId, $filter);
+			} elseif ($hadPending) {
+				$this->saveFilter($filterId, $filter);
+			}
+		});
+	}
+
+	public function leaveFilter(string $actingUid): void {
+		$filterId = $this->filterId($actingUid);
+		$filter = $this->getFilter($filterId);
+		if ($filter['owner'] === $actingUid) {
+			throw new \DomainException('Owner cannot leave own filter');
+		}
+		$this->withFilterLock($filterId, function () use ($filterId, $actingUid) {
+			$filter = $this->getFilter($filterId);
+			$wasRole = $filter['members'][$actingUid] ?? 'none';
+			unset($filter['members'][$actingUid]);
+			if ($wasRole === 'editor') {
+				$filter['modelChanged'] = time();
+			}
+			$this->saveFilter($filterId, $filter);
+			$this->prefs->set($actingUid, 'sensitive_filter', $actingUid);
+		});
+	}
+
+	public function switchFilter(string $actingUid, string $filterId): void {
+		$filterId = trim($filterId);
+		if ($filterId === '' || $filterId === $actingUid) {
+			$this->prefs->set($actingUid, 'sensitive_filter', $actingUid);
+			return;
+		}
+		$filter = $this->getFilter($filterId);
+		if (!isset($filter['members'][$actingUid]) && $filter['owner'] !== $actingUid) {
+			throw new \DomainException('You are not a member of this filter');
+		}
+		$this->prefs->set($actingUid, 'sensitive_filter', $filterId);
+	}
+
+	public function acceptInvitation(string $actingUid, string $filterId): void {
+		$filterId = trim($filterId);
+		$this->withFilterLock($filterId, function () use ($filterId, $actingUid) {
+			$filter = $this->getFilter($filterId);
+			if (!isset($filter['invitations'][$actingUid])) {
+				throw new \InvalidArgumentException('Invitation not found');
+			}
+			$role = $filter['invitations'][$actingUid]['role'] ?? 'editor';
+			$filter['members'][$actingUid] = $role;
+			unset($filter['invitations'][$actingUid]);
+			if ($role === 'editor') {
+				$filter['modelChanged'] = time();
+			}
+			$this->saveFilter($filterId, $filter);
+			$this->removeUserInvitation($actingUid, $filterId);
+			$this->prefs->set($actingUid, 'sensitive_filter', $filterId);
+			$this->prefs->set($actingUid, 'sensitive_enabled', true);
+		});
+	}
+
+	public function declineInvitation(string $actingUid, string $filterId): void {
+		$filterId = trim($filterId);
+		$this->withFilterLock($filterId, function () use ($filterId, $actingUid) {
+			$filter = $this->getFilter($filterId);
+			unset($filter['invitations'][$actingUid]);
+			$this->saveFilter($filterId, $filter);
+			$this->removeUserInvitation($actingUid, $filterId);
+		});
+	}
+
+	public function share(string $ownerUid, string $memberUid, string $role = 'editor'): void {
+		if (!in_array($role, ['editor', 'user'], true)) {
+			throw new \InvalidArgumentException('Role must be editor or user');
+		}
+		if ($ownerUid === $memberUid) {
+			throw new \InvalidArgumentException('Owner and member cannot be the same');
+		}
+		$filterId = $ownerUid;
+		$this->withFilterLock($filterId, function () use ($filterId, $ownerUid, $memberUid, $role) {
+			$filter = $this->getFilter($filterId);
+			$filter['members'][$memberUid] = $role;
+			unset($filter['invitations'][$memberUid]);
+			$filter['modelChanged'] = time();
+			$this->saveFilter($filterId, $filter);
+			$this->removeUserInvitation($memberUid, $filterId);
+			$this->prefs->set($memberUid, 'sensitive_filter', $filterId);
+			$this->prefs->set($memberUid, 'sensitive_enabled', true);
+		});
+	}
+
+	private function saveUserInvitation(string $targetUid, string $filterId, string $ownerUid, string $role): void {
+		$folder = $this->invitationsFolder();
+		try {
+			$file = $folder->getFile($targetUid . '.json');
+			$invs = json_decode($file->getContent(), true) ?: [];
+		} catch (\Throwable) {
+			$invs = [];
+		}
+		$invs[$filterId] = [
+			'owner' => $ownerUid,
+			'role' => $role,
+			'invitedAt' => time(),
+		];
+		$folder->newFile($targetUid . '.json', json_encode($invs));
+	}
+
+	private function removeUserInvitation(string $targetUid, string $filterId): void {
+		$folder = $this->invitationsFolder();
+		try {
+			$file = $folder->getFile($targetUid . '.json');
+			$invs = json_decode($file->getContent(), true) ?: [];
+			unset($invs[$filterId]);
+			$folder->newFile($targetUid . '.json', json_encode($invs));
+		} catch (\Throwable) {
+		}
+	}
+
+	public function invitationsForUser(string $uid): array {
+		$folder = $this->invitationsFolder();
+		try {
+			$file = $folder->getFile($uid . '.json');
+			$invs = json_decode($file->getContent(), true) ?: [];
+		} catch (\Throwable) {
+			return [];
+		}
+		$out = [];
+		$changed = false;
+		foreach ($invs as $filterId => $inv) {
+			try {
+				$filter = $this->getFilter($filterId);
+				if (isset($filter['invitations'][$uid])) {
+					$out[] = [
+						'id' => $filterId,
+						'filterId' => $filterId,
+						'owner' => $filter['owner'],
+						'ownerName' => $this->userName($filter['owner']),
+						'role' => $filter['invitations'][$uid]['role'] ?? $inv['role'] ?? 'editor',
+						'invitedAt' => (int)($filter['invitations'][$uid]['invitedAt'] ?? $inv['invitedAt'] ?? time()),
+					];
+				} else {
+					unset($invs[$filterId]);
+					$changed = true;
+				}
+			} catch (\Throwable) {
+				unset($invs[$filterId]);
+				$changed = true;
+			}
+		}
+		if ($changed) {
+			try {
+				$folder->newFile($uid . '.json', json_encode($invs));
+			} catch (\Throwable) {
+			}
+		}
+		return $out;
 	}
 
 	/** @return array<int, true> the files that count as sensitive for $uid right now */
@@ -229,15 +611,18 @@ class SensitiveContent {
 		return $this->withLock($uid, function () use ($uid, $filtered) {
 			$data = $this->get($uid);
 			$previous = [];
+			$nowTime = time();
+			$data['markTimes'] ??= [];
 			foreach ($filtered as $id => $on) {
 				$previous[$id] = isset($data['marks'][$id]) ? (bool)$data['marks'][$id] : null;
 				if ($on === null) {
-					unset($data['marks'][$id]);
+					unset($data['marks'][$id], $data['markTimes'][$id]);
 				} else {
 					$data['marks'][$id] = $on;
+					$data['markTimes'][$id] = $nowTime;
 				}
 			}
-			$data['marksChanged'] = time();
+			$data['marksChanged'] = $nowTime;
 			$this->save($uid, $data);
 			$this->logger->debug('Sensitive: {uid} marked {n} files ({on} sensitive, {off} not, {cleared} cleared)', [
 				'app' => Application::APP_ID, 'uid' => $uid, 'n' => count($previous),
@@ -245,6 +630,14 @@ class SensitiveContent {
 				'off' => count(array_filter($filtered, fn ($on) => $on === false)),
 				'cleared' => count(array_filter($filtered, fn ($on) => $on === null)),
 			]);
+			$filterId = $this->filterId($uid);
+			if ($this->isFilterEditor($uid, $filterId)) {
+				$this->withFilterLock($filterId, function () use ($filterId, $nowTime) {
+					$filter = $this->getFilter($filterId);
+					$filter['modelChanged'] = $nowTime;
+					$this->saveFilter($filterId, $filter);
+				});
+			}
 			$flagged = $this->flagged($uid);
 			$now = [];
 			foreach (array_keys($previous) as $id) {
@@ -259,6 +652,10 @@ class SensitiveContent {
 	 * user picked in the results for $q) as its limit. A term already saved gets the new limit.
 	 */
 	public function setTerm(string $uid, string $q, string $assetId): void {
+		$filterId = $this->filterId($uid);
+		if (!$this->isFilterEditor($uid, $filterId)) {
+			throw new \DomainException('Not allowed to edit terms of this filter');
+		}
 		$q = trim($q);
 		if ($q === '' || mb_strlen($q) > 200 || !preg_match('/^[0-9a-f-]{36}$/', $assetId)) {
 			throw new \InvalidArgumentException('Term or picture missing');
@@ -273,36 +670,78 @@ class SensitiveContent {
 		if ($sim === false) {
 			throw new \InvalidArgumentException('Immich has no search data for this picture');
 		}
-		$this->withLock($uid, function () use ($uid, $q, $sim, $model) {
-			$data = $this->get($uid);
-			$terms = array_values(array_filter($data['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower($q)));
+		$this->withFilterLock($filterId, function () use ($filterId, $q, $sim, $model) {
+			$filter = $this->getFilter($filterId);
+			$terms = array_values(array_filter($filter['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower($q)));
 			if (count($terms) >= self::MAX_TERMS) {
 				throw new \InvalidArgumentException('Too many terms');
 			}
 			// A hair below, so the picture itself is in
 			$terms[] = ['q' => $q, 'min' => round((float)$sim - 0.00005, 5), 'model' => $model];
-			$data['terms'] = $terms;
-			$this->save($uid, $data);
+			$filter['terms'] = $terms;
+			$filter['modelChanged'] = time();
+			$this->saveFilter($filterId, $filter);
 		});
 	}
 
 	public function removeTerm(string $uid, string $q): void {
-		$this->withLock($uid, function () use ($uid, $q) {
-			$data = $this->get($uid);
-			$data['terms'] = array_values(array_filter($data['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower(trim($q))));
-			$this->save($uid, $data);
+		$filterId = $this->filterId($uid);
+		if (!$this->isFilterEditor($uid, $filterId)) {
+			throw new \DomainException('Not allowed to edit terms of this filter');
+		}
+		$this->withFilterLock($filterId, function () use ($filterId, $q) {
+			$filter = $this->getFilter($filterId);
+			$filter['terms'] = array_values(array_filter($filter['terms'], fn ($t) => mb_strtolower($t['q']) !== mb_strtolower(trim($q))));
+			$filter['modelChanged'] = time();
+			$this->saveFilter($filterId, $filter);
 		});
 	}
 
 	/** For the settings: the terms with what each brings in, marks, and what marks moved. */
 	public function status(string $uid): array {
 		$data = $this->get($uid);
+		$filterId = $this->filterId($uid);
+		$filter = $this->getFilter($filterId);
 		$marks = $this->bools($data['marks']);
 		$model = null;
 		try {
 			$model = $this->model();
 		} catch (\Throwable) {
 		}
+		$role = $this->roleInFilter($uid, $filterId);
+		$isOwner = $this->isFilterOwner($uid, $filterId);
+
+		$membersList = [];
+		$contributors = [];
+		foreach ($filter['members'] as $mUid => $mRole) {
+			$name = $this->userName($mUid);
+			$membersList[] = [
+				'uid' => $mUid,
+				'name' => $name,
+				'role' => $mRole,
+			];
+			$mData = $this->get($mUid);
+			$mMarks = $this->bools($mData['marks'] ?? []);
+			$pos = count(array_filter($mMarks));
+			$contributors[] = [
+				'uid' => $mUid,
+				'name' => $name,
+				'role' => $mRole,
+				'marked' => $pos,
+				'unmarked' => count($mMarks) - $pos,
+			];
+		}
+
+		$sentInvitations = [];
+		foreach ($filter['invitations'] as $invUid => $inv) {
+			$sentInvitations[] = [
+				'uid' => $invUid,
+				'name' => $this->userName($invUid),
+				'role' => $inv['role'] ?? 'editor',
+				'invitedAt' => (int)($inv['invitedAt'] ?? 0),
+			];
+		}
+
 		return [
 			'built' => $data['built'] ?: null,
 			'error' => $data['error'],
@@ -311,27 +750,45 @@ class SensitiveContent {
 				'count' => (int)($data['counts'][$t['q']] ?? 0),
 				// Made with another search model: its limit means nothing now, set it again
 				'stale' => $model !== null && ($t['model'] ?? '') !== $model,
-			], $data['terms']),
+			], $filter['terms']),
 			'flagged' => count($this->flagged($uid)),
 			'change' => $data['change'] ?? null,
 			'marked' => count(array_filter($marks)),
 			'unmarked' => count($marks) - count(array_filter($marks)),
 			// What the SVM learns from, and what it brings in on top of the terms
 			// The marks as they are now (the model learns from them with the next build)
-			'learned' => ['positives' => count(array_filter($marks)), 'negatives' => count($marks) - count(array_filter($marks))],
+			'learned' => [
+				'positives' => (int)($filter['learned'][0] ?? 0),
+				'negatives' => (int)($filter['learned'][1] ?? 0),
+			],
 			'minPositive' => SensitiveModel::MIN_POSITIVE,
-			'model' => $data['svm'] !== null,
+			'model' => $filter['svm'] !== null,
 			'byModel' => (int)$data['byModel'],
+			'filter' => [
+				'id' => $filterId,
+				'owner' => $filter['owner'],
+				'ownerName' => $this->userName($filter['owner']),
+				'role' => $role,
+				'members' => $isOwner ? $membersList : null,
+				'invitations' => $isOwner ? $sentInvitations : [],
+				'shared' => count($filter['members']) > 1,
+				'contributors' => $contributors,
+			],
+			'invitations' => $this->invitationsForUser($uid),
 		];
 	}
 
 	/** Has anything changed that the last build did not see (pictures, model, marks)? */
 	public function needsRebuild(string $uid): bool {
 		$data = $this->get($uid);
+		$filterId = $this->filterId($uid);
+		$filter = $this->getFilter($filterId);
 		return $data['built'] === 0
 			|| $data['built'] < time() - self::MAX_AGE
 			|| ($data['marksChanged'] ?? 0) > $data['built']
-			|| $data['signature'] !== $this->signature();
+			|| $data['signature'] !== $this->signature()
+			|| ($filter['built'] ?? 0) > $data['built']
+			|| $this->filterNeedsTraining($filter, $this->signature());
 	}
 
 	/**
@@ -343,12 +800,25 @@ class SensitiveContent {
 	 */
 	public function rebuild(string $uid): array {
 		$buildStart = time();
-		$data = $this->get($uid);
+		$filterId = $this->filterId($uid);
+		$userData = $this->get($uid);
 		try {
 			$signature = $this->signature();
 			$model = $this->model();
 			$pdo = $this->db->pdo('120s');
-			$terms = array_values(array_filter($data['terms'], fn ($t) => ($t['model'] ?? '') === $model));
+
+			// Check if filter model needs training
+			$filter = $this->getFilter($filterId);
+			$this->withFilterLock($filterId, function () use ($filterId, $pdo, $signature, &$filter) {
+				$filter = $this->getFilter($filterId);
+				if ($this->filterNeedsTraining($filter, $signature)) {
+					$filter = $this->trainFilter($pdo, $filter, $signature);
+					$this->saveFilter($filterId, $filter);
+				}
+			});
+
+			$terms = array_values(array_filter($filter['terms'], fn ($t) => ($t['model'] ?? '') === $model));
+			$svm = $filter['svm'];
 			$rows = [];
 			// Seconds per part, kept for finding what is slow
 			$took = [];
@@ -362,44 +832,25 @@ class SensitiveContent {
 			$time('terms');
 
 			// What earlier builds found out about files and assets, while the pictures are the same
-			$fresh = $data['signature'] === $signature && $data['built'] >= time() - self::MAX_AGE;
-			$known = $data['markAssets'] ?? [];
-			$fileOf = $fresh ? ($data['fileOf'] ?? []) : [];
+			$fresh = $userData['signature'] === $signature && $userData['built'] >= time() - self::MAX_AGE;
+			$known = $userData['markAssets'] ?? [];
+			$fileOf = $fresh ? ($userData['fileOf'] ?? []) : [];
 			$fileAssets = [];
-			$markAssets = $this->markAssets($pdo, $uid, $this->bools($data['marks']), $fileAssets, $known);
+			$this->markAssets($pdo, $uid, $this->bools($userData['marks']), $fileAssets, $known);
 			$time('marks');
-			$positives = count(array_filter($markAssets));
-			$learned = [$positives, count($markAssets) - $positives];
-			$data['learned'] = $learned;
-			$key = md5(SensitiveModel::VERSION . '|' . $signature . '|' . json_encode($markAssets));
-			$before = $data['svm'];
-			$trained = null;
-			if ($positives < SensitiveModel::MIN_POSITIVE) {
-				$svm = null;
-			} elseif (($data['svm']['key'] ?? '') !== $key) {
-				// Marks the last model did not learn from: how it and the new one score them
-				$newMarks = array_diff_key($markAssets, $before['scored'] ?? []);
-				$trained = $this->train($pdo, $markAssets, $before, $newMarks);
-				$svm = !empty($trained['svm']['w'])
-					? $trained['svm'] + ['key' => $key, 'scored' => array_fill_keys(array_keys($markAssets), true)]
-					: null;
-			} else {
-				$svm = $data['svm'];
-			}
-			$data['svm'] = $svm;
-			$time('train');
+
 			$modelHits = $svm !== null ? $this->modelHits($pdo, $svm, $rows, $scope) : [];
 			$time('model');
 
 			[$auto, $counts, $byModel] = $this->toFiles($pdo, $uid, $hits, $modelHits, $byTerm, $terms, $rows, $fileAssets, $fileOf);
 			$time('files');
-			$data['took'] = $took;
+			$userData['took'] = $took;
 			// What this build changed, for the wizard ("12 more hidden, 3 fewer") and the log
-			$was = array_flip($data['auto'] ?? []);
+			$was = array_flip($userData['auto'] ?? []);
 			$now = array_flip($auto);
 			$change = ['added' => count(array_diff_key($now, $was)), 'removed' => count(array_diff_key($was, $now))];
-			$data['change'] = $change;
-			$this->logBuild($uid, $data, $auto, $byModel, $trained);
+			$userData['change'] = $change;
+			$this->logBuild($uid, $userData, $auto, $byModel, null);
 
 			$computed = [
 				'auto' => $auto,
@@ -407,7 +858,7 @@ class SensitiveContent {
 				'counts' => $counts,
 				'byModel' => $byModel,
 				'svm' => $svm,
-				'learned' => $learned,
+				'learned' => $filter['learned'] ?? [0, 0],
 				'signature' => $signature,
 				'markAssets' => $known,
 				'fileOf' => $fileOf,
@@ -423,6 +874,8 @@ class SensitiveContent {
 				}
 				$this->save($uid, $current);
 			});
+
+			$this->queueOtherMembers($filter, $uid);
 		} catch (\Throwable $e) {
 			$this->withLock($uid, function () use ($uid, $e, $buildStart) {
 				$current = $this->get($uid);
@@ -950,7 +1403,7 @@ class SensitiveContent {
 	}
 
 	private function withLock(string $uid, callable $fn): mixed {
-		$key = 'glimpse/sensitive/' . $uid;
+		$key = 'glimpse/sensitive/user/' . $uid;
 		if ($this->locks !== null) {
 			$this->locks->acquireLock($key, ILockingProvider::LOCK_EXCLUSIVE, 'Glimpse: sensitive ' . $uid);
 		}
@@ -962,6 +1415,145 @@ class SensitiveContent {
 				$this->locks->releaseLock($key, ILockingProvider::LOCK_EXCLUSIVE);
 			}
 		}
+	}
+
+	private function withFilterLock(string $filterId, callable $fn): mixed {
+		$key = 'glimpse/sensitive/filter/' . $filterId;
+		if ($this->locks !== null) {
+			$this->locks->acquireLock($key, ILockingProvider::LOCK_EXCLUSIVE, 'Glimpse: sensitive filter ' . $filterId);
+		}
+		try {
+			unset($this->filterCache[$filterId]);
+			return $fn();
+		} finally {
+			if ($this->locks !== null) {
+				$this->locks->releaseLock($key, ILockingProvider::LOCK_EXCLUSIVE);
+			}
+		}
+	}
+
+	private function filterNeedsTraining(array $filter, string $signature): bool {
+		if ($filter['built'] === 0 || $filter['built'] < time() - self::MAX_AGE || $filter['signature'] !== $signature || ($filter['modelChanged'] ?? 0) > $filter['built']) {
+			return true;
+		}
+		foreach ($filter['members'] as $mUid => $role) {
+			if (in_array($role, ['owner', 'editor'], true)) {
+				$mData = $this->get($mUid);
+				if (($mData['marksChanged'] ?? 0) > $filter['built']) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private function trainFilter(\PDO $pdo, array $filter, string $signature): array {
+		$trainingMembers = [];
+		foreach ($filter['members'] as $mUid => $role) {
+			if (in_array($role, ['owner', 'editor'], true)) {
+				$trainingMembers[] = $mUid;
+			}
+		}
+		if (!in_array($filter['owner'], $trainingMembers, true)) {
+			$trainingMembers[] = $filter['owner'];
+		}
+		$trainingMembers = array_values(array_unique($trainingMembers));
+
+		$pooledMarkAssets = [];
+		$pooledMarkTimes = [];
+		foreach ($trainingMembers as $mUid) {
+			$mData = $this->get($mUid);
+			$mMarks = $this->bools($mData['marks'] ?? []);
+			if ($mMarks === []) {
+				continue;
+			}
+			$mFileAssets = [];
+			$mKnown = $mData['markAssets'] ?? [];
+			$mMarkAssets = $this->markAssets($pdo, $mUid, $mMarks, $mFileAssets, $mKnown);
+			$mMarkTimes = $mData['markTimes'] ?? [];
+			$mDefaultTime = (int)($mData['marksChanged'] ?? 0);
+			foreach ($mMarkAssets as $assetId => $on) {
+				$fileId = array_search($assetId, $mFileAssets, true);
+				$time = ($fileId !== false && isset($mMarkTimes[$fileId])) ? (int)$mMarkTimes[$fileId] : $mDefaultTime;
+				if (!isset($pooledMarkAssets[$assetId]) || $time > $pooledMarkTimes[$assetId]) {
+					$pooledMarkAssets[$assetId] = $on;
+					$pooledMarkTimes[$assetId] = $time;
+				}
+			}
+		}
+
+		$positives = count(array_filter($pooledMarkAssets));
+		$learned = [$positives, count($pooledMarkAssets) - $positives];
+		$filter['learned'] = $learned;
+		$key = md5(SensitiveModel::VERSION . '|' . $signature . '|' . json_encode($pooledMarkAssets));
+		$before = $filter['svm'];
+		if ($positives < SensitiveModel::MIN_POSITIVE) {
+			$svm = null;
+		} elseif (($filter['svm']['key'] ?? '') !== $key) {
+			$newMarks = array_diff_key($pooledMarkAssets, $before['scored'] ?? []);
+			$trained = $this->train($pdo, $pooledMarkAssets, $before, $newMarks);
+			$svm = !empty($trained['svm']['w'])
+				? $trained['svm'] + ['key' => $key, 'scored' => array_fill_keys(array_keys($pooledMarkAssets), true)]
+				: null;
+		} else {
+			$svm = $filter['svm'];
+		}
+		$filter['svm'] = $svm;
+		$filter['signature'] = $signature;
+		$filter['built'] = time();
+		return $filter;
+	}
+
+	private function queueOtherMembers(array $filter, string $actingUid): void {
+		if ($this->jobs === null) {
+			return;
+		}
+		$filterId = $filter['id'];
+		foreach (array_keys($filter['members']) as $mUid) {
+			if ($mUid !== $actingUid && $this->isEnabled($mUid) && $this->filterId($mUid) === $filterId) {
+				if (!$this->jobs->has(RebuildSensitive::class, ['uid' => $mUid])) {
+					$this->jobs->add(RebuildSensitive::class, ['uid' => $mUid]);
+				}
+			}
+		}
+	}
+
+	private function filtersFolder(): ISimpleFolder {
+		$sensitive = $this->folder(self::FOLDER);
+		try {
+			$filters = $sensitive->getFolder(self::FILTERS_FOLDER);
+			if ($filters instanceof ISimpleFolder) {
+				return $filters;
+			}
+		} catch (\Throwable) {
+		}
+		try {
+			$filters = $sensitive->newFolder(self::FILTERS_FOLDER);
+			if ($filters instanceof ISimpleFolder) {
+				return $filters;
+			}
+		} catch (\Throwable) {
+		}
+		return $this->folder('sensitive-filters');
+	}
+
+	private function invitationsFolder(): ISimpleFolder {
+		$sensitive = $this->folder(self::FOLDER);
+		try {
+			$invs = $sensitive->getFolder(self::INVITATIONS_FOLDER);
+			if ($invs instanceof ISimpleFolder) {
+				return $invs;
+			}
+		} catch (\Throwable) {
+		}
+		try {
+			$invs = $sensitive->newFolder(self::INVITATIONS_FOLDER);
+			if ($invs instanceof ISimpleFolder) {
+				return $invs;
+			}
+		} catch (\Throwable) {
+		}
+		return $this->folder('sensitive-invitations');
 	}
 
 	private function folder(string $name): ISimpleFolder {

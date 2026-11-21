@@ -327,6 +327,34 @@ export async function rebuildSensitive() {
 	return (await axios.post(url('/api/sensitive/rebuild'))).data
 }
 
+export async function inviteSensitiveMember(uid, role = 'editor') {
+	return (await axios.post(url('/api/sensitive/filter/members'), { uid, role })).data
+}
+
+export async function updateSensitiveMemberRole(memberUid, role) {
+	return (await axios.put(url(`/api/sensitive/filter/members/${seg(memberUid)}`), { role })).data
+}
+
+export async function removeSensitiveMember(memberUid) {
+	return (await axios.delete(url(`/api/sensitive/filter/members/${seg(memberUid)}`))).data
+}
+
+export async function leaveSensitiveFilter() {
+	return (await axios.post(url('/api/sensitive/filter/leave'))).data
+}
+
+export async function switchSensitiveFilter(id) {
+	return (await axios.post(url('/api/sensitive/filter/switch'), { id })).data
+}
+
+export async function acceptSensitiveInvitation(id) {
+	return (await axios.post(url('/api/sensitive/invitations/accept'), { id })).data
+}
+
+export async function declineSensitiveInvitation(id) {
+	return (await axios.post(url('/api/sensitive/invitations/decline'), { id })).data
+}
+
 export async function checkSensitive() {
 	return (await axios.get(url('/api/admin/sensitive-check'))).data
 }
