@@ -3,6 +3,12 @@
 All notable changes. Format: [Keep a Changelog](https://keepachangelog.com/), versions follow
 `appinfo/info.xml`.
 
+## [4.13.3] - 2026-11-21
+
+### Fixed
+- Immich unreachable after Nextcloud 35.0.3 ("violates local access rules"): requests to the
+  Immich and machine-learning addresses the admin set now allow local network addresses.
+
 ## [4.13.2] - 2026-11-19
 
 ### Fixed

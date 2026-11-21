@@ -924,6 +924,7 @@ class SensitiveContent {
 		$resp = $this->clients->newClient()->post($base . '/predict', [
 			'form_params' => ['entries' => json_encode(['clip' => ['textual' => ['modelName' => $model]]]), 'text' => $text],
 			'timeout' => 120,
+			'nextcloud' => ['allow_local_address' => true],
 		]);
 		$clip = json_decode((string)$resp->getBody(), true)['clip'] ?? null;
 		$vector = is_string($clip) ? json_decode($clip, true) : $clip;
