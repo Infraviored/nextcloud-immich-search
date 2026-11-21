@@ -53,4 +53,20 @@ class ImmichClientTest extends TestCase {
 		$this->expectException(ImmichException::class);
 		$this->client(200, '<html>Proxy login</html>')->jsonWith('http://immich', 'k', 'GET', '/search');
 	}
+
+	public function testAllowsTheLocalAddressTheAdminSet(): void {
+		$resp = $this->createMock(IResponse::class);
+		$resp->method('getStatusCode')->willReturn(200);
+		$resp->method('getBody')->willReturn('{}');
+		$http = $this->createMock(IClient::class);
+		$http->expects($this->once())->method('get')
+			->with('http://192.168.178.2:2283/api/x', $this->callback(fn ($o) => ($o['nextcloud']['allow_local_address'] ?? false) === true))
+			->willReturn($resp);
+		$service = $this->createMock(IClientService::class);
+		$service->method('newClient')->willReturn($http);
+		$l = $this->createMock(IL10N::class);
+		$l->method('t')->willReturnArgument(0);
+		(new ImmichClient($this->createMock(Config::class), $service, $l, $this->createMock(LoggerInterface::class)))
+			->jsonWith('http://192.168.178.2:2283', 'k', 'GET', '/x');
+	}
 }

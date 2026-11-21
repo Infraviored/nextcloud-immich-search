@@ -91,7 +91,7 @@ class IndexAdmin {
 		}
 		$start = microtime(true);
 		try {
-			$resp = $this->clientService->newClient()->get(rtrim($url, '/') . '/ping', ['timeout' => 3, 'http_errors' => false]);
+			$resp = $this->clientService->newClient()->get(rtrim($url, '/') . '/ping', ['timeout' => 3, 'http_errors' => false, 'nextcloud' => ['allow_local_address' => true]]);
 			$ok = $resp->getStatusCode() === 200 && str_contains((string)$resp->getBody(), 'pong');
 			return ['state' => $ok ? 'ok' : 'down', 'ms' => (int)((microtime(true) - $start) * 1000)];
 		} catch (\Throwable) {

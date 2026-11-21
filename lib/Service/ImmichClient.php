@@ -92,6 +92,9 @@ class ImmichClient {
 		if ($url === '') {
 			throw new ImmichException($this->l->t('Glimpse is not set up yet'), 412);
 		}
+		// The admin set this address; it is usually on the local network, which Nextcloud's
+		// HTTP client refuses since 35.0.3 unless allowed per request.
+		$options['nextcloud']['allow_local_address'] = true;
 		$client = $this->clientService->newClient();
 		try {
 			$resp = match ($method) {
